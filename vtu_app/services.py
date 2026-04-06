@@ -63,6 +63,13 @@ class MonnifyService:
         
         try:
             response = requests.post(url, headers=headers, proxies=self.proxy, timeout=15)
+            
+            # Temporary Debug Prints
+            print("--- MONNIFY RAW AUTH RESPONSE ---")
+            print(f"Status Code: {response.status_code}")
+            print(f"RAW TEXT: {response.text}")
+            print("---------------------------------")
+            
             res_data = response.json()
             
             # Check if login was successful
@@ -70,7 +77,7 @@ class MonnifyService:
                 return res_data['responseBody']['accessToken']
             else:
                 # This will show in your Django messages
-                raise Exception(f"Login Failed: {res_data.get('responseMessage', 'Check API Keys')}")
+                raise Exception(f"Login Failed: {res_data.get('responseMessage', response.text)}")
                 
         except requests.exceptions.ProxyError:
             raise Exception("PythonAnywhere Proxy Blocked this request. Is Monnify Whitelisted?")
