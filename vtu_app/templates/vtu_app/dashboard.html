@@ -23,9 +23,9 @@
                     </button>
                 </div>
                 <div class="col-6 col-sm-3 text-center">
-                    <button class="btn btn-light w-100 py-3 shadow-sm border">
+                    <button class="btn btn-light w-100 py-3 shadow-sm border" data-bs-toggle="modal" data-bs-target="#dataModal">
                         <div class="mb-2">🌐</div>
-                        <small class="fw-bold">Data</small>
+                        <small class="fw-bold">Buy Data</small>
                     </button>
                 </div>
                 <div class="col-6 col-sm-3 text-center">
@@ -73,4 +73,41 @@
         </div>
     </div>
 </div>
+
+<div class="modal fade" id="dataModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content glass-card">
+            <div class="modal-header border-0">
+                <h5 class="fw-bold">Purchase Data Bundle</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form method="POST" action="{% url 'buy_data' %}">
+                    {% csrf_token %}
+                    {{ form|crispy }}
+                    <button type="submit" class="btn btn-primary w-100 py-3 mt-3 fw-bold">Buy Now</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    const planData = {{ plan_data_json|safe }};
+    const networkSelect = document.getElementById('id_network');
+    const planSelect = document.getElementById('id_plan');
+
+    networkSelect.addEventListener('change', (e) => {
+        const selectedNetwork = e.target.value;
+        planSelect.innerHTML = '<option value="">Select Plan</option>';
+        
+        if (planData[selectedNetwork]) {
+            planData[selectedNetwork].forEach(plan => {
+                const option = new Option(plan[1], plan[0]);
+                planSelect.add(option);
+            });
+        }
+    });
+</script>
+
 {% endblock %}
