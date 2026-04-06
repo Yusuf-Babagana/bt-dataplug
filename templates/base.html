@@ -1,3 +1,4 @@
+{% load static %}
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -61,7 +62,9 @@
 
     {% if user.is_authenticated %}
     <div class="sidebar">
-        <h4 class="text-center fw-bold text-primary mb-4">BT DataPlug</h4>
+        <div class="text-center mb-4">
+            <img src="{% static 'logo.png' %}" alt="BT DataPlug Logo" style="max-height: 50px; width: auto;" onerror="this.onerror=null; this.outerHTML='<h4 class=\'fw-bold text-primary\'>BT DataPlug</h4>';">
+        </div>
         <a href="{% url 'dashboard' %}" class="nav-item-custom active"><i class="fa fa-home me-2"></i> Dashboard</a>
         <a href="#" class="nav-item-custom"><i class="fa fa-wallet me-2"></i> Fund Wallet</a>
         <a href="#" class="nav-item-custom"><i class="fa fa-history me-2"></i> Transactions</a>
@@ -79,7 +82,9 @@
     {% if not user.is_authenticated %}
     <nav class="navbar navbar-expand-lg navbar-dark shadow-sm mb-5" style="background: linear-gradient(135deg, #2563eb 0%, #1e40af 100%);">
         <div class="container py-2">
-            <a class="navbar-brand fw-bold fs-4" href="{% url 'login' %}"><i class="fa fa-plug me-2"></i>BT DataPlug</a>
+            <a class="navbar-brand" href="{% url 'login' %}">
+                <img src="{% static 'logo.png' %}" alt="BT DataPlug Logo" style="max-height: 40px; width: auto;" onerror="this.onerror=null; this.outerHTML='<span class=\'fw-bold fs-4\'><i class=\'fa fa-plug me-2\'></i>BT DataPlug</span>';">
+            </a>
             <div class="ms-auto d-flex gap-2">
                 <a href="{% url 'login' %}" class="btn btn-outline-light border-0 fw-bold">Login</a>
                 <a href="{% url 'register' %}" class="btn btn-light text-primary fw-bold px-4 rounded-pill shadow-sm">Sign Up</a>
