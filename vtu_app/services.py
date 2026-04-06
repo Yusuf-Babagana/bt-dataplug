@@ -45,44 +45,39 @@ class ClubKonnectService:
 
 class MonnifyService:
     def __init__(self):
-        self.api_key = settings.MONNIFY_API_KEY
-        self.secret_key = settings.MONNIFY_SECRET_KEY
-        self.base_url = settings.MONNIFY_BASE_URL
+        # Always use os.getenv to pull from your .env file
+        self.api_key = os.getenv('MONNIFY_API_KEY')
+        self.secret_key = os.getenv('MONNIFY_SECRET_KEY')
+        self.base_url = "https://api.monnify.com" # Live URL
         
+        # PythonAnywhere Proxy
         self.proxy = {
             "http": "http://proxy.server:3128",
             "https": "http://proxy.server:3128",
         }
 
     def get_auth_token(self):
-        """Generates the required Bearer Token for Monnify requests"""
         auth_str = f"{self.api_key}:{self.secret_key}"
         encoded_auth = base64.b64encode(auth_str.encode()).decode()
         url = f"{self.base_url}/api/v1/auth/login"
-        headers = {'Authorization': f'Basic {encoded_auth}'}
+        headers = {
+            'Authorization': f'Basic {encoded_auth}',
+            'Content-Type': 'application/json'
+        }
         
         try:
-            response = requests.post(url, headers=headers, proxies=self.proxy, timeout=15)
-            
-            # Temporary Debug Prints
-            print("--- MONNIFY RAW AUTH RESPONSE ---")
-            print(f"Status Code: {response.status_code}")
-            print(f"RAW TEXT: {response.text}")
-            print("---------------------------------")
-            
+            # We must use the proxy on PythonAnywhere Free Tier
+            response = requests.post(url, headers=headers, proxies=self.proxy, timeout=20)
             res_data = response.json()
             
-            # Check if login was successful
             if response.status_code == 200 and res_data.get('requestSuccessful'):
                 return res_data['responseBody']['accessToken']
             else:
-                # This will show in your Django messages
-                raise Exception(f"Login Failed: {res_data.get('responseMessage', response.text)}")
-                
-        except requests.exceptions.ProxyError:
-            raise Exception("PythonAnywhere Proxy Blocked this request. Is Monnify Whitelisted?")
+                # This will help us see if it's "Invalid Client" or "IP Not Whitelisted"
+                msg = res_data.get('responseMessage', 'Check Credentials')
+                raise Exception(f"Monnify Login Failed: {msg}")
         except Exception as e:
-            raise Exception(f"Auth Error: {str(e)}")
+            raise Exception(f"Connection Error: {str(e)}")
 
     def reserve_account(self, user):
         """Creates a dedicated bank account for a user"""
