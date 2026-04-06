@@ -2,69 +2,195 @@
 {% load crispy_forms_tags %}
 
 {% block content %}
-<div class="row g-3">
-    <div class="col-6 col-md-3">
-        <div class="card border-0 shadow-sm text-center p-3" 
-             data-bs-toggle="modal" 
-             data-bs-target="#dataModal" 
-             style="cursor: pointer; transition: 0.3s;"
-             onmouseover="this.style.backgroundColor='#f0f4ff'" 
-             onmouseout="this.style.backgroundColor='white'">
-            <div class="icon-box bg-primary-subtle text-primary mx-auto">
-                <i class="fa fa-wifi fa-lg"></i>
-            </div>
-            <p class="small fw-bold mb-0">Buy Data</p>
-        </div>
-    </div>
-    <div class="col-6 col-md-3">
-        <div class="card border-0 shadow-sm text-center p-3" style="cursor: pointer;">
-            <div class="icon-box bg-success-subtle text-success mx-auto">
-                <i class="fa fa-phone fa-lg"></i>
-            </div>
-            <p class="small fw-bold mb-0">Buy Airtime</p>
-        </div>
-    </div>
-    <div class="col-6 col-md-3">
-        <div class="card border-0 shadow-sm text-center p-3" style="cursor: pointer;">
-            <div class="icon-box bg-warning-subtle text-warning mx-auto">
-                <i class="fa fa-tv fa-lg"></i>
-            </div>
-            <p class="small fw-bold mb-0">Cable TV</p>
-        </div>
-    </div>
-    <div class="col-6 col-md-3">
-        <div class="card border-0 shadow-sm text-center p-3" style="cursor: pointer;">
-            <div class="icon-box bg-danger-subtle text-danger mx-auto">
-                <i class="fa fa-bolt fa-lg"></i>
-            </div>
-            <p class="small fw-bold mb-0">Electricity</p>
+<div class="row mb-3">
+    <div class="col-12">
+        <h4 class="fw-bold fs-3">Welcome back, {{ user.username }}!</h4>
+        <div class="alert alert-success border-0 shadow-sm rounded-3 py-2 px-3 fw-bold small">
+            <i class="fa fa-check-circle me-2"></i> Your account has been verified successfully.
         </div>
     </div>
 </div>
 
-<div class="card border-0 shadow-sm mb-4">
+<div class="card border-0 shadow-sm glass-card mb-4 mt-2">
     <div class="card-body">
-        <h6 class="fw-bold text-primary">Automated Funding Accounts</h6>
-        <p class="small text-muted">Transfer to any of these accounts to fund your wallet instantly.</p>
-        <div class="row">
-            {% for account in user_accounts %}
-            <div class="col-md-6 mb-2">
-                <div class="p-3 border rounded bg-light">
-                    <small class="text-uppercase fw-bold">{{ account.bankName }}</small>
-                    <h5 class="mb-0">{{ account.accountNumber }}</h5>
-                    <small>{{ account.accountName }}</small>
+        <h6 class="fw-bold text-dark mb-3">Automated Bank Transfer 👇👇👇</h6>
+        <p class="small text-muted mb-4">Make a transfer to this unique Account Number given to you and your wallet will be credited imediately.</p>
+        
+        {% if user.profile.bank_accounts %}
+            {% for account in user.profile.bank_accounts %}
+            <div class="bg-light border rounded p-3 mb-3">
+                <div class="d-flex flex-column gap-2">
+                    <div class="d-flex flex-wrap align-items-center">
+                        <span class="text-muted small fw-bold me-2" style="width:120px;">Account Number:</span>
+                        <h5 class="mb-0 fw-bold text-primary">{{ account.accountNumber }}</h5> 
+                        <i class="fa fa-copy text-primary ms-2" style="cursor:pointer;" onclick="copyToClipboard('{{ account.accountNumber }}')"></i>
+                    </div>
+                    <div class="d-flex flex-wrap align-items-center">
+                        <span class="text-muted small fw-bold me-2" style="width:120px;">Bank Name:</span>
+                        <span class="fw-bold text-dark text-uppercase">{{ account.bankName }}</span>
+                    </div>
+                    <div class="d-flex flex-wrap align-items-center">
+                        <span class="text-muted small fw-bold me-2" style="width:120px;">Account Name:</span>
+                        <span class="fw-bold text-dark text-uppercase">{{ account.accountName }}</span>
+                    </div>
                 </div>
             </div>
             {% endfor %}
+            <p class="small text-danger fw-bold mt-2"><i class="fa fa-info-circle me-1"></i> Charges: 1% capped at 50 naira</p>
+        {% else %}
+            <div class="text-center py-4 bg-light rounded">
+                <div class="spinner-border text-primary spinner-border-sm mb-2" role="status"></div>
+                <p class="text-muted small mb-0">Generating your accounts... Please refresh in a moment.</p>
+            </div>
+        {% endif %}
+    </div>
+</div>
+
+<div class="row g-3 mb-4">
+    <div class="col-12 col-md-4">
+        <div class="card border-0 shadow-sm bg-primary text-white p-4 h-100 rounded-4">
+            <div class="d-flex justify-content-between align-items-center mb-1">
+                <span class="small text-white-50 fw-bold">Wallet Balance</span>
+                <i class="fa fa-wallet text-white-50"></i>
+            </div>
+            <h3 class="fw-bold mb-0">₦{{ user_wallet|default:"0.00" }}</h3>
+        </div>
+    </div>
+    <div class="col-6 col-md-4">
+        <div class="card border-0 shadow-sm p-4 h-100 rounded-4" style="background-color: #f1f5f9;">
+            <div class="d-flex justify-content-between align-items-center mb-1">
+                <span class="small text-muted fw-bold">Earning Balance</span>
+                <i class="fa fa-chart-line text-muted opacity-50"></i>
+            </div>
+            <h4 class="fw-bold mb-0 text-dark">₦0.00</h4>
+        </div>
+    </div>
+    <div class="col-6 col-md-4">
+        <div class="card border-0 shadow-sm p-4 h-100 rounded-4" style="background-color: #f1f5f9;">
+            <div class="d-flex justify-content-between align-items-center mb-1">
+                <span class="small text-muted fw-bold">Data Purchased Today</span>
+                <i class="fa fa-wifi text-muted opacity-50"></i>
+            </div>
+            <h4 class="fw-bold mb-0 text-dark">0GB</h4>
         </div>
     </div>
 </div>
 
-<div class="card border-0 shadow-sm mt-4 p-3">
-    <h6 class="fw-bold">Referral Link</h6>
+<style>
+.action-card {
+    cursor: pointer;
+    border-radius: 16px !important;
+    border: 1px solid rgba(0,0,0,0.02) !important;
+}
+.action-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto;
+}
+</style>
+
+<div class="row g-3">
+    <!-- Buy Data -->
+    <div class="col-4 col-md-3 col-lg-2 text-center">
+        <div class="card shadow-sm p-3 action-card h-100" data-bs-toggle="modal" data-bs-target="#dataModal">
+            <div class="action-icon bg-primary-subtle text-primary mb-2">
+                <i class="fa fa-wifi fa-lg"></i>
+            </div>
+            <p class="small fw-bold mb-0" style="font-size: 0.75rem;">Buy Data</p>
+        </div>
+    </div>
+    <!-- Buy Airtime -->
+    <div class="col-4 col-md-3 col-lg-2 text-center">
+        <div class="card shadow-sm p-3 action-card h-100">
+            <div class="action-icon bg-success-subtle text-success mb-2">
+                <i class="fa fa-phone fa-lg"></i>
+            </div>
+            <p class="small fw-bold mb-0" style="font-size: 0.75rem;">Buy Airtime</p>
+        </div>
+    </div>
+    <!-- Airtime 2 Cash -->
+    <div class="col-4 col-md-3 col-lg-2 text-center">
+        <div class="card shadow-sm p-3 action-card h-100">
+            <div class="action-icon bg-info-subtle text-info mb-2">
+                <i class="fa fa-exchange-alt fa-lg"></i>
+            </div>
+            <p class="small fw-bold mb-0" style="font-size: 0.75rem;">Airtime 2 Cash</p>
+        </div>
+    </div>
+    <!-- Electricity Bill -->
+    <div class="col-4 col-md-3 col-lg-2 text-center">
+        <div class="card shadow-sm p-3 action-card h-100">
+            <div class="action-icon bg-danger-subtle text-danger mb-2">
+                <i class="fa fa-bolt fa-lg"></i>
+            </div>
+            <p class="small fw-bold mb-0" style="font-size: 0.75rem;">Electricity Bill</p>
+        </div>
+    </div>
+    <!-- Cable Subscription -->
+    <div class="col-4 col-md-3 col-lg-2 text-center">
+        <div class="card shadow-sm p-3 action-card h-100">
+            <div class="action-icon bg-warning-subtle text-warning mb-2">
+                <i class="fa fa-tv fa-lg"></i>
+            </div>
+            <p class="small fw-bold mb-0" style="font-size: 0.75rem;">Cable Sub</p>
+        </div>
+    </div>
+    <!-- Bonus Transfer -->
+    <div class="col-4 col-md-3 col-lg-2 text-center">
+        <div class="card shadow-sm p-3 action-card h-100">
+            <div class="action-icon bg-secondary-subtle text-secondary mb-2">
+                <i class="fa fa-gift fa-lg"></i>
+            </div>
+            <p class="small fw-bold mb-0" style="font-size: 0.75rem;">Bonus Transfer</p>
+        </div>
+    </div>
+    <!-- Bulk SMS -->
+    <div class="col-4 col-md-3 col-lg-2 text-center">
+        <div class="card shadow-sm p-3 action-card h-100">
+            <div class="action-icon bg-dark-subtle text-dark mb-2">
+                <i class="fa fa-comments fa-lg"></i>
+            </div>
+            <p class="small fw-bold mb-0" style="font-size: 0.75rem;">Bulk SMS</p>
+        </div>
+    </div>
+    <!-- Result Checker -->
+    <div class="col-4 col-md-3 col-lg-2 text-center">
+        <div class="card shadow-sm p-3 action-card h-100">
+            <div class="action-icon bg-primary-subtle text-primary mb-2">
+                <i class="fa fa-graduation-cap fa-lg"></i>
+            </div>
+            <p class="small fw-bold mb-0" style="font-size: 0.75rem;">Result Checker</p>
+        </div>
+    </div>
+    <!-- Data Card Printing -->
+    <div class="col-4 col-md-3 col-lg-2 text-center">
+        <div class="card shadow-sm p-3 action-card h-100">
+            <div class="action-icon bg-success-subtle text-success mb-2">
+                <i class="fa fa-print fa-lg"></i>
+            </div>
+            <p class="small fw-bold mb-0" style="font-size: 0.75rem; line-height: 1.1;">Data Card<br>Printing</p>
+        </div>
+    </div>
+    <!-- Recharge Card Printing -->
+    <div class="col-4 col-md-3 col-lg-2 text-center">
+        <div class="card shadow-sm p-3 action-card h-100">
+            <div class="action-icon bg-danger-subtle text-danger mb-2">
+                <i class="fa fa-receipt fa-lg"></i>
+            </div>
+            <p class="small fw-bold mb-0" style="font-size: 0.75rem; line-height: 1.1;">Recharge Card<br>Printing</p>
+        </div>
+    </div>
+</div>
+
+<div class="card border-0 shadow-sm mt-4 p-3 rounded-4">
+    <h6 class="fw-bold text-dark">Referral Link</h6>
     <div class="input-group">
-        <input type="text" class="form-control" value="https://bt-dataplug.com/ref/{{ user.id }}" readonly>
-        <button class="btn btn-primary">Copy</button>
+        <input type="text" class="form-control bg-light" value="https://bt-dataplug.com/ref/{{ user.id }}" readonly>
+        <button class="btn btn-primary fw-bold px-4">Copy</button>
     </div>
 </div>
 
@@ -102,6 +228,11 @@
             });
         }
     });
+
+    function copyToClipboard(text) {
+        navigator.clipboard.writeText(text);
+        alert("Account number copied!");
+    }
 </script>
 
 {% endblock %}

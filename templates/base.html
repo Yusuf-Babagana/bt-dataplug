@@ -61,12 +61,14 @@
 <body>
 
     {% if user.is_authenticated %}
-    <div class="sidebar">
+    <div class="sidebar d-flex flex-column">
         <div class="text-center mb-4">
             <img src="{% static 'logo.png' %}" alt="BT DataPlug Logo" style="max-height: 50px; width: auto;" onerror="this.onerror=null; this.outerHTML='<h4 class=\'fw-bold text-primary\'>BT DataPlug</h4>';">
         </div>
+        <h6 class="text-uppercase text-muted px-4 small fw-bold mb-2">General</h6>
         <a href="{% url 'dashboard' %}" class="nav-item-custom active"><i class="fa fa-home me-2"></i> Dashboard</a>
         <a href="#" class="nav-item-custom"><i class="fa fa-wallet me-2"></i> Fund Wallet</a>
+        <h6 class="text-uppercase text-muted px-4 small fw-bold mt-4 mb-2">Management</h6>
         <a href="#" class="nav-item-custom"><i class="fa fa-history me-2"></i> Transactions</a>
         <div class="nav-item-custom">
             <form method="post" action="{% url 'logout' %}" id="logout-form" style="display: none;">
@@ -75,6 +77,13 @@
             <a href="javascript:void(0)" onclick="document.getElementById('logout-form').submit();" class="text-danger text-decoration-none">
                 <i class="fa fa-sign-out me-2"></i> Logout
             </a>
+        </div>
+        <div class="mt-auto p-4 mb-2">
+            <div class="bg-primary-subtle rounded p-3 text-center">
+                <h6 class="fw-bold text-primary mb-1">Hi, {{ user.username }}</h6>
+                <small class="text-dark">Need help?</small><br>
+                <a href="#" class="small fw-bold text-decoration-none">Please check our docs</a>
+            </div>
         </div>
     </div>
     {% endif %}
@@ -95,12 +104,7 @@
 
     <div class="{% if user.is_authenticated %}main-content{% else %}container{% endif %}">
         {% if user.is_authenticated %}
-        <nav class="d-flex justify-content-between align-items-center mb-4 bg-white p-3 rounded shadow-sm">
-            <h5 class="mb-0 fw-bold">Welcome, {{ user.username }}</h5>
-            <div class="d-flex align-items-center">
-                <span class="badge bg-primary-subtle text-primary p-2">₦{{ user_wallet|default:"0.00" }}</span>
-            </div>
-        </nav>
+        <!-- Top nav moved directly to dashboard to accommodate full-page intro alert -->
         {% endif %}
         
         {% block content %}{% endblock %}
