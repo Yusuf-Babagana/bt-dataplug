@@ -61,8 +61,21 @@ class MonnifyService:
         url = f"{self.base_url}/api/v1/auth/login"
         headers = {'Authorization': f'Basic {encoded_auth}'}
         
-        response = requests.post(url, headers=headers, proxies=self.proxy, timeout=10)
-        return response.json()['responseBody']['accessToken']
+        try:
+            response = requests.post(url, headers=headers, proxies=self.proxy, timeout=15)
+            res_data = response.json()
+            
+            # Check if login was successful
+            if response.status_code == 200 and res_data.get('requestSuccessful'):
+                return res_data['responseBody']['accessToken']
+            else:
+                # This will show in your Django messages
+                raise Exception(f"Login Failed: {res_data.get('responseMessage', 'Check API Keys')}")
+                
+        except requests.exceptions.ProxyError:
+            raise Exception("PythonAnywhere Proxy Blocked this request. Is Monnify Whitelisted?")
+        except Exception as e:
+            raise Exception(f"Auth Error: {str(e)}")
 
     def reserve_account(self, user):
         """Creates a dedicated bank account for a user"""
