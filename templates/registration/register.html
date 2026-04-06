@@ -1,0 +1,18 @@
+{% extends 'base.html' %}
+{% load crispy_forms_tags %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-5">
+        <div class="glass-card p-5">
+            <h3 class="fw-bold text-center mb-4">Join BT DataPlug</h3>
+            <form method="post">
+                {% csrf_token %}
+                {{ form|crispy }}
+                <button type="submit" class="btn btn-primary w-100 py-2 mt-3">Register</button>
+            </form>
+            <p class="mt-3 text-center">Already have an account? <a href="{% url 'login' %}">Login</a></p>
+        </div>
+    </div>
+</div>
+{% endblock %}
