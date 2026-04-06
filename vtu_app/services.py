@@ -57,8 +57,15 @@ class MonnifyService:
         }
 
     def get_auth_token(self):
-        auth_str = f"{self.api_key}:{self.secret_key}"
-        encoded_auth = base64.b64encode(auth_str.encode()).decode()
+        # Ensure no hidden spaces from .env are included
+        api_key = str(os.getenv('MONNIFY_API_KEY', '')).strip()
+        secret_key = str(os.getenv('MONNIFY_SECRET_KEY', '')).strip()
+        
+        auth_str = f"{api_key}:{secret_key}"
+        import base64
+        # Ensure the encoding is clean
+        encoded_auth = base64.b64encode(auth_str.encode('ascii')).decode('ascii')
+        
         url = f"{self.base_url}/api/v1/auth/login"
         headers = {
             'Authorization': f'Basic {encoded_auth}',
