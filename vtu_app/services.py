@@ -48,6 +48,11 @@ class MonnifyService:
         self.api_key = settings.MONNIFY_API_KEY
         self.secret_key = settings.MONNIFY_SECRET_KEY
         self.base_url = settings.MONNIFY_BASE_URL
+        
+        self.proxy = {
+            "http": "http://proxy.server:3128",
+            "https": "http://proxy.server:3128",
+        }
 
     def get_auth_token(self):
         """Generates the required Bearer Token for Monnify requests"""
@@ -55,7 +60,8 @@ class MonnifyService:
         encoded_auth = base64.b64encode(auth_str.encode()).decode()
         url = f"{self.base_url}/api/v1/auth/login"
         headers = {'Authorization': f'Basic {encoded_auth}'}
-        response = requests.post(url, headers=headers)
+        
+        response = requests.post(url, headers=headers, proxies=self.proxy, timeout=10)
         return response.json()['responseBody']['accessToken']
 
     def reserve_account(self, user):
@@ -72,5 +78,5 @@ class MonnifyService:
             "customerName": user.username,
             "getAllAvailableBanks": True
         }
-        response = requests.post(url, json=data, headers=headers)
+        response = requests.post(url, json=data, headers=headers, proxies=self.proxy, timeout=15)
         return response.json()

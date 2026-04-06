@@ -6,4 +6,5 @@ urlpatterns = [
     path('', views.dashboard, name='dashboard'),
     path('buy-data/', views.buy_data, name='buy_data'),
     path('webhook/monnify/', monnify_webhook, name='monnify_webhook'),
+    path('generate-accounts/', views.generate_my_accounts, name='generate_accounts'),
 ]

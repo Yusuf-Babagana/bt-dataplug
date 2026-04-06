@@ -39,8 +39,10 @@
             <p class="small text-danger fw-bold mt-2"><i class="fa fa-info-circle me-1"></i> Charges: 1% capped at 50 naira</p>
         {% else %}
             <div class="text-center py-4 bg-light rounded">
-                <div class="spinner-border text-primary spinner-border-sm mb-2" role="status"></div>
-                <p class="text-muted small mb-0">Generating your accounts... Please refresh in a moment.</p>
+                <p class="text-muted small mb-2">No accounts found.</p>
+                <a href="{% url 'generate_accounts' %}" class="btn btn-primary btn-sm fw-bold">
+                    Generate Bank Accounts Now
+                </a>
             </div>
         {% endif %}
     </div>

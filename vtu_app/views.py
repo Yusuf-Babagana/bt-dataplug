@@ -49,3 +49,20 @@ def buy_data(request):
         messages.success(request, "Order received! Processing your data...")
         return redirect('dashboard')
     return redirect('dashboard')
+
+def generate_my_accounts(request):
+    from .services import MonnifyService
+    monnify = MonnifyService()
+    try:
+        response = monnify.reserve_account(request.user)
+        if response.get('requestSuccessful'):
+            profile = request.user.profile
+            profile.bank_accounts = response['responseBody']['accounts']
+            profile.save()
+            messages.success(request, "Accounts generated successfully!")
+        else:
+            messages.error(request, f"Monnify Error: {response.get('responseMessage')}")
+    except Exception as e:
+        messages.error(request, f"Connection Error: {str(e)}")
+    
+    return redirect('dashboard')
