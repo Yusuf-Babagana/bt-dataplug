@@ -73,11 +73,14 @@ class MonnifyService:
             if response.status_code == 200 and res_data.get('requestSuccessful'):
                 return res_data['responseBody']['accessToken']
             else:
-                # This will help us see if it's "Invalid Client" or "IP Not Whitelisted"
-                msg = res_data.get('responseMessage', 'Check Credentials')
-                raise Exception(f"Monnify Login Failed: {msg}")
+                # THIS LINE IS THE KEY: It will show the EXACT message from Monnify
+                error_details = res_data.get('responseMessage', 'No message')
+                status_code = response.status_code
+                raise Exception(f"Monnify Error ({status_code}): {error_details}")
+                
         except Exception as e:
-            raise Exception(f"Connection Error: {str(e)}")
+            # This will catch everything and show it in your red alert box
+            raise Exception(f"Final Debug: {str(e)}")
 
     def reserve_account(self, user):
         """Creates a dedicated bank account for a user"""
