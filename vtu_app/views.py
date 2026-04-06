@@ -1,6 +1,7 @@
 from django.shortcuts import render, redirect
 from django.contrib.auth.forms import UserCreationForm
 from django.contrib.auth import login
+from django.contrib import messages
 from .services import ClubKonnectService
 from .forms import DataPurchaseForm
 import json
@@ -41,3 +42,10 @@ def dashboard(request):
         'plan_data_json': json.dumps(DATA_PLANS), # For the dynamic dropdown
     }
     return render(request, 'vtu_app/dashboard.html', context)
+
+def buy_data(request):
+    if request.method == 'POST':
+        # For now, we just simulate success until the API whitelist is ready
+        messages.success(request, "Order received! Processing your data...")
+        return redirect('dashboard')
+    return redirect('dashboard')

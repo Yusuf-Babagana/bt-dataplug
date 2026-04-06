@@ -31,7 +31,14 @@
         <a href="#" class="nav-item-custom active"><i class="fa fa-home me-2"></i> Dashboard</a>
         <a href="#" class="nav-item-custom"><i class="fa fa-wallet me-2"></i> Fund Wallet</a>
         <a href="#" class="nav-item-custom"><i class="fa fa-history me-2"></i> Transactions</a>
-        <a href="#" class="nav-item-custom text-danger"><i class="fa fa-sign-out me-2"></i> Logout</a>
+        <div class="nav-item-custom">
+            <form method="post" action="{% url 'logout' %}" id="logout-form" style="display: none;">
+                {% csrf_token %}
+            </form>
+            <a href="javascript:void(0)" onclick="document.getElementById('logout-form').submit();" class="text-danger text-decoration-none">
+                <i class="fa fa-sign-out me-2"></i> Logout
+            </a>
+        </div>
     </div>
 
     <div class="main-content">
