@@ -52,17 +52,24 @@ def buy_data(request):
 
 def generate_my_accounts(request):
     from .services import MonnifyService
-    monnify = MonnifyService()
+    service = MonnifyService()
     try:
-        response = monnify.reserve_account(request.user)
-        if response.get('requestSuccessful'):
+        response = service.reserve_account(request.user)
+        
+        # This will print the error in your PythonAnywhere Error Log
+        print(f"Monnify Response: {response}") 
+
+        if response.get('requestSuccessful') is True:
             profile = request.user.profile
             profile.bank_accounts = response['responseBody']['accounts']
             profile.save()
-            messages.success(request, "Accounts generated successfully!")
+            messages.success(request, "Success! Your bank accounts are ready.")
         else:
-            messages.error(request, f"Monnify Error: {response.get('responseMessage')}")
+            # This will show you exactly what Monnify says is wrong
+            error_msg = response.get('responseMessage', 'Unknown Error')
+            messages.error(request, f"Monnify Refused: {error_msg}")
+            
     except Exception as e:
-        messages.error(request, f"Connection Error: {str(e)}")
-    
+        messages.error(request, f"System Error: {str(e)}")
+        
     return redirect('dashboard')

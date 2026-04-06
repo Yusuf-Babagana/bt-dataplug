@@ -158,6 +158,17 @@
         {% if user.is_authenticated %}
         <!-- Top nav moved directly to dashboard to accommodate full-page intro alert -->
         {% endif %}
+
+        <div class="container mt-3">
+            {% if messages %}
+                {% for message in messages %}
+                    <div class="alert alert-{% if message.tags == 'error' %}danger{% else %}{{ message.tags }}{% endif %} alert-dismissible fade show shadow-sm" role="alert">
+                        {{ message }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    </div>
+                {% endfor %}
+            {% endif %}
+        </div>
         
         {% block content %}{% endblock %}
     </div>
