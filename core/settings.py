@@ -147,3 +147,9 @@ CRISPY_TEMPLATE_PACK = "bootstrap5"
 
 LOGIN_REDIRECT_URL = 'dashboard'
 LOGOUT_REDIRECT_URL = 'login'
+
+# Monnify Setup
+MONNIFY_API_KEY = os.getenv('MONNIFY_API_KEY', 'test_api_key')
+MONNIFY_SECRET_KEY = os.getenv('MONNIFY_SECRET_KEY', 'test_secret_key')
+MONNIFY_BASE_URL = os.getenv('MONNIFY_BASE_URL', 'https://sandbox.monnify.com')
+MONNIFY_CONTRACT_CODE = os.getenv('MONNIFY_CONTRACT_CODE', '1234567890')

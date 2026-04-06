@@ -1,5 +1,9 @@
 import requests
 import os
+import hmac
+import hashlib
+import base64
+from django.conf import settings
 
 class ClubKonnectService:
     def __init__(self):
@@ -37,4 +41,36 @@ class ClubKonnectService:
         """Triggers a data purchase"""
         url = f"{self.base_url}/Data.asp?UserID={self.user_id}&APIKey={self.api_key}&MobileNetwork={network}&DataPlan={plan}&MobileNumber={phone}"
         response = requests.get(url)
+        return response.json()
+
+class MonnifyService:
+    def __init__(self):
+        self.api_key = settings.MONNIFY_API_KEY
+        self.secret_key = settings.MONNIFY_SECRET_KEY
+        self.base_url = settings.MONNIFY_BASE_URL
+
+    def get_auth_token(self):
+        """Generates the required Bearer Token for Monnify requests"""
+        auth_str = f"{self.api_key}:{self.secret_key}"
+        encoded_auth = base64.b64encode(auth_str.encode()).decode()
+        url = f"{self.base_url}/api/v1/auth/login"
+        headers = {'Authorization': f'Basic {encoded_auth}'}
+        response = requests.post(url, headers=headers)
+        return response.json()['responseBody']['accessToken']
+
+    def reserve_account(self, user):
+        """Creates a dedicated bank account for a user"""
+        token = self.get_auth_token()
+        url = f"{self.base_url}/api/v2/bank-transfer/reserved-accounts"
+        headers = {'Authorization': f'Bearer {token}'}
+        data = {
+            "accountReference": f"REF-{user.id}",
+            "accountName": f"{user.first_name} {user.last_name}",
+            "currencyCode": "NGN",
+            "contractCode": settings.MONNIFY_CONTRACT_CODE,
+            "customerEmail": user.email,
+            "customerName": user.username,
+            "getAllAvailableBanks": True
+        }
+        response = requests.post(url, json=data, headers=headers)
         return response.json()
