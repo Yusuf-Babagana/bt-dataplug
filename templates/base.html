@@ -43,7 +43,19 @@
     </div>
     {% endif %}
 
-    <div class="{% if user.is_authenticated %}main-content{% else %}container py-5{% endif %}">
+    {% if not user.is_authenticated %}
+    <nav class="navbar navbar-expand-lg navbar-dark shadow-sm mb-5" style="background: linear-gradient(135deg, #004aad 0%, #0a58ca 100%);">
+        <div class="container py-2">
+            <a class="navbar-brand fw-bold fs-4" href="{% url 'login' %}"><i class="fa fa-plug me-2"></i>BT DataPlug</a>
+            <div class="ms-auto d-flex gap-2">
+                <a href="{% url 'login' %}" class="btn btn-outline-light border-0 fw-bold">Login</a>
+                <a href="{% url 'register' %}" class="btn btn-light text-primary fw-bold px-4 rounded-pill shadow-sm">Sign Up</a>
+            </div>
+        </div>
+    </nav>
+    {% endif %}
+
+    <div class="{% if user.is_authenticated %}main-content{% else %}container{% endif %}">
         {% if user.is_authenticated %}
         <nav class="d-flex justify-content-between align-items-center mb-4 bg-white p-3 rounded shadow-sm">
             <h5 class="mb-0 fw-bold">Welcome, {{ user.username }}</h5>
@@ -51,8 +63,6 @@
                 <span class="badge bg-primary-subtle text-primary p-2">₦{{ user_wallet|default:"0.00" }}</span>
             </div>
         </nav>
-        {% else %}
-        <h4 class="text-center fw-bold text-primary mb-5">Welcome to BT DataPlug</h4>
         {% endif %}
         
         {% block content %}{% endblock %}
