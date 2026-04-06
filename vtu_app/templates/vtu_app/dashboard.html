@@ -1,114 +1,46 @@
 {% extends 'base.html' %}
-{% load crispy_forms_tags %}
 
 {% block content %}
-<div class="row g-4">
-    <div class="col-md-4">
-        <div class="p-4 balance-card shadow-sm">
-            <small class="opacity-75">Reseller API Balance</small>
-            <h1 class="fw-bold mt-2">₦{{ provider_balance }}</h1>
-            <div class="mt-4">
-                <span class="badge bg-white text-primary px-3 py-2">Verified Reseller</span>
+<div class="row g-3">
+    <div class="col-6 col-md-3">
+        <div class="card border-0 shadow-sm text-center p-3" onclick="location.href='#'" style="cursor: pointer;">
+            <div class="icon-box bg-primary-subtle text-primary mx-auto">
+                <i class="fa fa-wifi fa-lg"></i>
             </div>
+            <p class="small fw-bold mb-0">Buy Data</p>
         </div>
     </div>
-
-    <div class="col-md-8">
-        <div class="p-4 glass-card h-100">
-            <h5 class="fw-bold mb-4">Quick Actions</h5>
-            <div class="row g-3">
-                <div class="col-6 col-sm-3 text-center">
-                    <button class="btn btn-light w-100 py-3 shadow-sm border">
-                        <div class="mb-2">📱</div>
-                        <small class="fw-bold">Airtime</small>
-                    </button>
-                </div>
-                <div class="col-6 col-sm-3 text-center">
-                    <button class="btn btn-light w-100 py-3 shadow-sm border" data-bs-toggle="modal" data-bs-target="#dataModal">
-                        <div class="mb-2">🌐</div>
-                        <small class="fw-bold">Buy Data</small>
-                    </button>
-                </div>
-                <div class="col-6 col-sm-3 text-center">
-                    <button class="btn btn-light w-100 py-3 shadow-sm border">
-                        <div class="mb-2">📺</div>
-                        <small class="fw-bold">Cable TV</small>
-                    </button>
-                </div>
-                <div class="col-6 col-sm-3 text-center">
-                    <button class="btn btn-light w-100 py-3 shadow-sm border">
-                        <div class="mb-2">💡</div>
-                        <small class="fw-bold">Power</small>
-                    </button>
-                </div>
+    <div class="col-6 col-md-3">
+        <div class="card border-0 shadow-sm text-center p-3" style="cursor: pointer;">
+            <div class="icon-box bg-success-subtle text-success mx-auto">
+                <i class="fa fa-phone fa-lg"></i>
             </div>
+            <p class="small fw-bold mb-0">Buy Airtime</p>
         </div>
     </div>
-
-    <div class="col-12">
-        <div class="p-4 glass-card mt-2">
-            <div class="d-flex justify-content-between align-items-center mb-4">
-                <h5 class="fw-bold mb-0">Recent Transactions</h5>
-                <a href="#" class="btn btn-sm btn-link text-decoration-none">View All</a>
+    <div class="col-6 col-md-3">
+        <div class="card border-0 shadow-sm text-center p-3" style="cursor: pointer;">
+            <div class="icon-box bg-warning-subtle text-warning mx-auto">
+                <i class="fa fa-tv fa-lg"></i>
             </div>
-            <div class="table-responsive">
-                <table class="table table-borderless align-middle">
-                    <thead class="text-muted small">
-                        <tr>
-                            <th>Service</th>
-                            <th>Recipient</th>
-                            <th>Amount</th>
-                            <th>Status</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr>
-                            <td><span class="fw-bold">MTN Data (1GB)</span></td>
-                            <td>08012345678</td>
-                            <td>₦250.00</td>
-                            <td><span class="badge bg-success-subtle text-success border border-success">Success</span></td>
-                        </tr>
-                        </tbody>
-                </table>
+            <p class="small fw-bold mb-0">Cable TV</p>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="card border-0 shadow-sm text-center p-3" style="cursor: pointer;">
+            <div class="icon-box bg-danger-subtle text-danger mx-auto">
+                <i class="fa fa-bolt fa-lg"></i>
             </div>
+            <p class="small fw-bold mb-0">Electricity</p>
         </div>
     </div>
 </div>
 
-<div class="modal fade" id="dataModal" tabindex="-1">
-    <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content glass-card">
-            <div class="modal-header border-0">
-                <h5 class="fw-bold">Purchase Data Bundle</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body">
-                <form method="POST" action="{% url 'buy_data' %}">
-                    {% csrf_token %}
-                    {{ form|crispy }}
-                    <button type="submit" class="btn btn-primary w-100 py-3 mt-3 fw-bold">Buy Now</button>
-                </form>
-            </div>
-        </div>
+<div class="card border-0 shadow-sm mt-4 p-3">
+    <h6 class="fw-bold">Referral Link</h6>
+    <div class="input-group">
+        <input type="text" class="form-control" value="https://bt-dataplug.com/ref/{{ user.id }}" readonly>
+        <button class="btn btn-primary">Copy</button>
     </div>
 </div>
-
-<script>
-    const planData = {{ plan_data_json|safe }};
-    const networkSelect = document.getElementById('id_network');
-    const planSelect = document.getElementById('id_plan');
-
-    networkSelect.addEventListener('change', (e) => {
-        const selectedNetwork = e.target.value;
-        planSelect.innerHTML = '<option value="">Select Plan</option>';
-        
-        if (planData[selectedNetwork]) {
-            planData[selectedNetwork].forEach(plan => {
-                const option = new Option(plan[1], plan[0]);
-                planSelect.add(option);
-            });
-        }
-    });
-</script>
-
 {% endblock %}
