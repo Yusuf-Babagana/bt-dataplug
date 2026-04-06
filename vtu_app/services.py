@@ -5,29 +5,33 @@ class ClubKonnectService:
     def __init__(self):
         self.user_id = os.getenv('CK_USER_ID')
         self.api_key = os.getenv('CK_API_KEY')
-        # Updated Base URL to their primary API engine
         self.base_url = "https://www.nellobytesystems.com"
+        
+        # PythonAnywhere proxy setup
+        self.proxy = {
+            "http": "http://proxy.server:3128",
+            "https": "http://proxy.server:3128",
+        }
 
     def get_balance(self):
-        """Checks your reseller balance"""
-        # Note the change to APIBalance.asp
         url = f"{self.base_url}/APIBalance.asp?UserID={self.user_id}&APIKey={self.api_key}"
         try:
-            response = requests.get(url)
+            # Added proxies and a timeout limit
+            response = requests.get(url, proxies=self.proxy, timeout=10)
             
-            # Check if we got a 404 or other server error
-            if response.status_code != 200:
-                return "Error: API Endpoint Not Found"
-            
-            # If successful, they usually return a JSON string like {"balance":"403.64"}
-            # or a simple text value. Let's try to parse it safely.
-            try:
-                data = response.json()
-                return data.get('wallet_balance', data.get('balance', response.text))
-            except:
-                return response.text
-        except requests.RequestException:
-            return "Connection Timeout"
+            if response.status_code == 200:
+                # Try parsing JSON or return text
+                try:
+                    return response.json().get('balance', response.text)
+                except:
+                    return response.text
+            return "API Error"
+        except requests.exceptions.ProxyError:
+            return "Proxy Error"
+        except requests.exceptions.Timeout:
+            return "Timeout"
+        except Exception as e:
+            return f"Error: {str(e)}"
 
     def buy_data(self, network, plan, phone):
         """Triggers a data purchase"""
