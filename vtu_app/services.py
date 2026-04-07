@@ -39,8 +39,14 @@ class ClubKonnectService:
             f"&MobileNetwork={network_code}&DataPlan={plan_id}"
             f"&MobileNumber={phone}&RequestID={request_id}"
         )
+        
+        # Professional User-Agent to prevent security blocks
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) BT-DataPlug/1.0'
+        }
+
         try:
-            response = requests.get(url, timeout=30)
+            response = requests.get(url, headers=headers, timeout=30)
 
             # DEEP DEBUG: Shows in PythonAnywhere Error Log
             print(f"--- ClubKonnect Debug ---")
@@ -48,7 +54,14 @@ class ClubKonnectService:
             print(f"Status: {response.status_code}")
             print(f"Body: {response.text}")
 
-            return response.json(), request_id
+            # Safely attempt to parse JSON. If ClubKonnect returns a plain string 
+            # (like INSUFFICIENT_BALANCE), we capture it without crashing.
+            try:
+                return response.json(), request_id
+            except ValueError:
+                # If response is not JSON, return the text as a status/remark
+                return {"status": response.text.strip(), "remark": response.text.strip()}, request_id
+
         except Exception as e:
             print(f"ClubKonnect Connection Failed: {str(e)}")
             return {"status": "ERROR", "remark": "Connection Timeout"}, request_id

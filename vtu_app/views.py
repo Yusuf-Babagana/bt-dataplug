@@ -97,13 +97,31 @@ def buy_data(request):
                 )
                 # Redirect to the receipt page with the transaction ID
                 return redirect('receipt', tx_id=tx.id)
-            else:
-                # Refund on failure
+            
+            # --- START OF ERROR MASKING UPDATES ---
+            elif response.get('status') == 'INSUFFICIENT_BALANCE':
+                # Refund on company wallet failure
                 user_profile.wallet_balance += plan.price
                 user_profile.save()
+                
+                # Mask the error for the client
+                messages.error(request, "This service is currently undergoing a brief technical update. Please try again in 10 minutes or choose another network.")
+                
+                # Alert the Admin in the server logs
+                print(f"!!! CRITICAL ADMIN ALERT: ClubKonnect balance is EMPTY. Recharge now to resume service. !!!")
+            
+            else:
+                # Refund on all other general failures
+                user_profile.wallet_balance += plan.price
+                user_profile.save()
+                
+                # Extract error message for logging
                 error_msg = response.get('remark') or response.get('message') or str(response)
                 print(f"[BT DataPlug] Full API response: {response}")
-                messages.error(request, f"Purchase failed: {error_msg}")
+                
+                # Show a polite general error
+                messages.error(request, "The network provider is currently busy. Please try again later.")
+            # --- END OF ERROR MASKING UPDATES ---
 
         return redirect('dashboard')
 
