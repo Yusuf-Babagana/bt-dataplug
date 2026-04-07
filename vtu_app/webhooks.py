@@ -68,4 +68,7 @@ def monnify_webhook(request):
             # Returning 500 triggers a 'Failure' retry from Monnify's perspective
             return HttpResponse(status=500)
 
-    return HttpResponse(status=400)
+    if request.method == 'GET':
+        return HttpResponse("BT DataPlug Webhook Listener is Active! (Waiting for Monnify POST notifications)")
+
+    return HttpResponse("Invalid request method. Expected POST.", status=405)
