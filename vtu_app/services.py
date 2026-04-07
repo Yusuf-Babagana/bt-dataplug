@@ -38,8 +38,8 @@ class ClubKonnectService:
 
 class MonnifyService:
     def __init__(self):
-        self.api_key = os.getenv('MONNIFY_API_KEY').strip()
-        self.secret_key = os.getenv('MONNIFY_SECRET_KEY').strip()
+        self.api_key = str(os.getenv('MONNIFY_API_KEY', '')).strip()
+        self.secret_key = str(os.getenv('MONNIFY_SECRET_KEY', '')).strip()
         self.base_url = "https://api.monnify.com"  # Live
         # No proxy needed anymore!
 
