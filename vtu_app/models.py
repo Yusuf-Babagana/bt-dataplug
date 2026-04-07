@@ -15,3 +15,20 @@ class Profile(models.Model):
     
     def __str__(self):
         return f"{self.user.username}'s Profile"
+
+class Transaction(models.Model):
+    SERVICE_CHOICES = [
+        ('Wallet Funding', 'Wallet Funding'),
+        ('Data Purchase', 'Data Purchase'),
+        ('Airtime Purchase', 'Airtime Purchase'),
+    ]
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    service_type = models.CharField(max_length=50, choices=SERVICE_CHOICES)
+    plan_name = models.CharField(max_length=100)
+    amount = models.DecimalField(max_digits=12, decimal_places=2)
+    recipient = models.CharField(max_length=20) # Phone number or "Wallet"
+    status = models.CharField(max_length=20, default="Successful")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.user.username} - {self.service_type} - {self.amount}"
