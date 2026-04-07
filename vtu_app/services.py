@@ -42,9 +42,17 @@ class ClubKonnectService:
         )
         try:
             response = requests.get(url, timeout=30)
+
+            # DEEP DEBUG: Shows in PythonAnywhere Error Log
+            print(f"--- ClubKonnect Debug ---")
+            print(f"URL: {url.replace(self.api_key, 'HIDDEN')}")
+            print(f"Status: {response.status_code}")
+            print(f"Body: {response.text}")
+
             return response.json(), request_id
         except Exception as e:
-            return {"status": "ERROR", "remark": str(e)}, request_id
+            print(f"ClubKonnect Connection Failed: {str(e)}")
+            return {"status": "ERROR", "remark": "Connection Timeout"}, request_id
 
 
 class MonnifyService:
