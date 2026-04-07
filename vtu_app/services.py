@@ -31,14 +31,20 @@ class ClubKonnectService:
         except Exception as e:
             return {"error": str(e)}
 
-    def buy_data(self, network, plan_id, phone):
-        """The logic to actually send data to a customer"""
+    def buy_data(self, network_code, plan_id, phone):
+        """Send data to a customer using the APIDatabundleV1 endpoint."""
+        request_id = uuid.uuid4().hex[:12]
         url = (
-            f"{self.services_url}/Data.asp?UserID={self.user_id}&APIKey={self.api_key}"
-            f"&MobileNetwork={network}&DataPlan={plan_id}&MobileNumber={phone}&RequestID={uuid.uuid4().hex[:10]}"
+            f"https://www.nellobytesystems.com/APIDatabundleV1.asp"
+            f"?UserID={self.user_id}&APIKey={self.api_key}"
+            f"&MobileNetwork={network_code}&DataPlan={plan_id}"
+            f"&MobileNumber={phone}&RequestID={request_id}"
         )
-        response = requests.get(url, timeout=20)
-        return response.json()
+        try:
+            response = requests.get(url, timeout=30)
+            return response.json(), request_id
+        except Exception as e:
+            return {"status": "ERROR", "remark": str(e)}, request_id
 
 
 class MonnifyService:

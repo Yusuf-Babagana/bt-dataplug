@@ -1,0 +1,135 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-12 col-md-7 col-lg-5">
+
+        <!-- Header -->
+        <div class="d-flex align-items-center mb-4 gap-3">
+            <a href="{% url 'dashboard' %}" class="btn btn-light rounded-circle shadow-sm" style="width:40px;height:40px;">
+                <i class="fa fa-arrow-left text-primary"></i>
+            </a>
+            <div>
+                <h5 class="fw-bold mb-0">Buy Data Bundle</h5>
+                <small class="text-muted">Fast, secure, instant delivery</small>
+            </div>
+        </div>
+
+        <!-- Wallet Balance Chip -->
+        <div class="alert border-0 rounded-4 d-flex align-items-center justify-content-between py-3 px-4 mb-4" 
+             style="background: linear-gradient(135deg, #2563eb 0%, #1e40af 100%); color: white;">
+            <div>
+                <span class="small opacity-75 fw-semibold">Available Balance</span>
+                <h4 class="fw-bold mb-0">₦{{ request.user.profile.wallet_balance|default:"0.00" }}</h4>
+            </div>
+            <i class="fa fa-wallet fa-2x opacity-50"></i>
+        </div>
+
+        <!-- Purchase Form -->
+        <div class="card border-0 shadow-sm glass-card rounded-4 p-4">
+            <form method="POST" id="buyDataForm">
+                {% csrf_token %}
+
+                <!-- Network Filter Tabs -->
+                <div class="mb-3">
+                    <label class="form-label fw-semibold text-muted small text-uppercase">Filter by Network</label>
+                    <div class="d-flex gap-2 flex-wrap" id="networkTabs">
+                        <button type="button" class="btn btn-sm btn-primary fw-bold rounded-pill network-tab active" data-network="all">All</button>
+                        <button type="button" class="btn btn-sm btn-outline-secondary fw-bold rounded-pill network-tab" data-network="01">MTN</button>
+                        <button type="button" class="btn btn-sm btn-outline-secondary fw-bold rounded-pill network-tab" data-network="02">Glo</button>
+                        <button type="button" class="btn btn-sm btn-outline-secondary fw-bold rounded-pill network-tab" data-network="03">9mobile</button>
+                        <button type="button" class="btn btn-sm btn-outline-secondary fw-bold rounded-pill network-tab" data-network="04">Airtel</button>
+                    </div>
+                </div>
+
+                <!-- Plan Select -->
+                <div class="mb-3">
+                    <label class="form-label fw-semibold">Select Data Plan</label>
+                    <select name="plan" id="planSelect" class="form-select form-select-lg rounded-3" required>
+                        <option value="">-- Choose a Plan --</option>
+                        {% for plan in plans %}
+                            <option value="{{ plan.id }}" data-network="{{ plan.network }}" data-price="{{ plan.price }}">
+                                {{ plan }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <!-- Phone Number -->
+                <div class="mb-3">
+                    <label class="form-label fw-semibold">Phone Number</label>
+                    <div class="input-group input-group-lg">
+                        <span class="input-group-text bg-light border-end-0 rounded-start-3">
+                            <i class="fa fa-phone text-muted"></i>
+                        </span>
+                        <input type="tel" name="phone" id="phoneInput"
+                               class="form-control border-start-0 rounded-end-3"
+                               placeholder="08123456789"
+                               pattern="[0-9]{11}"
+                               maxlength="11"
+                               required>
+                    </div>
+                    <div class="form-text">Enter the 11-digit number to receive data.</div>
+                </div>
+
+                <!-- Price Preview -->
+                <div class="bg-light rounded-3 p-3 mb-4 d-flex justify-content-between align-items-center" id="pricePreview" style="display:none !important;">
+                    <span class="text-muted small fw-semibold">Amount to Deduct</span>
+                    <span class="fw-bold text-primary fs-5" id="priceDisplay">--</span>
+                </div>
+
+                <button type="submit" class="btn btn-primary btn-lg w-100 fw-bold rounded-pill shadow-sm py-3">
+                    <i class="fa fa-bolt me-2"></i>Purchase Now
+                </button>
+            </form>
+        </div>
+
+        <p class="text-center text-muted small mt-3">
+            <i class="fa fa-shield-alt me-1 text-success"></i>
+            Secured & instant. Powered by ClubKonnect.
+        </p>
+    </div>
+</div>
+
+<script>
+    const planSelect = document.getElementById('planSelect');
+    const pricePreview = document.getElementById('pricePreview');
+    const priceDisplay = document.getElementById('priceDisplay');
+    const networkTabs = document.querySelectorAll('.network-tab');
+
+    // Update price preview on plan change
+    planSelect.addEventListener('change', function () {
+        const selected = this.options[this.selectedIndex];
+        const price = selected.getAttribute('data-price');
+        if (price) {
+            priceDisplay.textContent = `₦${parseFloat(price).toLocaleString('en-NG', {minimumFractionDigits: 2})}`;
+            pricePreview.style.display = 'flex';
+        } else {
+            pricePreview.style.display = 'none';
+        }
+    });
+
+    // Network tab filter
+    networkTabs.forEach(tab => {
+        tab.addEventListener('click', function () {
+            networkTabs.forEach(t => {
+                t.classList.remove('btn-primary', 'active');
+                t.classList.add('btn-outline-secondary');
+            });
+            this.classList.add('btn-primary', 'active');
+            this.classList.remove('btn-outline-secondary');
+
+            const network = this.getAttribute('data-network');
+            const options = planSelect.querySelectorAll('option');
+            options.forEach(opt => {
+                if (network === 'all' || !opt.value || opt.getAttribute('data-network') === network) {
+                    opt.style.display = '';
+                } else {
+                    opt.style.display = 'none';
+                }
+            });
+            planSelect.value = '';
+            pricePreview.style.display = 'none';
+        });
+    });
+</script>
+{% endblock %}

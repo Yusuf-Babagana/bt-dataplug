@@ -28,7 +28,24 @@ class Transaction(models.Model):
     amount = models.DecimalField(max_digits=12, decimal_places=2)
     recipient = models.CharField(max_length=20) # Phone number or "Wallet"
     status = models.CharField(max_length=20, default="Successful")
+    reference = models.CharField(max_length=50, blank=True, null=True)  # ClubKonnect RequestID
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
         return f"{self.user.username} - {self.service_type} - {self.amount}"
+
+
+class DataPlan(models.Model):
+    NETWORK_CHOICES = [
+        ('01', 'MTN'),
+        ('02', 'Glo'),
+        ('03', '9mobile'),
+        ('04', 'Airtel'),
+    ]
+    network = models.CharField(max_length=2, choices=NETWORK_CHOICES)
+    plan_name = models.CharField(max_length=100)  # e.g., MTN 1GB SME
+    dataplan_id = models.CharField(max_length=10)  # e.g., 1000
+    price = models.DecimalField(max_digits=10, decimal_places=2)  # What you charge
+
+    def __str__(self):
+        return f"{self.get_network_display()} - {self.plan_name} (₦{self.price})"
