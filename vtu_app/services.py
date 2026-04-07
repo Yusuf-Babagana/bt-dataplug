@@ -44,19 +44,36 @@ class MonnifyService:
         # No proxy needed anymore!
 
     def get_auth_token(self):
-        auth_str = f"{self.api_key}:{self.secret_key}"
+        import base64
+        import requests
+        import os
+
+        # 1. Strip everything to ensure NO hidden spaces
+        api_key = str(os.getenv('MONNIFY_API_KEY')).strip()
+        secret_key = str(os.getenv('MONNIFY_SECRET_KEY')).strip()
+
+        # 2. Format the string exactly: "ApiKey:SecretKey"
+        auth_str = f"{api_key}:{secret_key}"
+
+        # 3. Encode to Base64 without any extra characters
         encoded_auth = base64.b64encode(auth_str.encode('ascii')).decode('ascii')
 
-        url = f"{self.base_url}/api/v1/auth/login"
-        headers = {'Authorization': f'Basic {encoded_auth}'}
+        url = "https://api.monnify.com/api/v1/auth/login"
+        headers = {
+            'Authorization': f'Basic {encoded_auth}',
+            'Content-Type': 'application/json'
+        }
 
-        # Simple request without proxies
+        # 4. Fire the request (No proxy needed on Paid Plan!)
         response = requests.post(url, headers=headers, timeout=20)
         res_data = response.json()
 
         if response.status_code == 200 and res_data.get('requestSuccessful'):
             return res_data['responseBody']['accessToken']
-        raise Exception(f"Login Failed: {res_data.get('responseMessage')}")
+        else:
+            # This will tell us if it's "Invalid Client" or "Inactive Account"
+            error_msg = res_data.get('responseMessage', 'Unauthorized')
+            raise Exception(f"Monnify says: {error_msg} (Code: {response.status_code})")
 
     def reserve_account(self, user):
         """Creates a dedicated bank account for a user"""
