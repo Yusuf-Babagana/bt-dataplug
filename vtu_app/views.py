@@ -2,8 +2,8 @@ from django.shortcuts import render, redirect
 from django.contrib.auth.forms import UserCreationForm
 from django.contrib.auth import login
 from django.contrib import messages
-from .services import ClubKonnectService
-from .forms import DataPurchaseForm
+from .services import ClubKonnectService, MonnifyService
+from .forms import DataPurchaseForm, KYCForm
 import json
 from .plan_data import DATA_PLANS
 
@@ -50,41 +50,34 @@ def buy_data(request):
         return redirect('dashboard')
     return redirect('dashboard')
 
-def generate_my_accounts(request):
-    from .services import MonnifyService
-    
-    if request.method != 'POST':
-        messages.error(request, "Invalid request method.")
-        return redirect('dashboard')
+def complete_kyc(request):
+    if not request.user.is_authenticated:
+        return redirect('login')
         
-    bvn = request.POST.get('bvn')
-    if not bvn or len(bvn.strip()) < 11:
-        messages.error(request, "A valid 11-digit BVN or NIN is required.")
-        return redirect('dashboard')
-        
-    bvn = bvn.strip()
-    service = MonnifyService()
-    try:
-        # Save BVN to profile for future reference
-        profile = request.user.profile
-        profile.national_id = bvn
-        profile.save()
-        
-        response = service.reserve_account(request.user, bvn)
-        
-        # This will print the error in your PythonAnywhere Error Log
-        print(f"Monnify Response: {response}") 
-
-        if response.get('requestSuccessful') is True:
-            profile.bank_accounts = response['responseBody']['accounts']
-            profile.save()
-            messages.success(request, "Success! Your bank accounts are ready.")
-        else:
-            # This will show you exactly what Monnify says is wrong
-            error_msg = response.get('responseMessage', 'Unknown Error')
-            messages.error(request, f"Monnify Refused: {error_msg}")
+    if request.method == 'POST':
+        form = KYCForm(request.POST)
+        if form.is_valid():
+            bvn = form.cleaned_data.get('bvn')
+            nin = form.cleaned_data.get('nin')
             
-    except Exception as e:
-        messages.error(request, f"System Error: {str(e)}")
-        
-    return redirect('dashboard')
+            service = MonnifyService()
+            try:
+                response = service.reserve_account(request.user, bvn=bvn, nin=nin)
+                
+                if response.get('requestSuccessful'):
+                    profile = request.user.profile
+                    profile.bank_accounts = response['responseBody']['accounts']
+                    profile.bvn = bvn
+                    profile.nin = nin
+                    profile.kyc_verified = True
+                    profile.save()
+                    messages.success(request, "KYC Completed! Bank accounts generated.")
+                    return redirect('dashboard')
+                else:
+                    messages.error(request, f"Monnify Refused: {response.get('responseMessage')}")
+            except Exception as e:
+                messages.error(request, f"System Error: {str(e)}")
+    else:
+        form = KYCForm()
+    
+    return render(request, 'vtu_app/kyc.html', {'form': form})

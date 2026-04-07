@@ -38,18 +38,15 @@
             {% endfor %}
             <p class="small text-danger fw-bold mt-2"><i class="fa fa-info-circle me-1"></i> Charges: 1% capped at 50 naira</p>
         {% else %}
-            <div class="text-center py-4 bg-light rounded px-3">
-                <p class="text-muted small mb-3">To generate your unique funding accounts, Monnify requires a one-time KYC verification (BVN or NIN).</p>
-                <form method="POST" action="{% url 'generate_accounts' %}" style="max-width: 300px; margin: 0 auto;">
-                    {% csrf_token %}
-                    <div class="mb-3 text-start">
-                        <label for="bvn" class="form-label small fw-bold text-muted mb-1">Enter 11-digit BVN or NIN</label>
-                        <input type="text" name="bvn" id="bvn" class="form-control form-control-sm fw-bold border-2" placeholder="e.g. 22233344455" required maxlength="11" pattern="\d{11}">
-                    </div>
-                    <button type="submit" class="btn btn-primary btn-sm fw-bold w-100 rounded-pill py-2">
-                        Verify & Generate Accounts
-                    </button>
-                </form>
+            <div class="text-center py-5 bg-light rounded-4 px-3 border border-2 border-dashed">
+                <div class="bg-primary-subtle text-primary rounded-circle d-inline-flex align-items-center justify-content-center mb-3" style="width: 56px; height: 56px;">
+                    <i class="fa fa-user-shield fa-xl"></i>
+                </div>
+                <h6 class="fw-bold text-dark">Identity Verification Required</h6>
+                <p class="text-muted small mb-4 px-4">To generate your automated funding accounts, you need to verify your BVN or NIN.</p>
+                <a href="{% url 'complete_kyc' %}" class="btn btn-primary fw-bold px-5 py-2 rounded-pill shadow-sm">
+                    Verify Identity Now
+                </a>
             </div>
         {% endif %}
     </div>
