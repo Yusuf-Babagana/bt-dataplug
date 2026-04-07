@@ -11,9 +11,8 @@ class ClubKonnectService:
     def __init__(self):
         self.user_id = os.getenv('CK_USER_ID', '').strip()
         self.api_key = os.getenv('CK_API_KEY', '').strip()
-        # Note: The base URL for balance is different from the transactions one
-        self.balance_url = "https://www.nellobytesystems.com/APIWalletBalanceV1.asp"
-        self.services_url = "https://www.nellobytesystems.com/APIV2.0"
+        self.base_url = "https://www.nellobytesystems.com"
+        self.balance_url = f"{self.base_url}/APIWalletBalanceV1.asp"
 
     def get_balance(self):
         """Check your main BT DataPlug balance on ClubKonnect"""
