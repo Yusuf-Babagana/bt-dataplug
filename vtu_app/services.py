@@ -89,14 +89,25 @@ class MonnifyService:
         token = self.get_auth_token()
         url = f"{self.base_url}/api/v2/bank-transfer/reserved-accounts"
         headers = {'Authorization': f'Bearer {token}'}
+
+        # Fall back to username if first/last name are blank
+        # (Django's default UserCreationForm doesn't require names)
+        full_name = f"{user.first_name} {user.last_name}".strip()
+        if not full_name:
+            full_name = user.username
+
         data = {
             "accountReference": f"REF-{user.id}",
-            "accountName": f"{user.first_name} {user.last_name}",
+            "accountName": full_name,
             "currencyCode": "NGN",
-            "contractCode": self.contract_code,  # Use the class variable we just stripped
+            "contractCode": self.contract_code,
             "customerEmail": user.email,
-            "customerName": user.username,
+            "customerName": full_name,
             "getAllAvailableBanks": True
         }
+
+        # Debug: log exactly what we're sending
+        print(f"[Monnify] reserve_account payload: {data}")
+
         response = requests.post(url, json=data, headers=headers, timeout=20)
         return response.json()
