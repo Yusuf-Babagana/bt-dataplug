@@ -38,9 +38,18 @@ class ClubKonnectService:
 
 class MonnifyService:
     def __init__(self):
-        self.api_key = str(os.getenv('MONNIFY_API_KEY', '')).strip()
-        self.secret_key = str(os.getenv('MONNIFY_SECRET_KEY', '')).strip()
-        self.base_url = "https://api.monnify.com"  # Live
+        self.api_key = os.getenv('MONNIFY_API_KEY')
+        self.secret_key = os.getenv('MONNIFY_SECRET_KEY')
+        self.contract_code = os.getenv('MONNIFY_CONTRACT_CODE')
+
+        # Check if any are None BEFORE stripping
+        if not all([self.api_key, self.secret_key, self.contract_code]):
+            raise Exception("Critical Error: Monnify credentials missing in .env file!")
+
+        self.api_key = self.api_key.strip()
+        self.secret_key = self.secret_key.strip()
+        self.contract_code = self.contract_code.strip()
+        self.base_url = "https://api.monnify.com"
         # No proxy needed anymore!
 
     def get_auth_token(self):
@@ -84,10 +93,10 @@ class MonnifyService:
             "accountReference": f"REF-{user.id}",
             "accountName": f"{user.first_name} {user.last_name}",
             "currencyCode": "NGN",
-            "contractCode": settings.MONNIFY_CONTRACT_CODE,
+            "contractCode": self.contract_code,  # Use the class variable we just stripped
             "customerEmail": user.email,
             "customerName": user.username,
             "getAllAvailableBanks": True
         }
-        response = requests.post(url, json=data, headers=headers, timeout=15)
+        response = requests.post(url, json=data, headers=headers, timeout=20)
         return response.json()
