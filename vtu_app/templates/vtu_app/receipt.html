@@ -28,6 +28,7 @@
         position: relative;
     }
 
+    /* Success tick */
     .success-ring {
         width: 72px;
         height: 72px;
@@ -68,6 +69,7 @@
                 90% 100%, 95% 0%, 100% 100%);
     }
 
+    /* Receipt body */
     .receipt-body {
         background: #f8fafc;
         padding: 1.5rem 1.5rem 0.5rem;
@@ -102,6 +104,7 @@
         word-break: break-all;
     }
 
+    /* Amount row highlight */
     .amount-row {
         background: linear-gradient(135deg, #eff6ff, #dbeafe);
         border-radius: 12px;
@@ -124,6 +127,7 @@
         font-weight: 800;
     }
 
+    /* Status badge */
     .status-badge {
         display: inline-flex;
         align-items: center;
@@ -136,6 +140,7 @@
         border-radius: 999px;
     }
 
+    /* Dashed divider line with circles */
     .dashed-divider {
         display: flex;
         align-items: center;
@@ -161,13 +166,13 @@
         border-top: 2px dashed #cbd5e1;
     }
 
+    /* Footer */
     .receipt-footer {
         background: #f8fafc;
         padding: 1.25rem 1.5rem 2rem;
         text-align: center;
     }
 
-    /* Print and Hidden helpers */
     @media print {
         .no-print {
             display: none !important;
@@ -179,7 +184,7 @@
 
         .receipt-card {
             box-shadow: none;
-            border: 1px solid #eee;
+            border: 1px solid #ddd;
         }
     }
 </style>
@@ -206,6 +211,7 @@
         <div class="tear"></div>
 
         <div class="receipt-body">
+
             <div class="amount-row">
                 <span class="label">Amount Charged</span>
                 <span class="value">₦{{ tx.amount }}</span>
@@ -243,6 +249,7 @@
                 <span class="label">Customer</span>
                 <span class="value">{{ tx.user.get_full_name|default:tx.user.username }}</span>
             </div>
+
         </div>
 
         <div class="dashed-divider px-0 mx-3">
@@ -253,41 +260,64 @@
             <p class="small text-muted mb-1 fw-semibold">Powered by BT DataPlug</p>
             <p class="text-muted" style="font-size: 0.72rem;">btdataplug.pythonanywhere.com</p>
 
-            <div class="mt-4 no-print">
-                <div class="d-grid gap-2">
-                    <button onclick="downloadImage()" class="btn btn-primary rounded-pill fw-bold">
-                        <i class="fa fa-image me-2"></i>Save as Image (Picture)
+            <div class="mt-4 no-print d-grid gap-2">
+
+                <button onclick="shareAsImage()" class="btn btn-success rounded-pill fw-bold py-3">
+                    <i class="fab fa-whatsapp me-2 fa-lg"></i>Share Receipt Image
+                </button>
+
+                <div class="d-flex gap-2">
+                    <button onclick="downloadImage()" class="btn btn-primary rounded-pill flex-fill fw-bold">
+                        <i class="fa fa-image me-2"></i>Save Picture
                     </button>
-                    <button onclick="downloadPDF()" class="btn btn-outline-primary rounded-pill fw-bold">
-                        <i class="fa fa-file-pdf me-2"></i>Download PDF
+                    <button onclick="downloadPDF()" class="btn btn-outline-primary rounded-pill flex-fill fw-bold">
+                        <i class="fa fa-file-pdf me-2"></i>PDF
                     </button>
-                    <div class="d-flex gap-2 mt-2">
-                        <button onclick="window.print()" class="btn btn-light rounded-pill flex-fill fw-semibold">
-                            <i class="fa fa-print me-1"></i>Print
-                        </button>
-                        <a href="{% url 'buy_data' %}" class="btn btn-light rounded-pill flex-fill fw-semibold">
-                            <i class="fa fa-plus me-1"></i>Buy Again
-                        </a>
-                    </div>
                 </div>
 
-                <a href="https://wa.me/?text=✅ BT DataPlug Receipt%0APlan: {{ tx.plan_name|urlencode }}%0APhone: {{ tx.recipient }}%0AAmount: ₦{{ tx.amount }}%0ARef: {{ tx.reference }}"
-                    target="_blank" class="btn btn-success rounded-pill fw-bold px-4 mt-3 w-100">
-                    <i class="fab fa-whatsapp me-2"></i>Share Summary on WhatsApp
-                </a>
+                <div class="d-flex gap-2 mt-2">
+                    <button onclick="window.print()" class="btn btn-light rounded-pill flex-fill fw-semibold border">
+                        <i class="fa fa-print me-1"></i>Print
+                    </button>
+                    <a href="{% url 'buy_data' %}" class="btn btn-light rounded-pill flex-fill fw-semibold border">
+                        <i class="fa fa-plus me-1"></i>Buy Again
+                    </a>
+                </div>
             </div>
         </div>
     </div>
 </div>
 
 <script>
-    // 1. Logic to Download as Image (Picture)
+    // 1. Share as a real Image File (Works on Mobile)
+    async function shareAsImage() {
+        const element = document.getElementById('capture-area');
+        const canvas = await html2canvas(element, { scale: 3, backgroundColor: "#ffffff" });
+
+        canvas.toBlob(async (blob) => {
+            const file = new File([blob], "BT-Receipt-{{ tx.reference }}.png", { type: "image/png" });
+
+            if (navigator.canShare && navigator.canShare({ files: [file] })) {
+                try {
+                    await navigator.share({
+                        files: [file],
+                        title: 'BT DataPlug Receipt',
+                        text: 'Transaction Successful! ✅'
+                    });
+                } catch (error) {
+                    console.log('Sharing failed', error);
+                }
+            } else {
+                downloadImage();
+                alert("Browser doesn't support direct file sharing. Picture has been saved to your downloads.");
+            }
+        }, 'image/png');
+    }
+
+    // 2. Download as Image (Picture)
     function downloadImage() {
         const element = document.getElementById('capture-area');
-        html2canvas(element, {
-            scale: 2, // Higher quality
-            backgroundColor: "#f8fafc"
-        }).then(canvas => {
+        html2canvas(element, { scale: 2, backgroundColor: "#ffffff" }).then(canvas => {
             const link = document.createElement('a');
             link.download = 'BT-DataPlug-Receipt-{{ tx.reference }}.png';
             link.href = canvas.toDataURL("image/png");
@@ -295,7 +325,7 @@
         });
     }
 
-    // 2. Logic to Download as PDF
+    // 3. Download as PDF
     function downloadPDF() {
         const { jsPDF } = window.jspdf;
         const element = document.getElementById('capture-area');
