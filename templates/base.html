@@ -1,254 +1,663 @@
-{% load static %}
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>BT DataPlug | Premium Dashboard</title>
+    <!-- Bootstrap 5 + Icons + Fonts -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;14..32,400;14..32,500;14..32,600;14..32,700;14..32,800&display=swap"
+        rel="stylesheet">
+    <!-- AOS Library for subtle scroll animations -->
+    <link href="https://unpkg.com/aos@2.3.1/dist/aos.css" rel="stylesheet">
     <style>
-        :root { 
-            --primary-blue: #2563eb; 
-            --primary-dark: #1e40af;
-            --soft-bg: #f8fafc; 
-            --text-main: #1e293b;
-            --text-muted: #64748b;
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
         }
-        body { 
-            background-color: var(--soft-bg); 
-            font-family: 'Inter', sans-serif; 
+
+        :root {
+            --primary-gradient: linear-gradient(135deg, #2563eb 0%, #1e40af 100%);
+            --primary-blue: #2563eb;
+            --primary-dark: #1e40af;
+            --soft-bg: #f1f5f9;
+            --text-main: #0f172a;
+            --text-muted: #475569;
+            --glass-white: rgba(255, 255, 255, 0.96);
+            --border-light: rgba(203, 213, 225, 0.4);
+            --shadow-premium: 0 20px 35px -12px rgba(0, 0, 0, 0.08), 0 1px 2px rgba(0, 0, 0, 0.02);
+            --shadow-hover: 0 25px 40px -16px rgba(0, 0, 0, 0.12);
+        }
+
+        body {
+            background: var(--soft-bg);
+            font-family: 'Inter', sans-serif;
             color: var(--text-main);
             -webkit-font-smoothing: antialiased;
+            overflow-x: hidden;
         }
-        
-        /* Glassmorphism */
-        .glass-card { 
-            background: rgba(255, 255, 255, 0.95); 
-            border-radius: 16px; 
-            border: 1px solid rgba(255, 255, 255, 0.4);
-            box-shadow: 0 10px 40px -10px rgba(0,0,0,0.08);
-            backdrop-filter: blur(10px);
-            transition: all 0.3s ease;
+
+        /* glassmorphism premium */
+        .glass-card {
+            background: var(--glass-white);
+            backdrop-filter: blur(12px);
+            border-radius: 28px;
+            border: 1px solid var(--border-light);
+            box-shadow: var(--shadow-premium);
+            transition: all 0.35s cubic-bezier(0.2, 0, 0, 1);
         }
-        
-        /* Sidebar Styling */
-        .sidebar { height: 100vh; width: 250px; position: fixed; background: #ffffff; border-right: 1px solid #e2e8f0; padding-top: 20px; z-index: 1000; box-shadow: 4px 0 24px rgba(0,0,0,0.02);}
-        .nav-item-custom { 
-            padding: 12px 28px; 
-            display: flex; 
-            align-items: center; 
-            color: #4b5563; 
-            font-weight: 500; 
-            text-decoration: none; 
-            transition: 0.2s ease; 
-            border-left: 4px solid transparent; 
+
+        .glass-card:hover {
+            transform: translateY(-3px);
+            box-shadow: var(--shadow-hover);
+            border-color: rgba(37, 99, 235, 0.2);
         }
-        .nav-item-custom i.icon-left { 
-            width: 26px; 
-            font-size: 1.15rem; 
-            margin-right: 14px; 
-            color: #64748b; 
-            text-align: center; 
-            transition: 0.2s ease;
+
+        /* Sidebar — modern clean */
+        .sidebar {
+            height: 100vh;
+            width: 280px;
+            position: fixed;
+            background: #ffffffef;
+            backdrop-filter: blur(2px);
+            border-right: 1px solid #e9eef3;
+            padding-top: 28px;
+            z-index: 1000;
+            transition: all 0.2s;
+            box-shadow: 4px 0 20px rgba(0, 0, 0, 0.02);
         }
-        .nav-item-custom:hover, .nav-item-custom.active { background: #f8fafc; color: var(--primary-blue); border-left-color: var(--primary-blue); }
-        .nav-item-custom:hover i.icon-left, .nav-item-custom.active i.icon-left { color: var(--primary-blue); }
-        .nav-item-custom .fa-chevron-right { font-size: 0.75rem; color: #94a3b8; }
-        .nav-item-custom:hover, .nav-item-custom.active { background: #eff6ff; color: var(--primary-blue); border-left-color: var(--primary-blue); }
-        
-        .main-content { margin-left: 250px; padding: 30px; min-height: 100vh; transition: all 0.3s ease; }
-        
-        /* Mobile Navigation */
-        .mobile-header { 
-            display: none; 
-            background: #ffffff; 
-            border-bottom: 1px solid #e2e8f0; 
-            padding: 12px 20px; 
-            position: fixed; 
-            top: 0; 
-            width: 100%; 
-            z-index: 1050; 
-            box-shadow: 0 4px 12px rgba(0,0,0,0.03);
+
+        .logo-area {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            margin-bottom: 32px;
+            padding: 0 24px;
         }
-        
-        .bottom-nav { 
-            display: none; 
-            background: #ffffff; 
-            border-top: 1px solid #e2e8f0; 
-            position: fixed; 
-            bottom: 0; 
-            width: 100%; 
-            z-index: 1050; 
-            padding: 8px 0;
-            box-shadow: 0 -4px 12px rgba(0,0,0,0.03);
+
+        .logo-icon {
+            background: var(--primary-gradient);
+            width: 42px;
+            height: 42px;
+            border-radius: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 1.5rem;
+            box-shadow: 0 8px 14px -6px rgba(37, 99, 235, 0.3);
         }
-        
-        .bottom-nav-item { 
-            display: flex; 
-            flex-direction: column; 
-            align-items: center; 
-            color: #64748b; 
-            text-decoration: none; 
-            font-size: 0.7rem; 
-            gap: 4px;
-            transition: 0.2s ease;
+
+        .logo-text {
+            font-weight: 800;
+            font-size: 1.55rem;
+            letter-spacing: -0.3px;
+            background: linear-gradient(135deg, #1e293b 0%, #2563eb 100%);
+            background-clip: text;
+            -webkit-background-clip: text;
+            color: transparent;
         }
-        .bottom-nav-item.active { color: var(--primary-blue); font-weight: 600; }
-        .bottom-nav-item i { font-size: 1.25rem; }
+
+        .nav-item-custom {
+            padding: 12px 24px;
+            margin: 6px 16px;
+            display: flex;
+            align-items: center;
+            color: #334155;
+            font-weight: 500;
+            text-decoration: none;
+            border-radius: 18px;
+            transition: all 0.2s ease;
+            gap: 14px;
+        }
+
+        .nav-item-custom i.icon-left {
+            width: 26px;
+            font-size: 1.25rem;
+            color: #5b6e8c;
+            transition: 0.2s;
+        }
+
+        .nav-item-custom:hover,
+        .nav-item-custom.active {
+            background: #eff6ff;
+            color: var(--primary-blue);
+        }
+
+        .nav-item-custom:hover i.icon-left,
+        .nav-item-custom.active i.icon-left {
+            color: var(--primary-blue);
+            transform: scale(1.02);
+        }
+
+        .nav-item-custom .chevron {
+            margin-left: auto;
+            font-size: 0.7rem;
+            opacity: 0.6;
+        }
+
+        .main-content {
+            margin-left: 280px;
+            padding: 32px 40px;
+            min-height: 100vh;
+        }
+
+        /* Mobile Styles */
+        .mobile-header {
+            display: none;
+            background: rgba(255, 255, 255, 0.92);
+            backdrop-filter: blur(16px);
+            border-bottom: 1px solid #eef2f6;
+            padding: 12px 20px;
+            position: fixed;
+            top: 0;
+            width: 100%;
+            z-index: 1050;
+        }
+
+        .bottom-nav {
+            display: none;
+            background: rgba(255, 255, 255, 0.96);
+            backdrop-filter: blur(20px);
+            border-top: 1px solid #eef2f6;
+            position: fixed;
+            bottom: 0;
+            width: 100%;
+            z-index: 1050;
+            padding: 10px 20px;
+            padding-bottom: env(safe-area-inset-bottom, 10px);
+        }
+
+        .bottom-nav-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            color: #5b6e8c;
+            text-decoration: none;
+            font-size: 0.7rem;
+            font-weight: 500;
+            transition: 0.2s;
+            gap: 5px;
+        }
+
+        .bottom-nav-item i {
+            font-size: 1.4rem;
+        }
+
+        .bottom-nav-item.active {
+            color: var(--primary-blue);
+        }
 
         @media (max-width: 991.98px) {
-            .sidebar { display: none !important; }
-            .mobile-header { display: flex; align-items: center; justify-content: space-between; }
-            .bottom-nav { display: flex; justify-content: space-around; }
-            .main-content { margin-left: 0 !important; padding: 75px 15px 100px 15px !important; } /* Extra bottom padding for safety */
+            .sidebar {
+                display: none !important;
+            }
+
+            .mobile-header {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+            }
+
+            .bottom-nav {
+                display: flex;
+                justify-content: space-around;
+            }
+
+            .main-content {
+                margin-left: 0 !important;
+                padding: 85px 20px 100px 20px !important;
+            }
         }
-        
-        /* Utility */
-        .shadow-sm { box-shadow: 0 2px 10px rgba(0,0,0,0.05) !important; }
-        .rounded-4 { border-radius: 1rem !important; }
-        .offcanvas { background-color: #ffffff; border-right: none; }
-        .btn-primary { background-color: var(--primary-blue); border-color: var(--primary-blue); }
-        .btn-primary:hover { background-color: var(--primary-dark); border-color: var(--primary-dark); }
-        .offcanvas-body { padding: 0; }
+
+        /* welcome card & user avatar */
+        .welcome-chip {
+            background: white;
+            border-radius: 100px;
+            padding: 6px 18px 6px 12px;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.02);
+            border: 1px solid #e2e8f0;
+            font-weight: 500;
+        }
+
+        .stat-card {
+            border-radius: 28px;
+            background: white;
+            transition: all 0.2s;
+            border: 1px solid #eef2ff;
+        }
+
+        .stat-card:hover {
+            border-color: #cbdffc;
+            transform: translateY(-2px);
+        }
+
+        .btn-soft-primary {
+            background: #eef2ff;
+            color: var(--primary-blue);
+            border-radius: 40px;
+            padding: 10px 22px;
+            font-weight: 600;
+            transition: 0.2s;
+        }
+
+        .btn-soft-primary:hover {
+            background: #e0e7ff;
+            color: #1e40af;
+        }
+
+        .action-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            gap: 18px;
+        }
+
+        .service-tile {
+            background: white;
+            border-radius: 28px;
+            padding: 18px 12px;
+            text-align: center;
+            transition: all 0.2s ease;
+            border: 1px solid #eef2ff;
+            cursor: pointer;
+        }
+
+        .service-tile i {
+            font-size: 2.2rem;
+            background: linear-gradient(135deg, #2563eb, #4f46e5);
+            background-clip: text;
+            -webkit-background-clip: text;
+            color: transparent;
+            margin-bottom: 12px;
+        }
+
+        .service-tile:hover {
+            transform: translateY(-6px);
+            border-color: #b9d0ff;
+            box-shadow: 0 20px 25px -12px rgba(37, 99, 235, 0.15);
+        }
+
+        .gradient-text {
+            background: linear-gradient(135deg, #1e293b, #2563eb);
+            background-clip: text;
+            -webkit-background-clip: text;
+            color: transparent;
+            font-weight: 800;
+        }
+
+        .balance-badge {
+            background: linear-gradient(145deg, #f8fafc, #ffffff);
+            border-radius: 2rem;
+            padding: 0.5rem 1.4rem;
+            font-weight: 700;
+        }
+
+        footer {
+            font-size: 0.75rem;
+            text-align: center;
+            margin-top: 3rem;
+            color: #6c757d;
+        }
+
+        .offcanvas-menu-custom .offcanvas-body {
+            padding: 0;
+        }
+
+        .avatar-circle {
+            width: 44px;
+            height: 44px;
+            background: linear-gradient(145deg, #2563eb, #1e3a8a);
+            color: white;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 30px;
+            box-shadow: 0 6px 12px -6px rgba(0, 0, 0, 0.2);
+        }
     </style>
 </head>
+
 <body>
 
     {% if user.is_authenticated %}
-    <!-- Desktop Sidebar -->
-    <div class="sidebar d-flex flex-column" style="overflow-y: auto; overflow-x: hidden;">
-        <div class="text-center mb-4 mt-2">
-            <img src="{% static 'logo.png' %}" alt="BT DataPlug Logo" style="max-height: 40px; width: auto;" onerror="this.onerror=null; this.outerHTML='<h4 class=\'fw-bold text-primary\'>BT DataPlug</h4>';">
+    <!-- DESKTOP SIDEBAR (PREMIUM) -->
+    <div class="sidebar d-flex flex-column">
+        <div class="logo-area">
+            <div class="logo-icon">
+                <i class="fas fa-bolt"></i>
+            </div>
+            <span class="logo-text">BT DataPlug</span>
         </div>
-        
-        <a href="{% url 'dashboard' %}" class="nav-item-custom active">
-            <i class="fa fa-home icon-left"></i> Dashboard
-        </a>
-        <a href="#" class="nav-item-custom">
-            <i class="fa fa-phone icon-left"></i> Buy Airtime
-        </a>
-        <a href="#" class="nav-item-custom">
-            <i class="fa fa-lightbulb icon-left"></i> Cable Sub
-        </a>
-        <a href="#" class="nav-item-custom">
-            <i class="fa fa-credit-card icon-left"></i> Fund Wallet
-        </a>
-        <a href="#" class="nav-item-custom">
-            <i class="fa fa-calculator icon-left"></i> Calculator
-        </a>
-        <hr class="mx-4 text-muted">
-        <a href="javascript:void(0)" onclick="document.getElementById('logout-form').submit();" class="nav-item-custom text-danger mt-auto mb-4">
-            <i class="fa fa-sign-out-alt icon-left text-danger"></i> Logout
-        </a>
+
+        <div class="flex-grow-1 mt-2">
+            <a href="{% url 'dashboard' %}" class="nav-item-custom active">
+                <i class="fa-solid fa-chart-line icon-left"></i>
+                <span>Dashboard</span>
+                <i class="fa-solid fa-chevron-right chevron"></i>
+            </a>
+            <a href="#" class="nav-item-custom">
+                <i class="fa-solid fa-tower-cell icon-left"></i>
+                <span>Buy Airtime</span>
+            </a>
+            <a href="#" class="nav-item-custom">
+                <i class="fa-solid fa-tv icon-left"></i>
+                <span>Cable Sub</span>
+            </a>
+            <a href="#" class="nav-item-custom">
+                <i class="fa-solid fa-wallet icon-left"></i>
+                <span>Fund Wallet</span>
+            </a>
+            <a href="#" class="nav-item-custom">
+                <i class="fa-solid fa-calculator icon-left"></i>
+                <span>Calculator</span>
+            </a>
+            <a href="#" class="nav-item-custom">
+                <i class="fa-solid fa-clock-rotate-left icon-left"></i>
+                <span>History</span>
+            </a>
+        </div>
+        <hr class="mx-4 mt-3 mb-2" style="background: #e2e8f0;">
+        <div class="mb-4 mt-2">
+            <a href="javascript:void(0)" onclick="document.getElementById('logout-form').submit();"
+                class="nav-item-custom text-danger" style="color:#dc2626 !important;">
+                <i class="fa-solid fa-arrow-right-from-bracket icon-left"></i>
+                <span>Logout</span>
+            </a>
+        </div>
     </div>
 
-    <!-- Mobile Top Header -->
+    <!-- MOBILE HEADER -->
     <div class="mobile-header">
-        <button class="btn btn-link link-dark p-0" type="button" data-bs-toggle="offcanvas" data-bs-target="#offcanvasSidebar">
-            <i class="fa fa-bars fs-3 text-primary"></i>
+        <button class="btn btn-link link-dark p-0" type="button" data-bs-toggle="offcanvas"
+            data-bs-target="#offcanvasSidebar">
+            <i class="fa-solid fa-bars-staggered fs-2 text-primary"></i>
         </button>
-        <span class="fw-bold text-dark">BT DataPlug</span>
+        <div class="d-flex align-items-center gap-2">
+            <i class="fa-solid fa-bolt text-primary"></i>
+            <span class="fw-bold fs-6">BT DataPlug</span>
+        </div>
         <div class="dropdown">
-            <div class="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center" style="width: 32px; height: 32px; cursor: pointer;" data-bs-toggle="dropdown">
+            <div class="avatar-circle" data-bs-toggle="dropdown" style="cursor: pointer;">
                 {{ user.username|first|upper }}
             </div>
-            <ul class="dropdown-menu dropdown-menu-end shadow border-0 rounded-3 mt-2">
-                <li><a class="dropdown-item py-2 small" href="#"><i class="fa fa-user me-2"></i>Profile</a></li>
-                <li><a class="dropdown-item py-2 small text-danger" href="javascript:void(0)" onclick="document.getElementById('logout-form').submit();"><i class="fa fa-sign-out-alt me-2"></i>Log Out</a></li>
+            <ul class="dropdown-menu dropdown-menu-end shadow-lg border-0 rounded-4 mt-2 py-2">
+                <li><a class="dropdown-item py-2" href="#"><i class="fa-regular fa-user me-2"></i>My Profile</a></li>
+                <li><a class="dropdown-item py-2 text-danger" href="javascript:void(0)"
+                        onclick="document.getElementById('logout-form').submit();"><i
+                            class="fa-solid fa-sign-out-alt me-2"></i>Logout</a></li>
             </ul>
         </div>
     </div>
 
-    <!-- Mobile Offcanvas Sidebar -->
-    <div class="offcanvas offcanvas-start w-75" tabindex="-1" id="offcanvasSidebar">
+    <!-- OFF-CANVAS (MOBILE MENU) -->
+    <div class="offcanvas offcanvas-start offcanvas-menu-custom" tabindex="-1" id="offcanvasSidebar"
+        style="width: 280px;">
         <div class="offcanvas-header border-bottom">
-            <h5 class="offcanvas-title fw-bold text-primary">Menu</h5>
+            <div class="d-flex align-items-center gap-2">
+                <div class="logo-icon" style="width: 36px; height: 36px;"><i class="fa-solid fa-bolt"></i></div>
+                <span class="fw-bold fs-5 gradient-text">BT DataPlug</span>
+            </div>
             <button type="button" class="btn-close" data-bs-dismiss="offcanvas"></button>
         </div>
-        <div class="offcanvas-body">
-            <div class="py-3">
-                <a href="{% url 'dashboard' %}" class="nav-item-custom active">
-                    <i class="fa fa-home icon-left"></i> Dashboard
-                </a>
-                <a href="#" class="nav-item-custom">
-                    <i class="fa fa-phone icon-left"></i> Buy Airtime
-                </a>
-                <a href="#" class="nav-item-custom">
-                    <i class="fa fa-lightbulb icon-left"></i> Cable Sub
-                </a>
-                <a href="#" class="nav-item-custom">
-                    <i class="fa fa-credit-card icon-left"></i> Fund Wallet
-                </a>
-                <a href="#" class="nav-item-custom">
-                    <i class="fa fa-history icon-left"></i> Transactions
-                </a>
-                <a href="#" class="nav-item-custom">
-                    <i class="fa fa-cog icon-left"></i> Settings
-                </a>
-            </div>
+        <div class="offcanvas-body p-3">
+            <a href="{% url 'dashboard' %}" class="nav-item-custom active">
+                <i class="fa-solid fa-chart-line icon-left"></i> Dashboard
+            </a>
+            <a href="#" class="nav-item-custom"><i class="fa-solid fa-tower-cell icon-left"></i> Buy Airtime</a>
+            <a href="#" class="nav-item-custom"><i class="fa-solid fa-tv icon-left"></i> Cable Sub</a>
+            <a href="#" class="nav-item-custom"><i class="fa-solid fa-wallet icon-left"></i> Fund Wallet</a>
+            <a href="#" class="nav-item-custom"><i class="fa-solid fa-calculator icon-left"></i> Calculator</a>
+            <a href="#" class="nav-item-custom"><i class="fa-regular fa-clock icon-left"></i> Transactions</a>
         </div>
     </div>
 
-    <!-- Bottom Navigation -->
+    <!-- BOTTOM NAVIGATION (MOBILE) -->
     <div class="bottom-nav">
-        <a href="{% url 'dashboard' %}" class="bottom-nav-item active">
-            <i class="fa fa-home"></i>
-            <span>Home</span>
-        </a>
-        <a href="#" class="bottom-nav-item">
-            <i class="fa fa-wallet"></i>
-            <span>Fund</span>
-        </a>
-        <a href="#" class="bottom-nav-item">
-            <i class="fa fa-history"></i>
-            <span>History</span>
-        </a>
-        <a href="#" class="bottom-nav-item">
-            <i class="fa fa-user"></i>
-            <span>Profile</span>
-        </a>
+        <a href="{% url 'dashboard' %}" class="bottom-nav-item active"><i
+                class="fa-solid fa-house-chimney"></i><span>Home</span></a>
+        <a href="#" class="bottom-nav-item"><i class="fa-solid fa-money-bill-wave"></i><span>Fund</span></a>
+        <a href="#" class="bottom-nav-item"><i class="fa-solid fa-clock-rotate-left"></i><span>History</span></a>
+        <a href="#" class="bottom-nav-item"><i class="fa-regular fa-circle-user"></i><span>Profile</span></a>
     </div>
 
-    <form method="post" action="{% url 'logout' %}" id="logout-form" style="display: none;">
-        {% csrf_token %}
-    </form>
+    <form method="post" action="{% url 'logout' %}" id="logout-form" style="display: none;">{% csrf_token %}</form>
     {% endif %}
 
+    <!-- LOGGED OUT NAVBAR (BEAUTIFUL) -->
     {% if not user.is_authenticated %}
-    <nav class="navbar navbar-expand-lg navbar-dark shadow-sm mb-5" style="background: linear-gradient(135deg, #2563eb 0%, #1e40af 100%);">
-        <div class="container py-2">
-            <a class="navbar-brand" href="{% url 'login' %}">
-                <img src="{% static 'logo.png' %}" alt="BT DataPlug Logo" style="max-height: 40px; width: auto;" onerror="this.onerror=null; this.outerHTML='<span class=\'fw-bold fs-4\'><i class=\'fa fa-plug me-2\'></i>BT DataPlug</span>';">
+    <nav class="navbar navbar-expand-lg shadow-lg mb-5"
+        style="background: var(--primary-gradient); backdrop-filter: blur(4px);">
+        <div class="container py-3">
+            <a class="navbar-brand d-flex align-items-center gap-2 text-white" href="{% url 'login' %}">
+                <i class="fa-solid fa-bolt fa-2x"></i>
+                <span class="fw-bold fs-3 tracking-tight">BT DataPlug</span>
             </a>
-            <div class="ms-auto d-flex gap-2">
-                <a href="{% url 'login' %}" class="btn btn-outline-light border-0 fw-bold">Login</a>
-                <a href="{% url 'register' %}" class="btn btn-light text-primary fw-bold px-4 rounded-pill shadow-sm">Sign Up</a>
+            <div class="ms-auto d-flex gap-3">
+                <a href="{% url 'login' %}"
+                    class="btn btn-outline-light rounded-pill px-4 fw-semibold border-2">Login</a>
+                <a href="{% url 'register' %}"
+                    class="btn btn-light text-primary fw-bold rounded-pill px-5 shadow-sm">Sign Up →</a>
             </div>
         </div>
     </nav>
     {% endif %}
 
-    <div class="{% if user.is_authenticated %}main-content{% else %}container{% endif %}">
+    <!-- MAIN CONTENT AREA (AUTHENTICATED DASHBOARD PREVIEW) -->
+    <div class="{% if user.is_authenticated %}main-content{% else %}container py-4{% endif %}">
         {% if user.is_authenticated %}
-        <!-- Top nav moved directly to dashboard to accommodate full-page intro alert -->
+        <!-- ========== PREMIUM DASHBOARD CONTENT ========== -->
+        <div data-aos="fade-up" data-aos-duration="600">
+            <!-- Welcome area + stats row -->
+            <div class="d-flex flex-wrap justify-content-between align-items-center mb-4">
+                <div>
+                    <h1 class="display-6 fw-bold" style="letter-spacing: -0.02em;">Welcome back, <span
+                            class="gradient-text">{{ user.username }}</span> 👋</h1>
+                    <p class="text-muted mt-1">Monitor your activity & manage services seamlessly.</p>
+                </div>
+                <div class="mt-2 mt-sm-0">
+                    <div class="welcome-chip">
+                        <i class="fa-regular fa-calendar-alt me-1"></i> {{ "now"|date:"F j, Y" }}
+                    </div>
+                </div>
+            </div>
+
+            <!-- stats cards -->
+            <div class="row g-4 mb-5">
+                <div class="col-md-4" data-aos="fade-up" data-aos-delay="100">
+                    <div class="stat-card glass-card p-4">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div>
+                                <span class="text-muted text-uppercase small fw-semibold">Wallet Balance</span>
+                                <h2 class="mt-2 fw-bold display-6">₦12,450.00</h2>
+                            </div>
+                            <div class="bg-primary bg-opacity-10 p-3 rounded-4"><i
+                                    class="fa-solid fa-naira-sign fa-2x text-primary"></i></div>
+                        </div>
+                        <a href="#" class="text-decoration-none small fw-semibold mt-3 d-inline-block">Fund Wallet <i
+                                class="fa-solid fa-arrow-right"></i></a>
+                    </div>
+                </div>
+                <div class="col-md-4" data-aos="fade-up" data-aos-delay="200">
+                    <div class="stat-card glass-card p-4">
+                        <div class="d-flex justify-content-between">
+                            <div><span class="text-muted small fw-semibold">Data Usage</span>
+                                <h3 class="fw-bold mt-2">8.2 GB</h3>
+                            </div>
+                            <div class="bg-success bg-opacity-10 p-3 rounded-4"><i
+                                    class="fa-solid fa-chart-simple fa-2x text-success"></i></div>
+                        </div>
+                        <div class="progress mt-3" style="height: 8px;">
+                            <div class="progress-bar bg-success" style="width: 65%"></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4" data-aos="fade-up" data-aos-delay="300">
+                    <div class="stat-card glass-card p-4">
+                        <div class="d-flex justify-content-between">
+                            <div><span class="text-muted small fw-semibold">Bonus Points</span>
+                                <h3 class="fw-bold mt-2">1,280 pts</h3>
+                            </div>
+                            <div class="bg-warning bg-opacity-10 p-3 rounded-4"><i
+                                    class="fa-solid fa-gem fa-2x text-warning"></i></div>
+                        </div>
+                        <small class="text-muted">+320 this month</small>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Quick actions / Services section -->
+            <div class="glass-card p-4 mb-5" data-aos="fade-up" data-aos-delay="150">
+                <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap">
+                    <div>
+                        <h3 class="fw-bold fs-4"><i class="fa-solid fa-bolt me-2 text-primary"></i> Quick Services</h3>
+                    </div>
+                    <a href="#" class="btn btn-soft-primary btn-sm rounded-pill">View all <i
+                            class="fa-solid fa-arrow-right ms-1"></i></a>
+                </div>
+                <div class="action-grid">
+                    <div class="service-tile"><i class="fa-solid fa-phone-volume"></i>
+                        <h6 class="mt-2 fw-semibold">Airtime</h6><small class="text-muted">Instant top-up</small>
+                    </div>
+                    <div class="service-tile"><i class="fa-solid fa-wifi"></i>
+                        <h6 class="mt-2 fw-semibold">Data Plans</h6><small class="text-muted">MTN, Glo, Airtel</small>
+                    </div>
+                    <div class="service-tile"><i class="fa-solid fa-tv"></i>
+                        <h6 class="mt-2 fw-semibold">Cable TV</h6><small class="text-muted">DStv, GOtv,
+                            Startimes</small>
+                    </div>
+                    <div class="service-tile"><i class="fa-solid fa-bolt"></i>
+                        <h6 class="mt-2 fw-semibold">Electricity</h6><small class="text-muted">Prepaid/postpaid</small>
+                    </div>
+                    <div class="service-tile"><i class="fa-solid fa-credit-card"></i>
+                        <h6 class="mt-2 fw-semibold">Fund Wallet</h6><small class="text-muted">Secure deposit</small>
+                    </div>
+                    <div class="service-tile"><i class="fa-solid fa-chart-simple"></i>
+                        <h6 class="mt-2 fw-semibold">Calculator</h6><small class="text-muted">Data cost tool</small>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Recent transactions preview -->
+            <div class="glass-card p-4" data-aos="fade-up" data-aos-delay="250">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h4 class="fw-bold"><i class="fa-regular fa-clock me-2 text-primary"></i> Recent Transactions</h4>
+                    <a href="#" class="text-primary small fw-semibold text-decoration-none">View History <i
+                            class="fa-solid fa-arrow-right ms-1"></i></a>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-borderless align-middle">
+                        <thead class="text-muted small">
+                            <tr>
+                                <th>Service</th>
+                                <th>Amount</th>
+                                <th>Status</th>
+                                <th>Date</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><i class="fa-solid fa-tower-cell me-2 text-primary"></i> Airtime (MTN)</td>
+                                <td class="fw-semibold">₦500</td>
+                                <td><span
+                                        class="badge bg-success bg-opacity-15 text-success px-3 py-1 rounded-pill">Success</span>
+                                </td>
+                                <td class="text-muted">Today, 10:23 AM</td>
+                            </tr>
+                            <tr>
+                                <td><i class="fa-solid fa-wifi me-2 text-info"></i> Data Bundle - 5GB</td>
+                                <td class="fw-semibold">₦2,000</td>
+                                <td><span
+                                        class="badge bg-success bg-opacity-15 text-success px-3 py-1 rounded-pill">Completed</span>
+                                </td>
+                                <td class="text-muted">Yesterday</td>
+                            </tr>
+                            <tr>
+                                <td><i class="fa-solid fa-wallet me-2 text-warning"></i> Wallet Funding</td>
+                                <td class="fw-semibold">₦5,000</td>
+                                <td><span
+                                        class="badge bg-success bg-opacity-15 text-success px-3 py-1 rounded-pill">Success</span>
+                                </td>
+                                <td class="text-muted">Feb 18, 2025</td>
+                            </tr>
+                            <tr>
+                                <td><i class="fa-solid fa-tv me-2 text-danger"></i> DStv Premium</td>
+                                <td class="fw-semibold">₦12,400</td>
+                                <td><span
+                                        class="badge bg-secondary bg-opacity-10 text-secondary px-3 py-1 rounded-pill">Pending</span>
+                                </td>
+                                <td class="text-muted">Feb 17, 2025</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="alert alert-primary bg-opacity-10 border-0 rounded-4 mt-3 small" role="alert">
+                    <i class="fa-solid fa-circle-info me-2"></i> Need help? Contact support for any transaction issues.
+                </div>
+            </div>
+        </div>
+        <footer class="mt-5 pt-3 text-center text-muted border-top border-light">
+            &copy; 2025 BT DataPlug — Secure & lightning fast utility hub
+        </footer>
+        {% else %}
+        <!-- BEAUTIFUL LANDING BLOCK (non-authenticated) -->
+        <div class="text-center mt-5 pt-4" data-aos="fade-up">
+            <div class="glass-card p-5 shadow-lg mx-auto" style="max-width: 700px; background: white;">
+                <div class="logo-icon mx-auto mb-3" style="width: 70px; height: 70px; font-size: 2.4rem;"><i
+                        class="fa-solid fa-bolt"></i></div>
+                <h1 class="display-5 fw-bold gradient-text">Lightning Fast Digital Services</h1>
+                <p class="lead text-muted mt-3">Airtime, data bundles, cable subscriptions & instant wallet funding —
+                    all in one premium dashboard.</p>
+                <div class="mt-4 d-flex gap-3 justify-content-center flex-wrap">
+                    <a href="{% url 'login' %}" class="btn btn-primary btn-lg rounded-pill px-5 shadow">Login to
+                        Dashboard <i class="fa-solid fa-arrow-right ms-2"></i></a>
+                    <a href="{% url 'register' %}" class="btn btn-outline-secondary btn-lg rounded-pill px-5">Create
+                        Free Account</a>
+                </div>
+                <div class="mt-5 d-flex justify-content-center gap-4 text-muted small">
+                    <span><i class="fa-regular fa-circle-check text-primary"></i> Instant Delivery</span>
+                    <span><i class="fa-regular fa-credit-card text-primary"></i> Secure Payments</span>
+                    <span><i class="fa-regular fa-headset text-primary"></i> 24/7 Support</span>
+                </div>
+            </div>
+        </div>
+        <footer class="mt-5 text-center text-muted small py-4">
+            BT DataPlug © {{ "now"|date:"Y" }} — Redefining connectivity.
+        </footer>
         {% endif %}
 
+        <!-- Messages section (already works) -->
+        {% if messages %}
         <div class="container mt-3">
-            {% if messages %}
-                {% for message in messages %}
-                    <div class="alert alert-{% if message.tags == 'error' %}danger{% else %}{{ message.tags }}{% endif %} alert-dismissible fade show shadow-sm" role="alert">
-                        {{ message }}
-                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                    </div>
-                {% endfor %}
-            {% endif %}
+            {% for message in messages %}
+            <div class="alert alert-{% if message.tags == 'error' %}danger{% else %}{{ message.tags }}{% endif %} alert-dismissible fade show shadow-sm rounded-4"
+                role="alert">
+                <i class="fa-regular fa-bell me-2"></i> {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+            {% endfor %}
         </div>
-        
+        {% endif %}
+
         {% block content %}{% endblock %}
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>
+    <script>
+        AOS.init({ once: true, offset: 20, duration: 700 });
+        // Active link handling for bottom nav (optional)
+        document.querySelectorAll('.bottom-nav-item, .nav-item-custom').forEach(link => {
+            if (link.href === window.location.href) {
+                link.classList.add('active');
+            }
+        });
+    </script>
 </body>
+
 </html>
