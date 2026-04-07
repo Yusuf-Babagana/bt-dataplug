@@ -58,28 +58,66 @@
         .nav-item-custom .fa-chevron-right { font-size: 0.75rem; color: #94a3b8; }
         .nav-item-custom:hover, .nav-item-custom.active { background: #eff6ff; color: var(--primary-blue); border-left-color: var(--primary-blue); }
         
-        .main-content { margin-left: 250px; padding: 30px; min-height: 100vh; }
+        .main-content { margin-left: 250px; padding: 30px; min-height: 100vh; transition: all 0.3s ease; }
         
-        /* Icon Grid */
-        .icon-box { width: 56px; height: 56px; border-radius: 16px; display: flex; align-items: center; justify-content: center; margin-bottom: 12px; transition: transform 0.2s ease; }
-        .card { transition: all 0.3s ease; border-radius: 16px !important; border: 1px solid rgba(0,0,0,0.05) !important; }
-        .card:hover { transform: translateY(-5px); box-shadow: 0 12px 30px -10px rgba(0,0,0,0.1) !important; }
+        /* Mobile Navigation */
+        .mobile-header { 
+            display: none; 
+            background: #ffffff; 
+            border-bottom: 1px solid #e2e8f0; 
+            padding: 12px 20px; 
+            position: fixed; 
+            top: 0; 
+            width: 100%; 
+            z-index: 1050; 
+            box-shadow: 0 4px 12px rgba(0,0,0,0.03);
+        }
         
+        .bottom-nav { 
+            display: none; 
+            background: #ffffff; 
+            border-top: 1px solid #e2e8f0; 
+            position: fixed; 
+            bottom: 0; 
+            width: 100%; 
+            z-index: 1050; 
+            padding: 8px 0;
+            box-shadow: 0 -4px 12px rgba(0,0,0,0.03);
+        }
+        
+        .bottom-nav-item { 
+            display: flex; 
+            flex-direction: column; 
+            align-items: center; 
+            color: #64748b; 
+            text-decoration: none; 
+            font-size: 0.7rem; 
+            gap: 4px;
+            transition: 0.2s ease;
+        }
+        .bottom-nav-item.active { color: var(--primary-blue); font-weight: 600; }
+        .bottom-nav-item i { font-size: 1.25rem; }
+
         @media (max-width: 768px) {
             .sidebar { display: none; }
-            .main-content { margin-left: 0; padding: 15px; }
+            .mobile-header { display: flex; align-items: center; justify-content: space-between; }
+            .bottom-nav { display: flex; justify-content: space-around; }
+            .main-content { margin-left: 0; padding: 75px 15px 85px 15px; } /* Padding for top/bottom bars */
         }
         
         /* Utility */
         .shadow-sm { box-shadow: 0 2px 10px rgba(0,0,0,0.05) !important; }
         .rounded-4 { border-radius: 1rem !important; }
+        .offcanvas { background-color: #ffffff; border-right: none; }
         .btn-primary { background-color: var(--primary-blue); border-color: var(--primary-blue); }
         .btn-primary:hover { background-color: var(--primary-dark); border-color: var(--primary-dark); }
+        .offcanvas-body { padding: 0; }
     </style>
 </head>
 <body>
 
     {% if user.is_authenticated %}
+    <!-- Desktop Sidebar -->
     <div class="sidebar d-flex flex-column" style="overflow-y: auto; overflow-x: hidden;">
         <div class="text-center mb-4 mt-2">
             <img src="{% static 'logo.png' %}" alt="BT DataPlug Logo" style="max-height: 40px; width: auto;" onerror="this.onerror=null; this.outerHTML='<h4 class=\'fw-bold text-primary\'>BT DataPlug</h4>';">
@@ -96,48 +134,86 @@
         </a>
         <a href="#" class="nav-item-custom">
             <i class="fa fa-credit-card icon-left"></i> Fund Wallet
-            <i class="fa fa-chevron-right ms-auto"></i>
         </a>
         <a href="#" class="nav-item-custom">
-            <i class="fa fa-calculator icon-left"></i> Transaction Calculator
+            <i class="fa fa-calculator icon-left"></i> Calculator
         </a>
-        <a href="#" class="nav-item-custom">
-            <i class="fa fa-tags icon-left"></i> Pricing
+        <hr class="mx-4 text-muted">
+        <a href="javascript:void(0)" onclick="document.getElementById('logout-form').submit();" class="nav-item-custom text-danger mt-auto mb-4">
+            <i class="fa fa-sign-out-alt icon-left text-danger"></i> Logout
         </a>
+    </div>
 
-        <h6 class="text-uppercase px-4 small fw-bold mt-4 mb-2" style="color: #1e293b; letter-spacing: 0.5px;">Management</h6>
-        
-        <a href="#" class="nav-item-custom">
-            <i class="fa fa-bars icon-left"></i> Transaction
-            <i class="fa fa-chevron-right ms-auto"></i>
-        </a>
-        <a href="#" class="nav-item-custom">
-            <i class="fa fa-cog icon-left"></i> Setting
-        </a>
-        <a href="#" class="nav-item-custom">
-            <i class="fa fa-mobile-alt icon-left"></i> APP
-        </a>
-        <a href="#" class="nav-item-custom">
-            <i class="fa fa-wallet icon-left"></i> Stock Wallet
-        </a>
-
-        <div class="mt-2 w-100">
-            <form method="post" action="{% url 'logout' %}" id="logout-form" style="display: none;">
-                {% csrf_token %}
-            </form>
-            <a href="javascript:void(0)" onclick="document.getElementById('logout-form').submit();" class="nav-item-custom text-danger">
-                <i class="fa fa-sign-out-alt icon-left text-danger"></i> Logout
-            </a>
+    <!-- Mobile Top Header -->
+    <div class="mobile-header">
+        <button class="btn btn-link link-dark p-0" type="button" data-bs-toggle="offcanvas" data-bs-target="#offcanvasSidebar">
+            <i class="fa fa-bars fs-3 text-primary"></i>
+        </button>
+        <span class="fw-bold text-dark">BT DataPlug</span>
+        <div class="dropdown">
+            <div class="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center" style="width: 32px; height: 32px; cursor: pointer;" data-bs-toggle="dropdown">
+                {{ user.username|first|upper }}
+            </div>
+            <ul class="dropdown-menu dropdown-menu-end shadow border-0 rounded-3 mt-2">
+                <li><a class="dropdown-item py-2 small" href="#"><i class="fa fa-user me-2"></i>Profile</a></li>
+                <li><a class="dropdown-item py-2 small text-danger" href="javascript:void(0)" onclick="document.getElementById('logout-form').submit();"><i class="fa fa-sign-out-alt me-2"></i>Log Out</a></li>
+            </ul>
         </div>
-        
-        <div class="mt-auto p-4 mb-2">
-            <div class="bg-primary-subtle rounded p-3 text-center">
-                <h6 class="fw-bold text-primary mb-1">Hi, {{ user.username }}</h6>
-                <small class="text-dark">Need help?</small><br>
-                <a href="#" class="small fw-bold text-decoration-none">Please check our docs</a>
+    </div>
+
+    <!-- Mobile Offcanvas Sidebar -->
+    <div class="offcanvas offcanvas-start w-75" tabindex="-1" id="offcanvasSidebar">
+        <div class="offcanvas-header border-bottom">
+            <h5 class="offcanvas-title fw-bold text-primary">Menu</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="offcanvas"></button>
+        </div>
+        <div class="offcanvas-body">
+            <div class="py-3">
+                <a href="{% url 'dashboard' %}" class="nav-item-custom active">
+                    <i class="fa fa-home icon-left"></i> Dashboard
+                </a>
+                <a href="#" class="nav-item-custom">
+                    <i class="fa fa-phone icon-left"></i> Buy Airtime
+                </a>
+                <a href="#" class="nav-item-custom">
+                    <i class="fa fa-lightbulb icon-left"></i> Cable Sub
+                </a>
+                <a href="#" class="nav-item-custom">
+                    <i class="fa fa-credit-card icon-left"></i> Fund Wallet
+                </a>
+                <a href="#" class="nav-item-custom">
+                    <i class="fa fa-history icon-left"></i> Transactions
+                </a>
+                <a href="#" class="nav-item-custom">
+                    <i class="fa fa-cog icon-left"></i> Settings
+                </a>
             </div>
         </div>
     </div>
+
+    <!-- Bottom Navigation -->
+    <div class="bottom-nav">
+        <a href="{% url 'dashboard' %}" class="bottom-nav-item active">
+            <i class="fa fa-home"></i>
+            <span>Home</span>
+        </a>
+        <a href="#" class="bottom-nav-item">
+            <i class="fa fa-wallet"></i>
+            <span>Fund</span>
+        </a>
+        <a href="#" class="bottom-nav-item">
+            <i class="fa fa-history"></i>
+            <span>History</span>
+        </a>
+        <a href="#" class="bottom-nav-item">
+            <i class="fa fa-user"></i>
+            <span>Profile</span>
+        </a>
+    </div>
+
+    <form method="post" action="{% url 'logout' %}" id="logout-form" style="display: none;">
+        {% csrf_token %}
+    </form>
     {% endif %}
 
     {% if not user.is_authenticated %}

@@ -31,11 +31,20 @@ def dashboard(request):
         return redirect('login')
         
     form = DataPurchaseForm()
-    service = ClubKonnectService()
-    provider_balance = service.get_balance()
+    
+    # Only show the ClubKonnect balance to you (the Admin)
+    ck_balance = "0.00"
+    provider_balance = "0.00" # Placeholder for non-staff
+    
+    if request.user.is_staff:
+        ck_service = ClubKonnectService()
+        res = ck_service.get_balance()
+        ck_balance = res.get('balance', 'Error')
+        provider_balance = ck_balance # Link for context if needed
     
     context = {
         'form': form,
+        'ck_balance': ck_balance,
         'provider_balance': provider_balance,
         'user_wallet': request.user.profile.wallet_balance, # This is the user's money on your site
         'site_name': 'BT DataPlug',

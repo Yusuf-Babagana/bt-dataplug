@@ -3,36 +3,41 @@ import os
 import hmac
 import hashlib
 import base64
+import uuid
 from django.conf import settings
 
 
 class ClubKonnectService:
     def __init__(self):
-        self.user_id = os.getenv('CK_USER_ID')
-        self.api_key = os.getenv('CK_API_KEY')
-        self.base_url = "https://www.nellobytesystems.com"
-        # No proxy needed anymore!
+        self.user_id = os.getenv('CK_USER_ID', '').strip()
+        self.api_key = os.getenv('CK_API_KEY', '').strip()
+        # Note: The base URL for balance is different from the transactions one
+        self.balance_url = "https://www.nellobytesystems.com/APIWalletBalanceV1.asp"
+        self.services_url = "https://www.nellobytesystems.com/APIV2.0"
 
     def get_balance(self):
-        url = f"{self.base_url}/APIBalance.asp?UserID={self.user_id}&APIKey={self.api_key}"
+        """Check your main BT DataPlug balance on ClubKonnect"""
+        url = f"{self.balance_url}?UserID={self.user_id}&APIKey={self.api_key}"
         try:
-            response = requests.get(url, timeout=10)
-
-            if response.status_code == 200:
-                try:
-                    return response.json().get('balance', response.text)
-                except Exception:
-                    return response.text
-            return "API Error"
-        except requests.exceptions.Timeout:
-            return "Timeout"
+            # Since you are on a Paid Account, no proxy is needed
+            response = requests.get(url, timeout=15)
+            data = response.json()
+            
+            # Check for error strings in the response
+            if isinstance(data, str) and "INVALID" in data:
+                return {"error": data}
+                
+            return data # Returns {"date": "...", "id": "...", "balance": "3500"}
         except Exception as e:
-            return f"Error: {str(e)}"
+            return {"error": str(e)}
 
-    def buy_data(self, network, plan, phone):
-        """Triggers a data purchase"""
-        url = f"{self.base_url}/Data.asp?UserID={self.user_id}&APIKey={self.api_key}&MobileNetwork={network}&DataPlan={plan}&MobileNumber={phone}"
-        response = requests.get(url, timeout=15)
+    def buy_data(self, network, plan_id, phone):
+        """The logic to actually send data to a customer"""
+        url = (
+            f"{self.services_url}/Data.asp?UserID={self.user_id}&APIKey={self.api_key}"
+            f"&MobileNetwork={network}&DataPlan={plan_id}&MobileNumber={phone}&RequestID={uuid.uuid4().hex[:10]}"
+        )
+        response = requests.get(url, timeout=20)
         return response.json()
 
 

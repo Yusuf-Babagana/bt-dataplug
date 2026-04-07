@@ -5,6 +5,19 @@
 <div class="row mb-3">
     <div class="col-12">
         <h4 class="fw-bold fs-3">Welcome back, {{ user.username }}!</h4>
+        
+        {% if user.is_staff %}
+        <div class="alert alert-info border-0 shadow-sm rounded-4 d-flex align-items-center justify-content-between p-3 mb-3">
+            <div>
+                <span class="small fw-bold text-info-emphasis d-block mb-1">CK API Balance (Admin)</span>
+                <h5 class="fw-bold mb-0 text-dark">₦{{ ck_balance }}</h5>
+            </div>
+            <div class="bg-info-subtle p-2 rounded-3">
+                <i class="fa fa-server text-info"></i>
+            </div>
+        </div>
+        {% endif %}
+
         <div class="alert alert-success border-0 shadow-sm rounded-3 py-2 px-3 fw-bold small">
             <i class="fa fa-check-circle me-2"></i> Your account has been verified successfully.
         </div>
@@ -52,9 +65,9 @@
     </div>
 </div>
 
-<div class="row g-3 mb-4">
-    <div class="col-12 col-md-4">
-        <div class="card border-0 shadow-sm bg-primary text-white p-4 h-100 rounded-4">
+<div class="row g-2 g-md-3 mb-4">
+    <div class="col-12 col-lg-4">
+        <div class="card border-0 shadow-sm bg-primary text-white p-3 p-md-4 h-100 rounded-4">
             <div class="d-flex justify-content-between align-items-center mb-1">
                 <span class="small text-white-50 fw-bold">Wallet Balance</span>
                 <i class="fa fa-wallet text-white-50"></i>
@@ -62,19 +75,19 @@
             <h3 class="fw-bold mb-0">₦{{ user_wallet|default:"0.00" }}</h3>
         </div>
     </div>
-    <div class="col-6 col-md-4">
-        <div class="card border-0 shadow-sm p-4 h-100 rounded-4" style="background-color: #f1f5f9;">
+    <div class="col-6 col-lg-4">
+        <div class="card border-0 shadow-sm p-3 p-md-4 h-100 rounded-4" style="background-color: #f1f5f9;">
             <div class="d-flex justify-content-between align-items-center mb-1">
-                <span class="small text-muted fw-bold">Earning Balance</span>
+                <span class="small text-muted fw-bold">Earnings</span>
                 <i class="fa fa-chart-line text-muted opacity-50"></i>
             </div>
             <h4 class="fw-bold mb-0 text-dark">₦0.00</h4>
         </div>
     </div>
-    <div class="col-6 col-md-4">
-        <div class="card border-0 shadow-sm p-4 h-100 rounded-4" style="background-color: #f1f5f9;">
+    <div class="col-6 col-lg-4">
+        <div class="card border-0 shadow-sm p-3 p-md-4 h-100 rounded-4" style="background-color: #f1f5f9;">
             <div class="d-flex justify-content-between align-items-center mb-1">
-                <span class="small text-muted fw-bold">Data Purchased Today</span>
+                <span class="small text-muted fw-bold">Data Used</span>
                 <i class="fa fa-wifi text-muted opacity-50"></i>
             </div>
             <h4 class="fw-bold mb-0 text-dark">0GB</h4>
@@ -87,6 +100,12 @@
     cursor: pointer;
     border-radius: 16px !important;
     border: 1px solid rgba(0,0,0,0.02) !important;
+    padding: 1rem !important;
+}
+@media (max-width: 576px) {
+    .action-card { padding: 0.75rem 0.5rem !important; }
+    .action-icon { width: 40px !important; height: 40px !important; }
+    .action-card p { font-size: 0.65rem !important; }
 }
 .action-icon {
     width: 48px;
@@ -99,14 +118,14 @@
 }
 </style>
 
-<div class="row g-3">
+<div class="row g-2 g-md-3">
     <!-- Buy Data -->
     <div class="col-4 col-md-3 col-lg-2 text-center">
-        <div class="card shadow-sm p-3 action-card h-100" data-bs-toggle="modal" data-bs-target="#dataModal">
+        <div class="card shadow-sm action-card h-100" data-bs-toggle="modal" data-bs-target="#dataModal">
             <div class="action-icon bg-primary-subtle text-primary mb-2">
                 <i class="fa fa-wifi fa-lg"></i>
             </div>
-            <p class="small fw-bold mb-0" style="font-size: 0.75rem;">Buy Data</p>
+            <p class="small fw-bold mb-0">Buy Data</p>
         </div>
     </div>
     <!-- Buy Airtime -->
