@@ -173,6 +173,15 @@
         text-align: center;
     }
 
+    /* Brand Header for Image */
+    .brand-title {
+        color: #1e40af;
+        font-weight: 800;
+        font-size: 1.4rem;
+        letter-spacing: -0.02em;
+        margin-bottom: 0.5rem;
+    }
+
     @media print {
         .no-print {
             display: none !important;
@@ -211,6 +220,10 @@
         <div class="tear"></div>
 
         <div class="receipt-body">
+            <div class="text-center mb-3">
+                <div class="brand-title">BT DATAPLUG</div>
+                <div class="badge bg-primary-subtle text-primary border border-primary-subtle">OFFICIAL RECEIPT</div>
+            </div>
 
             <div class="amount-row">
                 <span class="label">Amount Charged</span>
@@ -257,7 +270,7 @@
         </div>
 
         <div class="receipt-footer">
-            <p class="small text-muted mb-1 fw-semibold">Powered by BT DataPlug</p>
+            <p class="small text-muted mb-1 fw-semibold">Thank you for choosing BT DataPlug</p>
             <p class="text-muted" style="font-size: 0.72rem;">btdataplug.pythonanywhere.com</p>
 
             <div class="mt-4 no-print d-grid gap-2">
@@ -289,10 +302,14 @@
 </div>
 
 <script>
-    // 1. Share as a real Image File (Works on Mobile)
     async function shareAsImage() {
         const element = document.getElementById('capture-area');
-        const canvas = await html2canvas(element, { scale: 3, backgroundColor: "#ffffff" });
+        // Hide buttons manually before capture just in case
+        const canvas = await html2canvas(element, {
+            scale: 3,
+            backgroundColor: "#ffffff",
+            ignoreElements: (el) => el.classList.contains('no-print')
+        });
 
         canvas.toBlob(async (blob) => {
             const file = new File([blob], "BT-Receipt-{{ tx.reference }}.png", { type: "image/png" });
@@ -314,10 +331,13 @@
         }, 'image/png');
     }
 
-    // 2. Download as Image (Picture)
     function downloadImage() {
         const element = document.getElementById('capture-area');
-        html2canvas(element, { scale: 2, backgroundColor: "#ffffff" }).then(canvas => {
+        html2canvas(element, {
+            scale: 2,
+            backgroundColor: "#ffffff",
+            ignoreElements: (el) => el.classList.contains('no-print')
+        }).then(canvas => {
             const link = document.createElement('a');
             link.download = 'BT-DataPlug-Receipt-{{ tx.reference }}.png';
             link.href = canvas.toDataURL("image/png");
@@ -325,12 +345,14 @@
         });
     }
 
-    // 3. Download as PDF
     function downloadPDF() {
         const { jsPDF } = window.jspdf;
         const element = document.getElementById('capture-area');
 
-        html2canvas(element, { scale: 2 }).then(canvas => {
+        html2canvas(element, {
+            scale: 2,
+            ignoreElements: (el) => el.classList.contains('no-print')
+        }).then(canvas => {
             const imgData = canvas.toDataURL('image/png');
             const pdf = new jsPDF('p', 'mm', 'a4');
 
