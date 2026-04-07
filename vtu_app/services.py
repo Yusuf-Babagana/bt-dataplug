@@ -55,16 +55,9 @@ class MonnifyService:
     def get_auth_token(self):
         import base64
         import requests
-        import os
 
-        # 1. Strip everything to ensure NO hidden spaces
-        api_key = str(os.getenv('MONNIFY_API_KEY')).strip()
-        secret_key = str(os.getenv('MONNIFY_SECRET_KEY')).strip()
-
-        # 2. Format the string exactly: "ApiKey:SecretKey"
-        auth_str = f"{api_key}:{secret_key}"
-
-        # 3. Encode to Base64 without any extra characters
+        # Use the already cleaned keys from __init__
+        auth_str = f"{self.api_key}:{self.secret_key}"
         encoded_auth = base64.b64encode(auth_str.encode('ascii')).decode('ascii')
 
         url = "https://api.monnify.com/api/v1/auth/login"
@@ -73,14 +66,12 @@ class MonnifyService:
             'Content-Type': 'application/json'
         }
 
-        # 4. Fire the request (No proxy needed on Paid Plan!)
         response = requests.post(url, headers=headers, timeout=20)
         res_data = response.json()
 
         if response.status_code == 200 and res_data.get('requestSuccessful'):
             return res_data['responseBody']['accessToken']
         else:
-            # This will tell us if it's "Invalid Client" or "Inactive Account"
             error_msg = res_data.get('responseMessage', 'Unauthorized')
             raise Exception(f"Monnify says: {error_msg} (Code: {response.status_code})")
 
@@ -90,24 +81,26 @@ class MonnifyService:
         url = f"{self.base_url}/api/v2/bank-transfer/reserved-accounts"
         headers = {'Authorization': f'Bearer {token}'}
 
-        # Fall back to username if first/last name are blank
-        # (Django's default UserCreationForm doesn't require names)
+        # Handle blank names
         full_name = f"{user.first_name} {user.last_name}".strip()
         if not full_name:
             full_name = user.username
+
+        # Handle blank email (Monnify requires this!)
+        email = user.email if user.email else f"{user.username}@btdataplug.com"
 
         data = {
             "accountReference": f"REF-{user.id}",
             "accountName": full_name,
             "currencyCode": "NGN",
             "contractCode": self.contract_code,
-            "customerEmail": user.email,
+            "customerEmail": email,
             "customerName": full_name,
             "getAllAvailableBanks": True
         }
 
         # Debug: log exactly what we're sending
-        print(f"[Monnify] reserve_account payload: {data}")
+        print(f"[Monnify] Payload being sent: {data}")
 
         response = requests.post(url, json=data, headers=headers, timeout=20)
         return response.json()
