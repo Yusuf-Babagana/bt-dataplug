@@ -100,8 +100,10 @@ def buy_data(request):
                 # Refund on failure
                 user_profile.wallet_balance += plan.price
                 user_profile.save()
-                error_msg = response.get('remark', 'Unknown API error. Please try again.')
-                messages.error(request, f"Purchase failed: {error_msg}")
+                # Show FULL raw response for debugging
+                error_msg = response.get('remark') or response.get('message') or str(response)
+                print(f"[BT DataPlug] Full API response: {response}")
+                messages.error(request, f"API Response: {error_msg}")
 
         return redirect('dashboard')
 
