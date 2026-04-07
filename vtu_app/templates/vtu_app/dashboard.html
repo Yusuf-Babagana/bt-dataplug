@@ -38,11 +38,18 @@
             {% endfor %}
             <p class="small text-danger fw-bold mt-2"><i class="fa fa-info-circle me-1"></i> Charges: 1% capped at 50 naira</p>
         {% else %}
-            <div class="text-center py-4 bg-light rounded">
-                <p class="text-muted small mb-2">No accounts found.</p>
-                <a href="{% url 'generate_accounts' %}" class="btn btn-primary btn-sm fw-bold">
-                    Generate Bank Accounts Now
-                </a>
+            <div class="text-center py-4 bg-light rounded px-3">
+                <p class="text-muted small mb-3">To generate your unique funding accounts, Monnify requires a one-time KYC verification (BVN or NIN).</p>
+                <form method="POST" action="{% url 'generate_accounts' %}" style="max-width: 300px; margin: 0 auto;">
+                    {% csrf_token %}
+                    <div class="mb-3 text-start">
+                        <label for="bvn" class="form-label small fw-bold text-muted mb-1">Enter 11-digit BVN or NIN</label>
+                        <input type="text" name="bvn" id="bvn" class="form-control form-control-sm fw-bold border-2" placeholder="e.g. 22233344455" required maxlength="11" pattern="\d{11}">
+                    </div>
+                    <button type="submit" class="btn btn-primary btn-sm fw-bold w-100 rounded-pill py-2">
+                        Verify & Generate Accounts
+                    </button>
+                </form>
             </div>
         {% endif %}
     </div>

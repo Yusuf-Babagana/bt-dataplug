@@ -75,7 +75,7 @@ class MonnifyService:
             error_msg = res_data.get('responseMessage', 'Unauthorized')
             raise Exception(f"Monnify says: {error_msg} (Code: {response.status_code})")
 
-    def reserve_account(self, user):
+    def reserve_account(self, user, bvn):
         """Creates a dedicated bank account for a user"""
         token = self.get_auth_token()
         url = f"{self.base_url}/api/v2/bank-transfer/reserved-accounts"
@@ -96,6 +96,7 @@ class MonnifyService:
             "contractCode": self.contract_code,
             "customerEmail": email,
             "customerName": full_name,
+            "customerBvn": bvn, # Added BVN for KYC
             "getAllAvailableBanks": True
         }
 

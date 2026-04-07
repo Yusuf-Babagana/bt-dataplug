@@ -52,15 +52,30 @@ def buy_data(request):
 
 def generate_my_accounts(request):
     from .services import MonnifyService
+    
+    if request.method != 'POST':
+        messages.error(request, "Invalid request method.")
+        return redirect('dashboard')
+        
+    bvn = request.POST.get('bvn')
+    if not bvn or len(bvn.strip()) < 11:
+        messages.error(request, "A valid 11-digit BVN or NIN is required.")
+        return redirect('dashboard')
+        
+    bvn = bvn.strip()
     service = MonnifyService()
     try:
-        response = service.reserve_account(request.user)
+        # Save BVN to profile for future reference
+        profile = request.user.profile
+        profile.national_id = bvn
+        profile.save()
+        
+        response = service.reserve_account(request.user, bvn)
         
         # This will print the error in your PythonAnywhere Error Log
         print(f"Monnify Response: {response}") 
 
         if response.get('requestSuccessful') is True:
-            profile = request.user.profile
             profile.bank_accounts = response['responseBody']['accounts']
             profile.save()
             messages.success(request, "Success! Your bank accounts are ready.")
