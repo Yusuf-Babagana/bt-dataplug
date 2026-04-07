@@ -5,33 +5,25 @@ import hashlib
 import base64
 from django.conf import settings
 
+
 class ClubKonnectService:
     def __init__(self):
         self.user_id = os.getenv('CK_USER_ID')
         self.api_key = os.getenv('CK_API_KEY')
         self.base_url = "https://www.nellobytesystems.com"
-        
-        # PythonAnywhere proxy setup
-        self.proxy = {
-            "http": "http://proxy.server:3128",
-            "https": "http://proxy.server:3128",
-        }
+        # No proxy needed anymore!
 
     def get_balance(self):
         url = f"{self.base_url}/APIBalance.asp?UserID={self.user_id}&APIKey={self.api_key}"
         try:
-            # Added proxies and a timeout limit
-            response = requests.get(url, proxies=self.proxy, timeout=10)
-            
+            response = requests.get(url, timeout=10)
+
             if response.status_code == 200:
-                # Try parsing JSON or return text
                 try:
                     return response.json().get('balance', response.text)
-                except:
+                except Exception:
                     return response.text
             return "API Error"
-        except requests.exceptions.ProxyError:
-            return "Proxy Error"
         except requests.exceptions.Timeout:
             return "Timeout"
         except Exception as e:
@@ -40,54 +32,31 @@ class ClubKonnectService:
     def buy_data(self, network, plan, phone):
         """Triggers a data purchase"""
         url = f"{self.base_url}/Data.asp?UserID={self.user_id}&APIKey={self.api_key}&MobileNetwork={network}&DataPlan={plan}&MobileNumber={phone}"
-        response = requests.get(url)
+        response = requests.get(url, timeout=15)
         return response.json()
+
 
 class MonnifyService:
     def __init__(self):
-        # Always use os.getenv to pull from your .env file
-        self.api_key = os.getenv('MONNIFY_API_KEY')
-        self.secret_key = os.getenv('MONNIFY_SECRET_KEY')
-        self.base_url = "https://api.monnify.com" # Live URL
-        
-        # PythonAnywhere Proxy
-        self.proxy = {
-            "http": "http://proxy.server:3128",
-            "https": "http://proxy.server:3128",
-        }
+        self.api_key = os.getenv('MONNIFY_API_KEY').strip()
+        self.secret_key = os.getenv('MONNIFY_SECRET_KEY').strip()
+        self.base_url = "https://api.monnify.com"  # Live
+        # No proxy needed anymore!
 
     def get_auth_token(self):
-        # Ensure no hidden spaces from .env are included
-        api_key = str(os.getenv('MONNIFY_API_KEY', '')).strip()
-        secret_key = str(os.getenv('MONNIFY_SECRET_KEY', '')).strip()
-        
-        auth_str = f"{api_key}:{secret_key}"
-        import base64
-        # Ensure the encoding is clean
+        auth_str = f"{self.api_key}:{self.secret_key}"
         encoded_auth = base64.b64encode(auth_str.encode('ascii')).decode('ascii')
-        
+
         url = f"{self.base_url}/api/v1/auth/login"
-        headers = {
-            'Authorization': f'Basic {encoded_auth}',
-            'Content-Type': 'application/json'
-        }
-        
-        try:
-            # We must use the proxy on PythonAnywhere Free Tier
-            response = requests.post(url, headers=headers, proxies=self.proxy, timeout=20)
-            res_data = response.json()
-            
-            if response.status_code == 200 and res_data.get('requestSuccessful'):
-                return res_data['responseBody']['accessToken']
-            else:
-                # THIS LINE IS THE KEY: It will show the EXACT message from Monnify
-                error_details = res_data.get('responseMessage', 'No message')
-                status_code = response.status_code
-                raise Exception(f"Monnify Error ({status_code}): {error_details}")
-                
-        except Exception as e:
-            # This will catch everything and show it in your red alert box
-            raise Exception(f"Final Debug: {str(e)}")
+        headers = {'Authorization': f'Basic {encoded_auth}'}
+
+        # Simple request without proxies
+        response = requests.post(url, headers=headers, timeout=20)
+        res_data = response.json()
+
+        if response.status_code == 200 and res_data.get('requestSuccessful'):
+            return res_data['responseBody']['accessToken']
+        raise Exception(f"Login Failed: {res_data.get('responseMessage')}")
 
     def reserve_account(self, user):
         """Creates a dedicated bank account for a user"""
@@ -103,5 +72,5 @@ class MonnifyService:
             "customerName": user.username,
             "getAllAvailableBanks": True
         }
-        response = requests.post(url, json=data, headers=headers, proxies=self.proxy, timeout=15)
+        response = requests.post(url, json=data, headers=headers, timeout=15)
         return response.json()
