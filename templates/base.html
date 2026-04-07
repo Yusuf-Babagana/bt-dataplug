@@ -98,11 +98,11 @@
         .bottom-nav-item.active { color: var(--primary-blue); font-weight: 600; }
         .bottom-nav-item i { font-size: 1.25rem; }
 
-        @media (max-width: 768px) {
-            .sidebar { display: none; }
+        @media (max-width: 991.98px) {
+            .sidebar { display: none !important; }
             .mobile-header { display: flex; align-items: center; justify-content: space-between; }
             .bottom-nav { display: flex; justify-content: space-around; }
-            .main-content { margin-left: 0; padding: 75px 15px 85px 15px; } /* Padding for top/bottom bars */
+            .main-content { margin-left: 0 !important; padding: 75px 15px 100px 15px !important; } /* Extra bottom padding for safety */
         }
         
         /* Utility */
