@@ -1,0 +1,257 @@
+{% extends 'base.html' %}
+{% block content %}
+
+<style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+
+    .receipt-wrapper {
+        max-width: 480px;
+        margin: 0 auto;
+        padding: 1rem;
+    }
+
+    .receipt-card {
+        background: #ffffff;
+        border-radius: 24px;
+        overflow: hidden;
+        box-shadow: 0 20px 60px rgba(0,0,0,0.08);
+    }
+
+    /* Header gradient */
+    .receipt-header {
+        background: linear-gradient(135deg, #2563eb 0%, #1e40af 100%);
+        padding: 2rem 1.5rem 3.5rem;
+        text-align: center;
+        position: relative;
+    }
+
+    /* Success tick */
+    .success-ring {
+        width: 72px;
+        height: 72px;
+        border-radius: 50%;
+        background: rgba(255,255,255,0.2);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto 1rem;
+        border: 3px solid rgba(255,255,255,0.4);
+    }
+    .success-ring i { font-size: 2rem; color: #fff; }
+
+    /* Tear / Zigzag divider */
+    .tear {
+        height: 32px;
+        background: linear-gradient(135deg, #2563eb 0%, #1e40af 100%);
+        position: relative;
+        margin-top: -1px;
+    }
+    .tear::after {
+        content: '';
+        display: block;
+        position: absolute;
+        bottom: 0; left: 0; right: 0;
+        height: 32px;
+        background: #f8fafc;
+        clip-path: polygon(
+            0% 100%, 5% 0%, 10% 100%, 15% 0%, 20% 100%, 25% 0%,
+            30% 100%, 35% 0%, 40% 100%, 45% 0%, 50% 100%, 55% 0%,
+            60% 100%, 65% 0%, 70% 100%, 75% 0%, 80% 100%, 85% 0%,
+            90% 100%, 95% 0%, 100% 100%
+        );
+    }
+
+    /* Receipt body */
+    .receipt-body {
+        background: #f8fafc;
+        padding: 1.5rem 1.5rem 0.5rem;
+    }
+
+    .receipt-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        padding: 0.85rem 0;
+        border-bottom: 1px dashed #e2e8f0;
+    }
+    .receipt-row:last-child { border-bottom: none; }
+    .receipt-row .label {
+        font-size: 0.8rem;
+        color: #64748b;
+        font-weight: 500;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+    }
+    .receipt-row .value {
+        font-size: 0.92rem;
+        color: #1e293b;
+        font-weight: 600;
+        text-align: right;
+        max-width: 60%;
+        word-break: break-all;
+    }
+
+    /* Amount row highlight */
+    .amount-row {
+        background: linear-gradient(135deg, #eff6ff, #dbeafe);
+        border-radius: 12px;
+        padding: 1rem 1.2rem;
+        margin: 1rem 0;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    .amount-row .label { font-size: 0.85rem; color: #2563eb; font-weight: 600; }
+    .amount-row .value { font-size: 1.5rem; color: #1e40af; font-weight: 800; }
+
+    /* Status badge */
+    .status-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        background: #dcfce7;
+        color: #15803d;
+        font-size: 0.8rem;
+        font-weight: 700;
+        padding: 4px 12px;
+        border-radius: 999px;
+    }
+
+    /* Dashed divider line with circles */
+    .dashed-divider {
+        display: flex;
+        align-items: center;
+        margin: 0 -1.5rem;
+        position: relative;
+    }
+    .dashed-divider::before, .dashed-divider::after {
+        content: '';
+        width: 24px;
+        height: 24px;
+        border-radius: 50%;
+        background: #f8fafc;
+        border: 2px solid #e2e8f0;
+        flex-shrink: 0;
+        position: relative;
+        z-index: 2;
+    }
+    .dashed-divider .line {
+        flex: 1;
+        border-top: 2px dashed #cbd5e1;
+    }
+
+    /* Footer */
+    .receipt-footer {
+        background: #f8fafc;
+        padding: 1.25rem 1.5rem 2rem;
+        text-align: center;
+    }
+
+    @media print {
+        .no-print { display: none !important; }
+        body { background: white; }
+        .receipt-card { box-shadow: none; }
+    }
+</style>
+
+<div class="receipt-wrapper">
+
+    <!-- Back button (hidden on print) -->
+    <div class="d-flex align-items-center gap-2 mb-3 no-print">
+        <a href="{% url 'dashboard' %}" class="btn btn-light rounded-circle shadow-sm" style="width:40px;height:40px;">
+            <i class="fa fa-arrow-left text-primary"></i>
+        </a>
+        <span class="fw-semibold text-muted">Transaction Receipt</span>
+    </div>
+
+    <div class="receipt-card">
+
+        <!-- Header -->
+        <div class="receipt-header">
+            <div class="success-ring">
+                <i class="fa fa-check"></i>
+            </div>
+            <h5 class="text-white fw-bold mb-1">Purchase Successful!</h5>
+            <p class="text-white-50 small mb-0">Your data has been sent</p>
+        </div>
+
+        <!-- Tearline -->
+        <div class="tear"></div>
+
+        <!-- Body -->
+        <div class="receipt-body">
+
+            <!-- Amount highlight -->
+            <div class="amount-row">
+                <span class="label">Amount Charged</span>
+                <span class="value">₦{{ tx.amount }}</span>
+            </div>
+
+            <!-- Receipt rows -->
+            <div class="receipt-row">
+                <span class="label">Status</span>
+                <span class="value">
+                    <span class="status-badge">
+                        <i class="fa fa-circle-check"></i> {{ tx.status }}
+                    </span>
+                </span>
+            </div>
+            <div class="receipt-row">
+                <span class="label">Service</span>
+                <span class="value">{{ tx.service_type }}</span>
+            </div>
+            <div class="receipt-row">
+                <span class="label">Plan</span>
+                <span class="value">{{ tx.plan_name }}</span>
+            </div>
+            <div class="receipt-row">
+                <span class="label">Recipient</span>
+                <span class="value">{{ tx.recipient }}</span>
+            </div>
+            <div class="receipt-row">
+                <span class="label">Date & Time</span>
+                <span class="value">{{ tx.created_at|date:"d M Y, g:i A" }}</span>
+            </div>
+            <div class="receipt-row">
+                <span class="label">Reference</span>
+                <span class="value" style="font-family: monospace; font-size: 0.78rem;">{{ tx.reference }}</span>
+            </div>
+            <div class="receipt-row">
+                <span class="label">Customer</span>
+                <span class="value">{{ tx.user.get_full_name|default:tx.user.username }}</span>
+            </div>
+
+        </div>
+
+        <!-- Dashed divider with circles -->
+        <div class="dashed-divider px-0 mx-3">
+            <div class="line"></div>
+        </div>
+
+        <!-- Footer -->
+        <div class="receipt-footer">
+            <p class="small text-muted mb-1 fw-semibold">Powered by BT DataPlug</p>
+            <p class="text-muted" style="font-size: 0.72rem;">btdataplug.pythonanywhere.com</p>
+
+            <!-- Action Buttons -->
+            <div class="d-flex gap-2 justify-content-center mt-3 no-print">
+                <button onclick="window.print()" class="btn btn-outline-primary rounded-pill fw-bold px-4">
+                    <i class="fa fa-print me-2"></i>Print
+                </button>
+                <a href="{% url 'buy_data' %}" class="btn btn-primary rounded-pill fw-bold px-4">
+                    <i class="fa fa-plus me-2"></i>Buy Again
+                </a>
+            </div>
+
+            <!-- Share as text (WhatsApp) -->
+            <a href="https://wa.me/?text=✅ BT DataPlug Receipt%0APlan: {{ tx.plan_name|urlencode }}%0APhone: {{ tx.recipient }}%0AAmount: ₦{{ tx.amount }}%0ARef: {{ tx.reference }}%0ADate: {{ tx.created_at|date:'d M Y' }}"
+               target="_blank"
+               class="btn btn-success rounded-pill fw-bold px-4 mt-2 w-100 no-print">
+                <i class="fab fa-whatsapp me-2"></i>Share on WhatsApp
+            </a>
+        </div>
+
+    </div>
+</div>
+
+{% endblock %}

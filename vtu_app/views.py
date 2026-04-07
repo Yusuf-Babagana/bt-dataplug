@@ -86,7 +86,7 @@ def buy_data(request):
             response, req_id = ck.buy_data(plan.network, plan.dataplan_id, phone)
 
             if response.get('status') == 'ORDER_RECEIVED':
-                TxModel.objects.create(
+                tx = TxModel.objects.create(
                     user=request.user,
                     service_type="Data Purchase",
                     plan_name=plan.plan_name,
@@ -95,15 +95,15 @@ def buy_data(request):
                     status="Successful",
                     reference=req_id
                 )
-                messages.success(request, f"✅ {plan.plan_name} sent to {phone} successfully!")
+                # Redirect to the receipt page with the transaction ID
+                return redirect('receipt', tx_id=tx.id)
             else:
                 # Refund on failure
                 user_profile.wallet_balance += plan.price
                 user_profile.save()
-                # Show FULL raw response for debugging
                 error_msg = response.get('remark') or response.get('message') or str(response)
                 print(f"[BT DataPlug] Full API response: {response}")
-                messages.error(request, f"API Response: {error_msg}")
+                messages.error(request, f"Purchase failed: {error_msg}")
 
         return redirect('dashboard')
 
@@ -140,3 +140,16 @@ def complete_kyc(request):
         form = KYCForm()
     
     return render(request, 'vtu_app/kyc.html', {'form': form})
+
+
+def receipt(request, tx_id):
+    """Display a professional receipt for a completed data purchase."""
+    if not request.user.is_authenticated:
+        return redirect('login')
+    try:
+        # Ensure users can only see their own receipts
+        tx = TxModel.objects.get(id=tx_id, user=request.user)
+    except TxModel.DoesNotExist:
+        messages.error(request, "Receipt not found.")
+        return redirect('dashboard')
+    return render(request, 'vtu_app/receipt.html', {'tx': tx})
