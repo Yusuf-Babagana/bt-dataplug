@@ -12,6 +12,7 @@ def monnify_webhook(request):
     """
     Listens for successful payments from Monnify and credits the user's wallet.
     """
+    print("Webhook hit!") # See this in your 'Error Log'
     if request.method == 'POST':
         # 1. Security Check: Verify the signature from Monnify
         signature = request.headers.get('monnify-signature')
