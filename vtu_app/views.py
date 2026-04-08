@@ -7,6 +7,7 @@ from .services import ClubKonnectService, MonnifyService
 from .forms import DataPurchaseForm, KYCForm
 from .models import DataPlan, Transaction as TxModel
 import json
+from decimal import Decimal, InvalidOperation
 from .plan_data import DATA_PLANS
 
 # Create your views here.
@@ -183,8 +184,8 @@ def buy_airtime(request):
         phone = request.POST.get('phone')
 
         try:
-            amount = float(amount)
-        except (ValueError, TypeError):
+            amount = Decimal(amount)
+        except (ValueError, TypeError, InvalidOperation):
             messages.error(request, "Invalid amount entered.")
             return redirect('buy_airtime')
 
