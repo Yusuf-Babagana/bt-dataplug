@@ -171,3 +171,62 @@ def receipt(request, tx_id):
         messages.error(request, "Receipt not found.")
         return redirect('dashboard')
     return render(request, 'vtu_app/receipt.html', {'tx': tx})
+
+
+def buy_airtime(request):
+    if not request.user.is_authenticated:
+        return redirect('login')
+
+    if request.method == 'POST':
+        network = request.POST.get('network')
+        amount = request.POST.get('amount')
+        phone = request.POST.get('phone')
+
+        try:
+            amount = float(amount)
+        except (ValueError, TypeError):
+            messages.error(request, "Invalid amount entered.")
+            return redirect('buy_airtime')
+
+        if amount < 50:
+            messages.error(request, "Minimum airtime purchase is ₦50.")
+            return redirect('buy_airtime')
+
+        user_profile = request.user.profile
+
+        if user_profile.wallet_balance < amount:
+            messages.error(request, "Insufficient balance to perform this transaction.")
+            return redirect('buy_airtime')
+
+        with transaction.atomic():
+            user_profile.wallet_balance -= amount
+            user_profile.save()
+
+            ck = ClubKonnectService()
+            response, req_id = ck.buy_airtime(network, amount, phone)
+
+            if response.get('status') == 'ORDER_RECEIVED':
+                tx = TxModel.objects.create(
+                    user=request.user,
+                    service_type="Airtime Top-up",
+                    plan_name=f"{network} Airtime",
+                    amount=amount,
+                    recipient=phone,
+                    status="Successful",
+                    reference=req_id
+                )
+                return redirect('receipt', tx_id=tx.id)
+            
+            elif response.get('status') == 'INSUFFICIENT_BALANCE':
+                user_profile.wallet_balance += amount
+                user_profile.save()
+                messages.error(request, "Service temporarily unavailable. Please try again later.")
+                print("!!! ADMIN ALERT: ClubKonnect Wallet Empty for Airtime !!!")
+            else:
+                user_profile.wallet_balance += amount
+                user_profile.save()
+                messages.error(request, "Network provider is currently busy. Try again shortly.")
+
+        return redirect('dashboard')
+
+    return render(request, 'vtu_app/buy_airtime.html')

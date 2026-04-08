@@ -1,0 +1,38 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-6">
+        <div class="card border-0 shadow-sm rounded-4 p-4">
+            <h4 class="fw-bold mb-4 text-primary"><i class="fa fa-phone me-2"></i>Buy Airtime</h4>
+            
+            <form method="POST">
+                {% csrf_token %}
+                <div class="mb-3">
+                    <label class="form-label fw-bold small text-muted">Select Network</label>
+                    <select name="network" class="form-select form-select-lg" required>
+                        <option value="01">MTN</option>
+                        <option value="02">Glo</option>
+                        <option value="04">Airtel</option>
+                        <option value="03">9mobile</option>
+                    </select>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label fw-bold small text-muted">Phone Number</label>
+                    <input type="text" name="phone" class="form-control form-control-lg" placeholder="08123456789" required>
+                </div>
+
+                <div class="mb-4">
+                    <label class="form-label fw-bold small text-muted">Amount (₦)</label>
+                    <input type="number" name="amount" class="form-control form-control-lg" placeholder="e.g. 100" min="50" required>
+                    <div class="form-text small">Minimum: ₦50.00</div>
+                </div>
+
+                <button type="submit" class="btn btn-primary btn-lg w-100 fw-bold rounded-pill py-3">
+                    Proceed to Recharge
+                </button>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

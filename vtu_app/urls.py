@@ -8,4 +8,5 @@ urlpatterns = [
     path('receipt/<int:tx_id>/', views.receipt, name='receipt'),
     path('monnify-webhook/', monnify_webhook, name='monnify_webhook'),
     path('complete-kyc/', views.complete_kyc, name='complete_kyc'),
+    path('buy-airtime/', views.buy_airtime, name='buy_airtime'),
 ]

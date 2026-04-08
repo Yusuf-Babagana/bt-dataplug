@@ -66,6 +66,30 @@ class ClubKonnectService:
             print(f"ClubKonnect Connection Failed: {str(e)}")
             return {"status": "ERROR", "remark": "Connection Timeout"}, request_id
 
+    def buy_airtime(self, network_code, amount, phone):
+        """Purchase airtime using the APIAirtimeV1 endpoint."""
+        request_id = uuid.uuid4().hex[:12]
+        url = (
+            f"https://www.nellobytesystems.com/APIAirtimeV1.asp"
+            f"?UserID={self.user_id}&APIKey={self.api_key}"
+            f"&MobileNetwork={network_code}&Amount={amount}"
+            f"&MobileNumber={phone}&RequestID={request_id}"
+        )
+        
+        headers = {'User-Agent': 'Mozilla/5.0 BT-DataPlug/1.0'}
+
+        try:
+            response = requests.get(url, headers=headers, timeout=30)
+            print(f"--- Airtime Debug --- Status: {response.status_code} Body: {response.text}")
+
+            try:
+                return response.json(), request_id
+            except ValueError:
+                return {"status": response.text.strip(), "remark": response.text.strip()}, request_id
+
+        except Exception as e:
+            return {"status": "ERROR", "remark": str(e)}, request_id
+
 
 class MonnifyService:
     def __init__(self):
