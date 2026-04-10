@@ -164,8 +164,8 @@ class MonnifyService:
             error_msg = res_data.get('responseMessage', 'Unauthorized')
             raise Exception(f"Monnify says: {error_msg} (Code: {response.status_code})")
 
-    def reserve_account(self, user):
-        """Creates a Tier 1 bank account using only basic info"""
+    def reserve_account(self, user, bvn=None, nin=None):
+        """Creates a dedicated bank account for a user (Requires BVN/NIN for Monoify compliance)"""
         token = self.get_auth_token()
         url = f"{self.base_url}/api/v2/bank-transfer/reserved-accounts"
         headers = {'Authorization': f'Bearer {token}'}
@@ -176,14 +176,17 @@ class MonnifyService:
 
         data = {
             "accountReference": f"REF-{user.id}",
-            "accountName": f"BT-{full_name}", # Distinctive identifier
+            "accountName": f"BT-{full_name}",
             "currencyCode": "NGN",
             "contractCode": self.contract_code,
             "customerEmail": email,
             "customerName": full_name,
             "getAllAvailableBanks": True
-            # BVN and NIN removed for Tier 1 creation
         }
+
+        # Add IDs to the request if provided
+        if bvn: data["bvn"] = bvn
+        if nin: data["nin"] = nin
 
         # Debug: log payload
         print(f"[Monnify] Payload being sent: {data}")
