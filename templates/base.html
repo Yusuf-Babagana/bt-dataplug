@@ -336,10 +336,14 @@
         </div>
 
         <div class="flex-grow-1 mt-2">
-            <a href="{% url 'dashboard' %}" class="nav-item-custom active">
+            <a href="{% url 'dashboard' %}" class="nav-item-custom">
                 <i class="fa-solid fa-chart-line icon-left"></i>
                 <span>Dashboard</span>
                 <i class="fa-solid fa-chevron-right chevron"></i>
+            </a>
+            <a href="{% url 'buy_data' %}" class="nav-item-custom">
+                <i class="fa-solid fa-wifi icon-left"></i>
+                <span>Buy Data</span>
             </a>
             <a href="{% url 'buy_airtime' %}" class="nav-item-custom">
                 <i class="fa-solid fa-tower-cell icon-left"></i>
@@ -349,7 +353,7 @@
                 <i class="fa-solid fa-tv icon-left"></i>
                 <span>Cable Sub</span>
             </a>
-            <a href="#" class="nav-item-custom">
+            <a href="{% url 'complete_kyc' %}" class="nav-item-custom">
                 <i class="fa-solid fa-wallet icon-left"></i>
                 <span>Fund Wallet</span>
             </a>
@@ -406,24 +410,44 @@
             <button type="button" class="btn-close" data-bs-dismiss="offcanvas"></button>
         </div>
         <div class="offcanvas-body p-3">
-            <a href="{% url 'dashboard' %}" class="nav-item-custom active">
+            <a href="{% url 'dashboard' %}" class="nav-item-custom">
                 <i class="fa-solid fa-chart-line icon-left"></i> Dashboard
             </a>
-            <a href="#" class="nav-item-custom"><i class="fa-solid fa-tower-cell icon-left"></i> Buy Airtime</a>
-            <a href="{% url 'buy_cable' %}" class="nav-item-custom"><i class="fa-solid fa-tv icon-left"></i> Cable Sub</a>
-            <a href="#" class="nav-item-custom"><i class="fa-solid fa-wallet icon-left"></i> Fund Wallet</a>
-            <a href="#" class="nav-item-custom"><i class="fa-solid fa-calculator icon-left"></i> Calculator</a>
-            <a href="{% url 'transaction_history' %}" class="nav-item-custom"><i class="fa-regular fa-clock icon-left"></i> Transactions</a>
+            <a href="{% url 'buy_data' %}" class="nav-item-custom">
+                <i class="fa-solid fa-wifi icon-left"></i> Buy Data
+            </a>
+            <a href="{% url 'buy_airtime' %}" class="nav-item-custom">
+                <i class="fa-solid fa-tower-cell icon-left"></i> Buy Airtime
+            </a>
+            <a href="{% url 'buy_cable' %}" class="nav-item-custom">
+                <i class="fa-solid fa-tv icon-left"></i> Cable Sub
+            </a>
+            <a href="{% url 'complete_kyc' %}" class="nav-item-custom">
+                <i class="fa-solid fa-wallet icon-left"></i> Fund Wallet
+            </a>
+            <a href="#" class="nav-item-custom">
+                <i class="fa-solid fa-calculator icon-left"></i> Calculator
+            </a>
+            <a href="{% url 'transaction_history' %}" class="nav-item-custom">
+                <i class="fa-regular fa-clock icon-left"></i> History
+            </a>
         </div>
     </div>
 
     <!-- BOTTOM NAVIGATION (MOBILE) -->
     <div class="bottom-nav">
-        <a href="{% url 'dashboard' %}" class="bottom-nav-item active"><i
-                class="fa-solid fa-house-chimney"></i><span>Home</span></a>
-        <a href="#" class="bottom-nav-item"><i class="fa-solid fa-money-bill-wave"></i><span>Fund</span></a>
-        <a href="{% url 'transaction_history' %}" class="bottom-nav-item"><i class="fa-solid fa-clock-rotate-left"></i><span>History</span></a>
-        <a href="#" class="bottom-nav-item"><i class="fa-regular fa-circle-user"></i><span>Profile</span></a>
+        <a href="{% url 'dashboard' %}" class="bottom-nav-item">
+            <i class="fa-solid fa-house-chimney"></i><span>Home</span>
+        </a>
+        <a href="{% url 'complete_kyc' %}" class="bottom-nav-item">
+            <i class="fa-solid fa-money-bill-wave"></i><span>Fund</span>
+        </a>
+        <a href="{% url 'transaction_history' %}" class="bottom-nav-item">
+            <i class="fa-solid fa-clock-rotate-left"></i><span>History</span>
+        </a>
+        <a href="#" class="bottom-nav-item">
+            <i class="fa-regular fa-circle-user"></i><span>Profile</span>
+        </a>
     </div>
 
     <form method="post" action="{% url 'logout' %}" id="logout-form" style="display: none;">{% csrf_token %}</form>
