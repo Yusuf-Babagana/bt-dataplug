@@ -7,7 +7,7 @@ from django.contrib.auth import login
 from django.contrib import messages
 from django.db import transaction
 from .services import ClubKonnectService, MonnifyService
-from .forms import DataPurchaseForm, KYCForm
+from .forms import DataPurchaseForm
 from .models import DataPlan, Transaction as TxModel, CablePlan
 import json
 from decimal import Decimal, InvalidOperation
@@ -25,6 +25,18 @@ def register(request):
         form = UserCreationForm(request.POST)
         if form.is_valid():
             user = form.save()
+            
+            # AUTOMATIC ACCOUNT GENERATION
+            try:
+                service = MonnifyService()
+                response = service.reserve_account(user)
+                if response.get('requestSuccessful'):
+                    profile = user.profile
+                    profile.bank_accounts = response['responseBody']['accounts']
+                    profile.save()
+            except Exception as e:
+                print(f"[Auto-Account] Failed for {user.username}: {str(e)}")
+
             login(request, user)
             return redirect('dashboard')
     else:
@@ -149,32 +161,23 @@ def complete_kyc(request):
         return redirect('login')
         
     if request.method == 'POST':
-        form = KYCForm(request.POST)
-        if form.is_valid():
-            bvn = form.cleaned_data.get('bvn')
-            nin = form.cleaned_data.get('nin')
+        service = MonnifyService()
+        try:
+            response = service.reserve_account(request.user)
             
-            service = MonnifyService()
-            try:
-                response = service.reserve_account(request.user, bvn=bvn, nin=nin)
-                
-                if response.get('requestSuccessful'):
-                    profile = request.user.profile
-                    profile.bank_accounts = response['responseBody']['accounts']
-                    profile.bvn = bvn
-                    profile.nin = nin
-                    profile.kyc_verified = True
-                    profile.save()
-                    messages.success(request, "KYC Completed! Bank accounts generated.")
-                    return redirect('dashboard')
-                else:
-                    messages.error(request, f"Monnify Refused: {response.get('responseMessage')}")
-            except Exception as e:
-                messages.error(request, f"System Error: {str(e)}")
-    else:
-        form = KYCForm()
+            if response.get('requestSuccessful'):
+                profile = request.user.profile
+                profile.bank_accounts = response['responseBody']['accounts']
+                profile.kyc_verified = True # Mark as basic verified
+                profile.save()
+                messages.success(request, "Bank accounts generated successfully!")
+                return redirect('dashboard')
+            else:
+                messages.error(request, f"Monnify error: {response.get('responseMessage')}")
+        except Exception as e:
+            messages.error(request, f"System error: {str(e)}")
     
-    return render(request, 'vtu_app/kyc.html', {'form': form})
+    return render(request, 'vtu_app/kyc.html')
 
 
 def receipt(request, tx_id):

@@ -164,35 +164,28 @@ class MonnifyService:
             error_msg = res_data.get('responseMessage', 'Unauthorized')
             raise Exception(f"Monnify says: {error_msg} (Code: {response.status_code})")
 
-    def reserve_account(self, user, bvn=None, nin=None):
-        """Creates a dedicated bank account for a user"""
+    def reserve_account(self, user):
+        """Creates a Tier 1 bank account using only basic info"""
         token = self.get_auth_token()
         url = f"{self.base_url}/api/v2/bank-transfer/reserved-accounts"
         headers = {'Authorization': f'Bearer {token}'}
 
-        # Handle blank names
-        full_name = f"{user.first_name} {user.last_name}".strip()
-        if not full_name:
-            full_name = user.username
-
-        # Handle blank email (Monnify requires this!)
+        # Handle names and fallback
+        full_name = f"{user.first_name} {user.last_name}".strip() or user.username
         email = user.email if user.email else f"{user.username}@btdataplug.com"
 
         data = {
             "accountReference": f"REF-{user.id}",
-            "accountName": full_name,
+            "accountName": f"BT-{full_name}", # Distinctive identifier
             "currencyCode": "NGN",
             "contractCode": self.contract_code,
             "customerEmail": email,
             "customerName": full_name,
             "getAllAvailableBanks": True
+            # BVN and NIN removed for Tier 1 creation
         }
 
-        # Add BVN or NIN to the request if provided
-        if bvn: data["bvn"] = bvn
-        if nin: data["nin"] = nin
-
-        # Debug: log exactly what we're sending
+        # Debug: log payload
         print(f"[Monnify] Payload being sent: {data}")
 
         response = requests.post(url, json=data, headers=headers, timeout=20)
