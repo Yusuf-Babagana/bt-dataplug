@@ -1,11 +1,14 @@
 from django.shortcuts import render, redirect
+from django.http import JsonResponse
+from django.db.models import Sum
+
 from django.contrib.auth.forms import UserCreationForm
 from django.contrib.auth import login
 from django.contrib import messages
 from django.db import transaction
 from .services import ClubKonnectService, MonnifyService
 from .forms import DataPurchaseForm, KYCForm
-from .models import DataPlan, Transaction as TxModel
+from .models import DataPlan, Transaction as TxModel, CablePlan
 import json
 from decimal import Decimal, InvalidOperation
 from .plan_data import DATA_PLANS
@@ -33,27 +36,40 @@ def dashboard(request):
     if not request.user.is_authenticated:
         return redirect('login')
         
-    form = DataPurchaseForm()
+    user_profile = request.user.profile
     
+    # Calculate Real Stats for this user
+    total_spent = TxModel.objects.filter(
+        user=request.user, 
+        status="Successful"
+    ).aggregate(Sum('amount'))['amount__sum'] or 0
+    
+    # Recent Transactions for the dashboard table
+    recent_transactions = TxModel.objects.filter(user=request.user).order_by('-created_at')[:5]
+
     # Only show the ClubKonnect balance to you (the Admin)
     ck_balance = "0.00"
-    provider_balance = "0.00" # Placeholder for non-staff
-    
     if request.user.is_staff:
         ck_service = ClubKonnectService()
         res = ck_service.get_balance()
         ck_balance = res.get('balance', 'Error')
-        provider_balance = ck_balance # Link for context if needed
     
     context = {
-        'form': form,
         'ck_balance': ck_balance,
-        'provider_balance': provider_balance,
-        'user_wallet': request.user.profile.wallet_balance, # This is the user's money on your site
+        'user_wallet': user_profile.wallet_balance,
+        'total_spent': total_spent,
+        'recent_transactions': recent_transactions,
+        'plan_data_json': json.dumps(DATA_PLANS),
         'site_name': 'BT DataPlug',
-        'plan_data_json': json.dumps(DATA_PLANS), # For the dynamic dropdown
     }
     return render(request, 'vtu_app/dashboard.html', context)
+
+def transaction_history(request):
+    if not request.user.is_authenticated:
+        return redirect('login')
+        
+    transactions = TxModel.objects.filter(user=request.user).order_by('-created_at')
+    return render(request, 'vtu_app/transactions.html', {'transactions': transactions})
 
 def buy_data(request):
     if not request.user.is_authenticated:
@@ -231,3 +247,67 @@ def buy_airtime(request):
         return redirect('dashboard')
 
     return render(request, 'vtu_app/buy_airtime.html')
+
+
+def buy_cable(request):
+    if not request.user.is_authenticated:
+        return redirect('login')
+        
+    plans = CablePlan.objects.all().order_by('cable_type', 'price')
+    
+    if request.method == 'POST':
+        plan_id = request.POST.get('plan')
+        smartcard = request.POST.get('smartcard')
+        phone = request.POST.get('phone')
+        
+        try:
+            plan = CablePlan.objects.get(id=plan_id)
+        except CablePlan.DoesNotExist:
+            messages.error(request, "Invalid plan selected.")
+            return redirect('buy_cable')
+
+        user_profile = request.user.profile
+
+        if user_profile.wallet_balance < plan.price:
+            messages.error(request, "Insufficient balance.")
+            return redirect('buy_cable')
+
+        with transaction.atomic():
+            user_profile.wallet_balance -= plan.price
+            user_profile.save()
+
+            ck = ClubKonnectService()
+            response, req_id = ck.buy_cable(plan.cable_type, plan.package_code, smartcard, phone)
+
+            if response.get('status') == 'ORDER_RECEIVED':
+                tx = TxModel.objects.create(
+                    user=request.user,
+                    service_type="Cable TV",
+                    plan_name=f"{plan.cable_type.upper()}: {plan.name}",
+                    amount=plan.price,
+                    recipient=smartcard,
+                    status="Successful",
+                    reference=req_id
+                )
+                return redirect('receipt', tx_id=tx.id)
+            else:
+                user_profile.wallet_balance += plan.price
+                user_profile.save()
+                messages.error(request, f"Failed: {response.get('status', 'Unknown Error')}")
+
+    return render(request, 'vtu_app/buy_cable.html', {'plans': plans})
+
+
+def validate_cable(request):
+    if not request.user.is_authenticated:
+        return JsonResponse({'error': 'Unauthorized'}, status=401)
+        
+    cable_tv = request.GET.get('cable_tv')
+    smartcard = request.GET.get('smartcard')
+    
+    if not cable_tv or not smartcard:
+        return JsonResponse({'error': 'Missing parameters'}, status=400)
+        
+    ck = ClubKonnectService()
+    res = ck.verify_cable(cable_tv, smartcard)
+    return JsonResponse(res)

@@ -81,22 +81,13 @@
             <h3 class="fw-bold mb-0">₦{{ user.profile.wallet_balance|default:"0.00" }}</h3>
         </div>
     </div>
-    <div class="col-6 col-lg-4">
+    <div class="col-12 col-lg-4">
         <div class="card border-0 shadow-sm p-3 p-md-4 h-100 rounded-4" style="background-color: #f1f5f9;">
             <div class="d-flex justify-content-between align-items-center mb-1">
-                <span class="small text-muted fw-bold">Earnings</span>
-                <i class="fa fa-chart-line text-muted opacity-50"></i>
+                <span class="small text-muted fw-bold">Total Spent</span>
+                <i class="fa fa-shopping-cart text-muted opacity-50"></i>
             </div>
-            <h4 class="fw-bold mb-0 text-dark">₦0.00</h4>
-        </div>
-    </div>
-    <div class="col-6 col-lg-4">
-        <div class="card border-0 shadow-sm p-3 p-md-4 h-100 rounded-4" style="background-color: #f1f5f9;">
-            <div class="d-flex justify-content-between align-items-center mb-1">
-                <span class="small text-muted fw-bold">Data Used</span>
-                <i class="fa fa-wifi text-muted opacity-50"></i>
-            </div>
-            <h4 class="fw-bold mb-0 text-dark">0GB</h4>
+            <h4 class="fw-bold mb-0 text-dark">₦{{ total_spent }}</h4>
         </div>
     </div>
 </div>
@@ -235,6 +226,51 @@
             id="refLink">
         <button class="btn btn-primary fw-bold px-4"
             onclick="copyToClipboard(document.getElementById('refLink').value)">Copy</button>
+    </div>
+</div>
+
+<div class="card border-0 shadow-sm mt-4 rounded-4">
+    <div class="card-body p-4">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h5 class="fw-bold mb-0">Recent Transactions</h5>
+            <a href="{% url 'transaction_history' %}" class="small text-decoration-none fw-bold">View All</a>
+        </div>
+        
+        <div class="table-responsive">
+            <table class="table table-hover align-middle" style="font-size: 0.8rem;">
+                <thead class="table-light">
+                    <tr>
+                        <th>Service</th>
+                        <th>Amount</th>
+                        <th>Status</th>
+                        <th>Date</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for tx in recent_transactions %}
+                    <tr>
+                        <td>
+                            <span class="fw-bold d-block">{{ tx.service_type }}</span>
+                            <small class="text-muted">{{ tx.plan_name }}</small>
+                        </td>
+                        <td class="fw-bold">₦{{ tx.amount }}</td>
+                        <td>
+                            {% if tx.status == "Successful" %}
+                                <span class="badge bg-success-subtle text-success">Success</span>
+                            {% else %}
+                                <span class="badge bg-warning-subtle text-warning">{{ tx.status }}</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-muted small">{{ tx.created_at|date:"d M" }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="4" class="text-center py-4 text-muted small">No transactions found.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
     </div>
 </div>
 

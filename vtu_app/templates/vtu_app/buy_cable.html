@@ -1,0 +1,182 @@
+{% extends 'base.html' %}
+{% load crispy_forms_tags %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-12 col-lg-8">
+        <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
+            <div class="card-header bg-primary text-white p-4 border-0">
+                <div class="d-flex align-items-center gap-3">
+                    <div class="bg-white bg-opacity-20 p-3 rounded-3">
+                        <i class="fa-solid fa-tv fa-2x"></i>
+                    </div>
+                    <div>
+                        <h4 class="fw-bold mb-1">Cable TV Subscription</h4>
+                        <p class="mb-0 small opacity-75">Instant activation for DStv, GOtv, and StarTimes</p>
+                    </div>
+                </div>
+            </div>
+            <div class="card-body p-4 p-md-5">
+                <form method="post" id="cableForm">
+                    {% csrf_token %}
+                    
+                    <!-- Cable Type Selection -->
+                    <div class="mb-4">
+                        <label class="form-label fw-bold text-dark">Select Provider</label>
+                        <div class="row g-3">
+                            <div class="col-4">
+                                <input type="radio" class="btn-check" name="cable_type" id="dstv" value="dstv" checked>
+                                <label class="btn btn-outline-primary w-100 py-3 rounded-3 d-flex flex-column align-items-center gap-2" for="dstv">
+                                    <i class="fa-solid fa-satellite-dish fa-lg"></i>
+                                    <span class="small fw-bold">DStv</span>
+                                </label>
+                            </div>
+                            <div class="col-4">
+                                <input type="radio" class="btn-check" name="cable_type" id="gotv" value="gotv">
+                                <label class="btn btn-outline-primary w-100 py-3 rounded-3 d-flex flex-column align-items-center gap-2" for="gotv">
+                                    <i class="fa-solid fa-broadcast-tower fa-lg"></i>
+                                    <span class="small fw-bold">GOtv</span>
+                                </label>
+                            </div>
+                            <div class="col-4">
+                                <input type="radio" class="btn-check" name="cable_type" id="startimes" value="startimes">
+                                <label class="btn btn-outline-primary w-100 py-3 rounded-3 d-flex flex-column align-items-center gap-2" for="startimes">
+                                    <i class="fa-solid fa-star fa-lg"></i>
+                                    <span class="small fw-bold">StarTimes</span>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Package Selection (Dynamic) -->
+                    <div class="mb-4">
+                        <label for="plan" class="form-label fw-bold text-dark">Select Package</label>
+                        <select name="plan" id="plan" class="form-select form-select-lg rounded-3 border-2" required>
+                            <option value="">-- Select Provider First --</option>
+                        </select>
+                    </div>
+
+                    <!-- Smartcard / IUC -->
+                    <div class="mb-4">
+                        <label for="smartcard" class="form-label fw-bold text-dark">Smartcard / IUC Number</label>
+                        <div class="input-group">
+                            <input type="text" name="smartcard" id="smartcard" class="form-control form-control-lg rounded-start-3 border-2" placeholder="e.g. 1023456789" required>
+                            <button type="button" class="btn btn-dark px-4 rounded-end-3" id="validateBtn">
+                                <i class="fa-solid fa-user-check me-2"></i>Verify
+                            </button>
+                        </div>
+                        <div id="customerName" class="mt-2 text-success fw-bold small" style="display:none;">
+                            <i class="fa-solid fa-circle-check me-1"></i> Customer: <span id="nameSpan"></span>
+                        </div>
+                        <div id="validateSpinner" class="mt-2 text-primary small" style="display:none;">
+                            <div class="spinner-border spinner-border-sm me-1" role="status"></div> Verifying account...
+                        </div>
+                    </div>
+
+                    <!-- Recipient Phone -->
+                    <div class="mb-4">
+                        <label for="phone" class="form-label fw-bold text-dark">Confirmation Phone Number</label>
+                        <input type="text" name="phone" id="phone" class="form-control form-control-lg rounded-3 border-2" placeholder="08012345678" required>
+                        <small class="text-muted">SMS notification will be sent to this number.</small>
+                    </div>
+
+                    <!-- Pricing Info -->
+                    <div class="bg-light p-3 rounded-3 mb-4 d-flex justify-content-between align-items-center border border-dashed border-primary">
+                        <span class="text-muted fw-bold">Amount to Pay:</span>
+                        <h4 class="mb-0 fw-bold text-primary" id="amountDisplay">₦0.00</h4>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary btn-lg w-100 py-3 rounded-pill fw-bold shadow-sm" id="submitBtn">
+                        Purchase Subscription
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // All plans passed from Django
+    const allPlans = [
+        {% for plan in plans %}
+        {
+            id: "{{ plan.id }}",
+            type: "{{ plan.cable_type }}",
+            name: "{{ plan.name }}",
+            price: "{{ plan.price }}"
+        },
+        {% endfor %}
+    ];
+
+    const providerInputs = document.querySelectorAll('input[name="cable_type"]');
+    const planSelect = document.getElementById('plan');
+    const amountDisplay = document.getElementById('amountDisplay');
+    const smartcardInput = document.getElementById('smartcard');
+    const validateBtn = document.getElementById('validateBtn');
+    const customerNameDiv = document.getElementById('customerName');
+    const nameSpan = document.getElementById('nameSpan');
+    const validateSpinner = document.getElementById('validateSpinner');
+
+    function filterPlans() {
+        const selectedType = document.querySelector('input[name="cable_type"]:checked').value;
+        planSelect.innerHTML = '<option value="">-- Choose a Package --</option>';
+        
+        const filtered = allPlans.filter(p => p.type === selectedType);
+        filtered.forEach(p => {
+            const opt = document.createElement('option');
+            opt.value = p.id;
+            opt.dataset.price = p.price;
+            opt.textContent = `${p.name} - ₦${p.price}`;
+            planSelect.appendChild(opt);
+        });
+        
+        amountDisplay.textContent = '₦0.00';
+    }
+
+    providerInputs.forEach(input => input.addEventListener('change', filterPlans));
+    
+    planSelect.addEventListener('change', function() {
+        const opt = this.options[this.selectedIndex];
+        if (opt && opt.dataset.price) {
+            amountDisplay.textContent = '₦' + parseFloat(opt.dataset.price).toLocaleString();
+        } else {
+            amountDisplay.textContent = '₦0.00';
+        }
+    });
+
+    validateBtn.addEventListener('click', function() {
+        const smartcard = smartcardInput.value;
+        const cable_tv = document.querySelector('input[name="cable_type"]:checked').value;
+        
+        if (!smartcard) {
+            alert("Please enter a Smartcard number first.");
+            return;
+        }
+
+        validateSpinner.style.display = 'block';
+        customerNameDiv.style.display = 'none';
+        
+        fetch(`/ajax/validate-cable/?cable_tv=${cable_tv}&smartcard=${smartcard}`)
+            .then(response => response.json())
+            .then(data => {
+                validateSpinner.style.display = 'none';
+                if (data.customer_name) {
+                    nameSpan.textContent = data.customer_name;
+                    customerNameDiv.style.display = 'block';
+                } else if (data.error) {
+                    alert("Error: " + data.error);
+                } else {
+                    alert("Validation failed handle manually.");
+                }
+            })
+            .catch(err => {
+                validateSpinner.style.display = 'none';
+                console.error(err);
+                alert("Network error occurred during validation.");
+            });
+    });
+
+    // Initial filter
+    filterPlans();
+</script>
+{% endblock %}

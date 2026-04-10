@@ -49,3 +49,18 @@ class DataPlan(models.Model):
 
     def __str__(self):
         return f"{self.get_network_display()} - {self.plan_name} (₦{self.price})"
+
+
+class CablePlan(models.Model):
+    CABLE_TYPES = [
+        ('dstv', 'DStv'),
+        ('gotv', 'GOtv'),
+        ('startimes', 'StarTimes'),
+    ]
+    cable_type = models.CharField(max_length=20, choices=CABLE_TYPES)
+    name = models.CharField(max_length=100) # e.g., GOtv Jolli
+    package_code = models.CharField(max_length=50) # e.g., gotv-jolli
+    price = models.DecimalField(max_digits=10, decimal_places=2)
+
+    def __str__(self):
+        return f"{self.get_cable_type_display()} - {self.name} (₦{self.price})"

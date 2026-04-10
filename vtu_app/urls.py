@@ -9,4 +9,7 @@ urlpatterns = [
     path('monnify-webhook/', monnify_webhook, name='monnify_webhook'),
     path('complete-kyc/', views.complete_kyc, name='complete_kyc'),
     path('buy-airtime/', views.buy_airtime, name='buy_airtime'),
+    path('transactions/', views.transaction_history, name='transaction_history'),
+    path('buy-cable/', views.buy_cable, name='buy_cable'),
+    path('ajax/validate-cable/', views.validate_cable, name='validate_cable'),
 ]

@@ -341,11 +341,11 @@
                 <span>Dashboard</span>
                 <i class="fa-solid fa-chevron-right chevron"></i>
             </a>
-            <a href="#" class="nav-item-custom">
+            <a href="{% url 'buy_airtime' %}" class="nav-item-custom">
                 <i class="fa-solid fa-tower-cell icon-left"></i>
                 <span>Buy Airtime</span>
             </a>
-            <a href="#" class="nav-item-custom">
+            <a href="{% url 'buy_cable' %}" class="nav-item-custom">
                 <i class="fa-solid fa-tv icon-left"></i>
                 <span>Cable Sub</span>
             </a>
@@ -357,7 +357,7 @@
                 <i class="fa-solid fa-calculator icon-left"></i>
                 <span>Calculator</span>
             </a>
-            <a href="#" class="nav-item-custom">
+            <a href="{% url 'transaction_history' %}" class="nav-item-custom">
                 <i class="fa-solid fa-clock-rotate-left icon-left"></i>
                 <span>History</span>
             </a>
@@ -410,10 +410,10 @@
                 <i class="fa-solid fa-chart-line icon-left"></i> Dashboard
             </a>
             <a href="#" class="nav-item-custom"><i class="fa-solid fa-tower-cell icon-left"></i> Buy Airtime</a>
-            <a href="#" class="nav-item-custom"><i class="fa-solid fa-tv icon-left"></i> Cable Sub</a>
+            <a href="{% url 'buy_cable' %}" class="nav-item-custom"><i class="fa-solid fa-tv icon-left"></i> Cable Sub</a>
             <a href="#" class="nav-item-custom"><i class="fa-solid fa-wallet icon-left"></i> Fund Wallet</a>
             <a href="#" class="nav-item-custom"><i class="fa-solid fa-calculator icon-left"></i> Calculator</a>
-            <a href="#" class="nav-item-custom"><i class="fa-regular fa-clock icon-left"></i> Transactions</a>
+            <a href="{% url 'transaction_history' %}" class="nav-item-custom"><i class="fa-regular fa-clock icon-left"></i> Transactions</a>
         </div>
     </div>
 
@@ -422,7 +422,7 @@
         <a href="{% url 'dashboard' %}" class="bottom-nav-item active"><i
                 class="fa-solid fa-house-chimney"></i><span>Home</span></a>
         <a href="#" class="bottom-nav-item"><i class="fa-solid fa-money-bill-wave"></i><span>Fund</span></a>
-        <a href="#" class="bottom-nav-item"><i class="fa-solid fa-clock-rotate-left"></i><span>History</span></a>
+        <a href="{% url 'transaction_history' %}" class="bottom-nav-item"><i class="fa-solid fa-clock-rotate-left"></i><span>History</span></a>
         <a href="#" class="bottom-nav-item"><i class="fa-regular fa-circle-user"></i><span>Profile</span></a>
     </div>
 

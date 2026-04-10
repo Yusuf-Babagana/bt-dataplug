@@ -90,6 +90,40 @@ class ClubKonnectService:
         except Exception as e:
             return {"status": "ERROR", "remark": str(e)}, request_id
 
+    def verify_cable(self, cable_tv, smartcard):
+        """Verify the customer name using Smartcard/IUC."""
+        url = (
+            f"https://www.nellobytesystems.com/APIVerifyCableTVV1.0.asp"
+            f"?UserID={self.user_id}&APIKey={self.api_key}"
+            f"&CableTV={cable_tv}&SmartCardNo={smartcard}"
+        )
+        headers = {'User-Agent': 'Mozilla/5.0 BT-DataPlug/1.0'}
+        try:
+            response = requests.get(url, headers=headers, timeout=20)
+            print(f"--- Cable Verify Debug --- Status: {response.status_code} Body: {response.text}")
+            return response.json() # Returns {"customer_name": "..."}
+        except:
+            return {"customer_name": "Error validating number"}
+
+    def buy_cable(self, cable_tv, package, smartcard, phone):
+        """Purchase the cable subscription."""
+        request_id = uuid.uuid4().hex[:12]
+        url = (
+            f"https://www.nellobytesystems.com/APICableTVV1.asp"
+            f"?UserID={self.user_id}&APIKey={self.api_key}&CableTV={cable_tv}"
+            f"&Package={package}&SmartCardNo={smartcard}&PhoneNo={phone}&RequestID={request_id}"
+        )
+        headers = {'User-Agent': 'Mozilla/5.0 BT-DataPlug/1.0'}
+        try:
+            response = requests.get(url, headers=headers, timeout=30)
+            print(f"--- Cable Buy Debug --- Status: {response.status_code} Body: {response.text}")
+            try:
+                return response.json(), request_id
+            except ValueError:
+                return {"status": response.text.strip()}, request_id
+        except Exception as e:
+            return {"status": "ERROR", "remark": str(e)}, request_id
+
 
 class MonnifyService:
     def __init__(self):
