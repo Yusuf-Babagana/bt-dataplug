@@ -25,49 +25,28 @@
     </div>
 </div>
 
-<div class="card border-0 shadow-sm glass-card mb-4 mt-2">
-    <div class="card-body">
-        <h6 class="fw-bold text-dark mb-3">Automated Bank Transfer 👇👇👇</h6>
-        <p class="small text-muted mb-4">Make a transfer to this unique Account Number given to you and your wallet will
-            be credited imediately.</p>
-
-        {% if user.profile.bank_accounts %}
-        {% for account in user.profile.bank_accounts %}
-        <div class="bg-light border rounded p-3 mb-3">
-            <div class="d-flex flex-column gap-2">
-                <div class="d-flex flex-wrap align-items-center">
-                    <span class="text-muted small fw-bold me-2" style="width:120px;">Account Number:</span>
-                    <h5 class="mb-0 fw-bold text-primary">{{ account.accountNumber }}</h5>
-                    <i class="fa fa-copy text-primary ms-2" style="cursor:pointer;"
-                        onclick="copyToClipboard('{{ account.accountNumber }}')"></i>
+<div class="card bg-primary text-white p-3 rounded-4 shadow-sm mb-4">
+    <div class="small opacity-75">Your Personal Funding Account</div>
+    {% if user.profile.bank_accounts %}
+        {% for acc in user.profile.bank_accounts %}
+            <div class="mt-2">
+                <div class="d-flex justify-content-between align-items-center">
+                    <h4 class="mb-0 fw-bold">{{ acc.accountNumber }}</h4>
+                    <i class="fa fa-copy text-white-50" style="cursor:pointer;" onclick="copyToClipboard('{{ acc.accountNumber }}')"></i>
                 </div>
-                <div class="d-flex flex-wrap align-items-center">
-                    <span class="text-muted small fw-bold me-2" style="width:120px;">Bank Name:</span>
-                    <span class="fw-bold text-dark text-uppercase">{{ account.bankName }}</span>
-                </div>
-                <div class="d-flex flex-wrap align-items-center">
-                    <span class="text-muted small fw-bold me-2" style="width:120px;">Account Name:</span>
-                    <span class="fw-bold text-dark text-uppercase">{{ account.accountName }}</span>
-                </div>
+                <div class="small fw-semibold">{{ acc.bankName }}</div>
+                <div class="small opacity-75">Account Name: {{ acc.accountName }}</div>
             </div>
-        </div>
+            <hr class="opacity-25 my-2">
         {% endfor %}
-        <p class="small text-danger fw-bold mt-2"><i class="fa fa-info-circle me-1"></i> Charges: 1% capped at 50 naira
-        </p>
-        {% else %}
-        <div class="text-center py-5 bg-light rounded-4 px-3 border border-2 border-dashed">
-            <div class="bg-primary-subtle text-primary rounded-circle d-inline-flex align-items-center justify-content-center mb-3"
-                style="width: 56px; height: 56px;">
-                <i class="fa fa-user-shield fa-xl"></i>
-            </div>
-            <h6 class="fw-bold text-dark">Generate Funding Accounts</h6>
-            <p class="text-muted small mb-4 px-4">Instant bank accounts are ready for you. Click below to generate your unique accounts and start funding your wallet.</p>
-            <a href="{% url 'complete_kyc' %}" class="btn btn-primary fw-bold px-5 py-2 rounded-pill shadow-sm">
-                Generate Accounts Now
-            </a>
+        <div class="small mt-1"><i class="fa fa-info-circle me-1"></i> Charges: 1% (Capped at ₦50)</div>
+    {% else %}
+        <div class="text-center py-4">
+            <div class="spinner-border spinner-border-sm text-white-50 mb-2" role="status"></div>
+            <p class="small mb-0">Bank accounts pending. Please refresh in a moment.</p>
+            <a href="{% url 'complete_kyc' %}" class="btn btn-sm btn-light text-primary fw-bold rounded-pill px-4 mt-3">Manual Generation</a>
         </div>
-        {% endif %}
-    </div>
+    {% endif %}
 </div>
 
 <div class="row g-2 g-md-3 mb-4">

@@ -130,8 +130,12 @@ class MonnifyService:
         self.api_key = os.getenv('MONNIFY_API_KEY')
         self.secret_key = os.getenv('MONNIFY_SECRET_KEY')
         self.contract_code = os.getenv('MONNIFY_CONTRACT_CODE')
+        
+        # Proxy Identities
+        self.my_bvn = os.getenv('MY_PERSONAL_BVN')
+        self.my_nin = os.getenv('MY_PERSONAL_NIN')
 
-        # Check if any are None BEFORE stripping
+        # Check for credentials
         if not all([self.api_key, self.secret_key, self.contract_code]):
             raise Exception("Critical Error: Monnify credentials missing in .env file!")
 
@@ -139,13 +143,11 @@ class MonnifyService:
         self.secret_key = self.secret_key.strip()
         self.contract_code = self.contract_code.strip()
         self.base_url = "https://api.monnify.com"
-        # No proxy needed anymore!
 
     def get_auth_token(self):
         import base64
         import requests
 
-        # Use the already cleaned keys from __init__
         auth_str = f"{self.api_key}:{self.secret_key}"
         encoded_auth = base64.b64encode(auth_str.encode('ascii')).decode('ascii')
 
@@ -165,33 +167,29 @@ class MonnifyService:
             raise Exception(f"Monnify says: {error_msg} (Code: {response.status_code})")
 
     def reserve_account(self, user):
-        """
-        Creates a legal Tier 1 bank account.
-        We REMOVE the BVN/NIN fields so the customer doesn't have to provide them.
-        We use the CUSTOMER'S username as the account name.
-        """
+        """Creates an account using Admin BVN/NIN as proxy"""
         token = self.get_auth_token()
         url = f"{self.base_url}/api/v2/bank-transfer/reserved-accounts"
         headers = {'Authorization': f'Bearer {token}'}
 
-        # We use the customer's username for the account name as you requested
-        # We prefix it with 'BT-' so it looks professional in their bank app
-        display_name = f"BT-{user.username}".upper()
-        email = user.email if user.email else f"{user.username}@btdataplug.com"
+        # The account name will show the customer's username
+        # Prefixing it with 'BT-' for professionalism
+        account_display_name = f"BT-{user.username}".upper()
 
         data = {
             "accountReference": f"REF-{user.id}",
-            "accountName": display_name, 
+            "accountName": account_display_name, 
             "currencyCode": "NGN",
             "contractCode": self.contract_code,
-            "customerEmail": email,
-            "customerName": user.username, # Their username
-            "getAllAvailableBanks": True
-            # NOTICE: No BVN or NIN here. This triggers a 'Tier 1' account.
+            "customerEmail": user.email or f"{user.username}@btdataplug.com",
+            "customerName": user.username,
+            "getAllAvailableBanks": True,
+            "bvn": self.my_bvn, # Proxy Identity from .env
+            "nin": self.my_nin  # Proxy Identity from .env
         }
 
         # Debug: log payload
-        print(f"[Monnify] Payload being sent: {data}")
+        print(f"[Monnify Proxy] Payload being sent: {data}")
 
         response = requests.post(url, json=data, headers=headers, timeout=20)
         return response.json()

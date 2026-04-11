@@ -4,6 +4,7 @@ from django.db.models import Sum
 
 from django.contrib.auth.forms import UserCreationForm
 from django.contrib.auth import login
+from django.contrib.auth.models import User
 from django.contrib import messages
 from django.db import transaction
 from .services import ClubKonnectService, MonnifyService
@@ -22,26 +23,56 @@ def test_connection(request):
 
 def register(request):
     if request.method == 'POST':
-        form = UserCreationForm(request.POST)
-        if form.is_valid():
-            user = form.save()
-            
-            # AUTOMATIC ACCOUNT GENERATION
-            try:
-                service = MonnifyService()
-                response = service.reserve_account(user)
-                if response.get('requestSuccessful'):
-                    profile = user.profile
-                    profile.bank_accounts = response['responseBody']['accounts']
-                    profile.save()
-            except Exception as e:
-                print(f"[Auto-Account] Failed for {user.username}: {str(e)}")
+        # Get data from the professional form we built
+        username = request.POST.get('username')
+        email = request.POST.get('email')
+        first_name = request.POST.get('first_name')
+        last_name = request.POST.get('last_name')
+        password = request.POST.get('password')
+        confirm_password = request.POST.get('confirm_password')
 
-            login(request, user)
-            return redirect('dashboard')
-    else:
-        form = UserCreationForm()
-    return render(request, 'registration/register.html', {'form': form})
+        # Basic validation
+        if password != confirm_password:
+            messages.error(request, "Passwords do not match.")
+            return render(request, 'registration/register.html')
+
+        if User.objects.filter(username=username).exists():
+            messages.error(request, "Username already taken.")
+            return render(request, 'registration/register.html')
+
+        # 1. Create and Save the User
+        user = User.objects.create_user(
+            username=username, 
+            email=email, 
+            password=password,
+            first_name=first_name,
+            last_name=last_name
+        )
+        
+        # 2. Automatically generate the Monnify Proxy Account
+        try:
+            service = MonnifyService()
+            # This calls the service we updated with your .env BVN/NIN
+            response = service.reserve_account(user)
+            
+            if response.get('requestSuccessful'):
+                profile = user.profile
+                # Save the account details (Wema/Moniepoint) to the user's profile
+                profile.bank_accounts = response['responseBody']['accounts']
+                profile.save()
+                messages.success(request, f"Welcome {first_name}! Your funding accounts are ready.")
+            else:
+                print(f"Monnify Error: {response.get('responseMessage')}")
+                messages.warning(request, "Account created, but bank numbers are pending. Contact support.")
+        except Exception as e:
+            print(f"Critical Account Generation Error: {e}")
+            messages.warning(request, "Welcome! We're setting up your bank accounts shortly.")
+
+        # 3. Log the user in and redirect to dashboard
+        login(request, user)
+        return redirect('dashboard')
+
+    return render(request, 'registration/register.html')
 
 def dashboard(request):
     # Only logged-in users should see the dashboard
