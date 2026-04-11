@@ -164,29 +164,31 @@ class MonnifyService:
             error_msg = res_data.get('responseMessage', 'Unauthorized')
             raise Exception(f"Monnify says: {error_msg} (Code: {response.status_code})")
 
-    def reserve_account(self, user, bvn=None, nin=None):
-        """Creates a dedicated bank account for a user (Requires BVN/NIN for Monoify compliance)"""
+    def reserve_account(self, user):
+        """
+        Creates a legal Tier 1 bank account.
+        We REMOVE the BVN/NIN fields so the customer doesn't have to provide them.
+        We use the CUSTOMER'S username as the account name.
+        """
         token = self.get_auth_token()
         url = f"{self.base_url}/api/v2/bank-transfer/reserved-accounts"
         headers = {'Authorization': f'Bearer {token}'}
 
-        # Handle names and fallback
-        full_name = f"{user.first_name} {user.last_name}".strip() or user.username
+        # We use the customer's username for the account name as you requested
+        # We prefix it with 'BT-' so it looks professional in their bank app
+        display_name = f"BT-{user.username}".upper()
         email = user.email if user.email else f"{user.username}@btdataplug.com"
 
         data = {
             "accountReference": f"REF-{user.id}",
-            "accountName": f"BT-{full_name}",
+            "accountName": display_name, 
             "currencyCode": "NGN",
             "contractCode": self.contract_code,
             "customerEmail": email,
-            "customerName": full_name,
+            "customerName": user.username, # Their username
             "getAllAvailableBanks": True
+            # NOTICE: No BVN or NIN here. This triggers a 'Tier 1' account.
         }
-
-        # Add IDs to the request if provided
-        if bvn: data["bvn"] = bvn
-        if nin: data["nin"] = nin
 
         # Debug: log payload
         print(f"[Monnify] Payload being sent: {data}")
