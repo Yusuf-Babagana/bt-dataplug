@@ -52,15 +52,19 @@ def register(request):
         # 2. Automatically generate the Monnify Proxy Account
         try:
             service = MonnifyService()
-            # This calls the service we updated with your .env BVN/NIN
             response = service.reserve_account(user)
             
             if response.get('requestSuccessful'):
                 profile = user.profile
-                # Save the account details (Wema/Moniepoint) to the user's profile
-                profile.bank_accounts = response['responseBody']['accounts']
-                profile.save()
-                messages.success(request, f"Welcome {first_name}! Your funding accounts are ready.")
+                # Check if 'accounts' actually exists in the response body
+                accounts = response.get('responseBody', {}).get('accounts', [])
+                if accounts:
+                    profile.bank_accounts = accounts
+                    profile.save()
+                    messages.success(request, f"Welcome {first_name}! Your funding accounts are ready.")
+                else:
+                    # If the API was successful but the bank hasn't finished generating the number
+                    messages.info(request, "Account created! Your bank numbers are being generated, please refresh in 60 seconds.")
             else:
                 print(f"Monnify Error: {response.get('responseMessage')}")
                 messages.warning(request, "Account created, but bank numbers are pending. Contact support.")

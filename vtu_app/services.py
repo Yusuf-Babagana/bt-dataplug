@@ -173,8 +173,8 @@ class MonnifyService:
         headers = {'Authorization': f'Bearer {token}'}
 
         # The account name will show the customer's username
-        # Prefixing it with 'BT-' for professionalism
-        account_display_name = f"BT-{user.username}".upper()
+        # Prefixing it with 'BT ' for professionalism (Business Initials)
+        account_display_name = f"BT {user.username}".upper()
 
         data = {
             "accountReference": f"REF-{user.id}",
@@ -182,7 +182,7 @@ class MonnifyService:
             "currencyCode": "NGN",
             "contractCode": self.contract_code,
             "customerEmail": user.email or f"{user.username}@btdataplug.com",
-            "customerName": user.username,
+            "customerName": f"{user.first_name} {user.last_name}".strip() or user.username,
             "getAllAvailableBanks": True,
             "bvn": self.my_bvn, # Proxy Identity from .env
             "nin": self.my_nin  # Proxy Identity from .env
