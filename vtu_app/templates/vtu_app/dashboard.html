@@ -6,6 +6,18 @@
     <div class="col-12">
         <h4 class="fw-bold fs-3">Welcome back, {{ user.username }}!</h4>
 
+        <!-- Security Alert: Set PIN -->
+        {% if pin_not_set %}
+        <div class="alert alert-warning border-0 shadow-sm rounded-4 d-flex align-items-center mb-3 p-3 mt-3" data-aos="fade-down">
+            <i class="fa-solid fa-shield-halved fs-4 me-3 text-warning"></i>
+            <div class="flex-grow-1">
+                <h6 class="fw-bold mb-0">Secure Your Account!</h6>
+                <p class="small mb-0 opacity-75">You haven't set your Transaction PIN yet. Set it now to protect your funds.</p>
+            </div>
+            <a href="{% url 'set_pin' %}" class="btn btn-warning btn-sm rounded-pill fw-bold px-3 ms-3">Set PIN</a>
+        </div>
+        {% endif %}
+
         {% if user.is_staff %}
         <div
             class="alert alert-info border-0 shadow-sm rounded-4 d-flex align-items-center justify-content-between p-3 mb-3">
@@ -84,9 +96,11 @@ function copyText(text) {
         <div class="card border-0 shadow-sm bg-primary text-white p-3 p-md-4 h-100 rounded-4">
             <div class="d-flex justify-content-between align-items-center mb-1">
                 <span class="small text-white-50 fw-bold">Wallet Balance</span>
-                <i class="fa fa-wallet text-white-50"></i>
+                <button class="btn btn-sm btn-link text-white-50 p-0" onclick="refreshBalance()">
+                    <i class="fa fa-sync" id="refresh-icon"></i>
+                </button>
             </div>
-            <h3 class="fw-bold mb-0">₦{{ user.profile.wallet_balance|default:"0.00" }}</h3>
+            <h3 class="fw-bold mb-0">₦<span id="wallet-balance">{{ user.profile.wallet_balance|default:"0.00" }}</span></h3>
         </div>
     </div>
     <div class="col-12 col-lg-4">
@@ -287,7 +301,32 @@ function copyText(text) {
 <script>
 function copyToClipboard(text) {
     navigator.clipboard.writeText(text);
+    alert("Copied to clipboard!");
+}
+
+function copyText(text) {
+    navigator.clipboard.writeText(text);
     alert("Account Number Copied!");
+}
+
+function refreshBalance() {
+    const icon = document.getElementById('refresh-icon');
+    const balanceText = document.getElementById('wallet-balance');
+    
+    icon.classList.add('fa-spin');
+    
+    fetch('/ajax/get-balance/')
+        .then(res => res.json())
+        .then(data => {
+            if (data.balance) {
+                balanceText.innerText = data.balance;
+            }
+            setTimeout(() => icon.classList.remove('fa-spin'), 600);
+        })
+        .catch(err => {
+            console.error('Balance refresh failed:', err);
+            icon.classList.remove('fa-spin');
+        });
 }
 </script>
 

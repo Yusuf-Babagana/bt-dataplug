@@ -1,18 +1,18 @@
+import json
+import logging
+from decimal import Decimal, InvalidOperation
 from django.shortcuts import render, redirect
-from django.http import JsonResponse
-from django.db.models import Sum
-
-from django.contrib.auth.forms import UserCreationForm
-from django.contrib.auth import login
 from django.contrib.auth.models import User
+from django.contrib.auth import login
 from django.contrib import messages
 from django.db import transaction
-from .services import ClubKonnectService, MonnifyService
-from .forms import DataPurchaseForm
-from .models import DataPlan, Transaction as TxModel, CablePlan
-import json
-from decimal import Decimal, InvalidOperation
+from django.db.models import Sum
+from django.http import JsonResponse
+from .models import Profile, DataPlan, Transaction as TxModel, CablePlan
+from .services import MonnifyService, ClubKonnectService
 from .plan_data import DATA_PLANS
+
+logger = logging.getLogger(__name__)
 
 # Create your views here.
 
@@ -78,6 +78,14 @@ def register(request):
 
     return render(request, 'registration/register.html')
 
+def ajax_get_balance(request):
+    """Fetch the latest wallet balance for the live dashboard refresh."""
+    if not request.user.is_authenticated:
+        return JsonResponse({'error': 'Unauthorized'}, status=401)
+    
+    balance = request.user.profile.wallet_balance
+    return JsonResponse({'balance': f"{balance:,.2f}"})
+
 def dashboard(request):
     # Only logged-in users should see the dashboard
     if not request.user.is_authenticated:
@@ -108,6 +116,7 @@ def dashboard(request):
         'recent_transactions': recent_transactions,
         'plan_data_json': json.dumps(DATA_PLANS),
         'site_name': 'BT DataPlug',
+        'pin_not_set': not user_profile.is_pin_set,
     }
     return render(request, 'vtu_app/dashboard.html', context)
 
@@ -128,6 +137,13 @@ def buy_data(request):
         plan_id = request.POST.get('plan')
         phone = request.POST.get('phone')
 
+        # Check Transaction PIN
+        input_pin = request.POST.get('pin')
+        user_profile = request.user.profile
+        if input_pin != user_profile.transaction_pin:
+            messages.error(request, "Invalid Transaction PIN!")
+            return redirect('buy_data')
+
         try:
             plan = DataPlan.objects.get(id=plan_id)
         except DataPlan.DoesNotExist:
@@ -142,50 +158,53 @@ def buy_data(request):
             return redirect('buy_data')
 
         # 2. Atomic Transaction: deduct first, refund if API fails
-        with transaction.atomic():
-            user_profile.wallet_balance -= plan.price
+        try:
+            with transaction.atomic():
+                user_profile.wallet_balance -= plan.price
+                user_profile.save()
+
+                ck = ClubKonnectService()
+                response, req_id = ck.buy_data(plan.network, plan.dataplan_id, phone)
+
+                if response.get('status') == 'ORDER_RECEIVED':
+                    tx = TxModel.objects.create(
+                        user=request.user,
+                        service_type="Data Purchase",
+                        plan_name=plan.plan_name,
+                        amount=plan.price,
+                        recipient=phone,
+                        status="Successful",
+                        reference=req_id
+                    )
+                    logger.info(f"DATA_PURCHASE_SUCCESS: User {request.user.id} bought {plan.plan_name} for {phone}")
+                    return redirect('receipt', tx_id=tx.id)
+                
+                # --- START OF ERROR MASKING UPDATES ---
+                elif response.get('status') == 'INSUFFICIENT_BALANCE':
+                    # Refund on company wallet failure
+                    user_profile.wallet_balance += plan.price
+                    user_profile.save()
+                    
+                    # Mask the error for the client
+                    messages.error(request, "This service is currently undergoing a brief technical update. Please try again in 10 minutes or choose another network.")
+                    logger.error(f"ADMIN_ALERT: ClubKonnect balance empty for User {request.user.id}")
+                
+                else:
+                    # Refund on all other general failures
+                    user_profile.wallet_balance += plan.price
+                    user_profile.save()
+                    
+                    # Extract error message for logging
+                    error_msg = response.get('remark') or response.get('message') or str(response)
+                    logger.warning(f"DATA_PURCHASE_FAILED: User {request.user.id} - Error: {error_msg}")
+                    messages.error(request, "The network provider is currently busy. Please try again later.")
+                # --- END OF ERROR MASKING UPDATES ---
+        except Exception as e:
+            # System crash or unexpected error: Safety Refund
+            user_profile.wallet_balance = Profile.objects.get(user=request.user).wallet_balance + plan.price
             user_profile.save()
-
-            ck = ClubKonnectService()
-            response, req_id = ck.buy_data(plan.network, plan.dataplan_id, phone)
-
-            if response.get('status') == 'ORDER_RECEIVED':
-                tx = TxModel.objects.create(
-                    user=request.user,
-                    service_type="Data Purchase",
-                    plan_name=plan.plan_name,
-                    amount=plan.price,
-                    recipient=phone,
-                    status="Successful",
-                    reference=req_id
-                )
-                # Redirect to the receipt page with the transaction ID
-                return redirect('receipt', tx_id=tx.id)
-            
-            # --- START OF ERROR MASKING UPDATES ---
-            elif response.get('status') == 'INSUFFICIENT_BALANCE':
-                # Refund on company wallet failure
-                user_profile.wallet_balance += plan.price
-                user_profile.save()
-                
-                # Mask the error for the client
-                messages.error(request, "This service is currently undergoing a brief technical update. Please try again in 10 minutes or choose another network.")
-                
-                # Alert the Admin in the server logs
-                print(f"!!! CRITICAL ADMIN ALERT: ClubKonnect balance is EMPTY. Recharge now to resume service. !!!")
-            
-            else:
-                # Refund on all other general failures
-                user_profile.wallet_balance += plan.price
-                user_profile.save()
-                
-                # Extract error message for logging
-                error_msg = response.get('remark') or response.get('message') or str(response)
-                print(f"[BT DataPlug] Full API response: {response}")
-                
-                # Show a polite general error
-                messages.error(request, "The network provider is currently busy. Please try again later.")
-            # --- END OF ERROR MASKING UPDATES ---
+            logger.critical(f"DATA_PURCHASE_CRASH: User {request.user.id} - Error: {str(e)}")
+            messages.error(request, "Connection timeout. Money refunded.")
 
         return redirect('dashboard')
 
@@ -237,6 +256,13 @@ def buy_airtime(request):
         amount = request.POST.get('amount')
         phone = request.POST.get('phone')
 
+        # Check Transaction PIN
+        input_pin = request.POST.get('pin')
+        user_profile = request.user.profile
+        if input_pin != user_profile.transaction_pin:
+            messages.error(request, "Invalid Transaction PIN!")
+            return redirect('buy_airtime')
+
         try:
             amount = Decimal(amount)
         except (ValueError, TypeError, InvalidOperation):
@@ -253,34 +279,42 @@ def buy_airtime(request):
             messages.error(request, "Insufficient balance to perform this transaction.")
             return redirect('buy_airtime')
 
-        with transaction.atomic():
-            user_profile.wallet_balance -= amount
+        try:
+            with transaction.atomic():
+                user_profile.wallet_balance -= amount
+                user_profile.save()
+
+                ck = ClubKonnectService()
+                response, req_id = ck.buy_airtime(network, amount, phone)
+
+                if response.get('status') == 'ORDER_RECEIVED':
+                    tx = TxModel.objects.create(
+                        user=request.user,
+                        service_type="Airtime Top-up",
+                        plan_name=f"{network} Airtime",
+                        amount=amount,
+                        recipient=phone,
+                        status="Successful",
+                        reference=req_id
+                    )
+                    logger.info(f"AIRTIME_PURCHASE_SUCCESS: User {request.user.id} - ₦{amount} for {phone}")
+                    return redirect('receipt', tx_id=tx.id)
+                
+                elif response.get('status') == 'INSUFFICIENT_BALANCE':
+                    user_profile.wallet_balance += amount
+                    user_profile.save()
+                    messages.error(request, "Service temporarily unavailable. Please try again later.")
+                    logger.error(f"ADMIN_ALERT: ClubKonnect balance empty for Airtime - User {request.user.id}")
+                else:
+                    user_profile.wallet_balance += amount
+                    user_profile.save()
+                    messages.error(request, "Network provider is currently busy. Try again shortly.")
+                    logger.warning(f"AIRTIME_PURCHASE_FAILED: {response.get('status')}")
+        except Exception as e:
+            user_profile.wallet_balance = Profile.objects.get(user=request.user).wallet_balance + amount
             user_profile.save()
-
-            ck = ClubKonnectService()
-            response, req_id = ck.buy_airtime(network, amount, phone)
-
-            if response.get('status') == 'ORDER_RECEIVED':
-                tx = TxModel.objects.create(
-                    user=request.user,
-                    service_type="Airtime Top-up",
-                    plan_name=f"{network} Airtime",
-                    amount=amount,
-                    recipient=phone,
-                    status="Successful",
-                    reference=req_id
-                )
-                return redirect('receipt', tx_id=tx.id)
-            
-            elif response.get('status') == 'INSUFFICIENT_BALANCE':
-                user_profile.wallet_balance += amount
-                user_profile.save()
-                messages.error(request, "Service temporarily unavailable. Please try again later.")
-                print("!!! ADMIN ALERT: ClubKonnect Wallet Empty for Airtime !!!")
-            else:
-                user_profile.wallet_balance += amount
-                user_profile.save()
-                messages.error(request, "Network provider is currently busy. Try again shortly.")
+            logger.critical(f"AIRTIME_PURCHASE_CRASH: Error: {str(e)}")
+            messages.error(request, "Connection error. Your money has been refunded.")
 
         return redirect('dashboard')
 
@@ -298,6 +332,13 @@ def buy_cable(request):
         smartcard = request.POST.get('smartcard')
         phone = request.POST.get('phone')
         
+        # Check Transaction PIN
+        input_pin = request.POST.get('pin')
+        user_profile = request.user.profile
+        if input_pin != user_profile.transaction_pin:
+            messages.error(request, "Invalid Transaction PIN!")
+            return redirect('buy_cable')
+
         try:
             plan = CablePlan.objects.get(id=plan_id)
         except CablePlan.DoesNotExist:
@@ -310,28 +351,36 @@ def buy_cable(request):
             messages.error(request, "Insufficient balance.")
             return redirect('buy_cable')
 
-        with transaction.atomic():
-            user_profile.wallet_balance -= plan.price
-            user_profile.save()
-
-            ck = ClubKonnectService()
-            response, req_id = ck.buy_cable(plan.cable_type, plan.package_code, smartcard, phone)
-
-            if response.get('status') == 'ORDER_RECEIVED':
-                tx = TxModel.objects.create(
-                    user=request.user,
-                    service_type="Cable TV",
-                    plan_name=f"{plan.cable_type.upper()}: {plan.name}",
-                    amount=plan.price,
-                    recipient=smartcard,
-                    status="Successful",
-                    reference=req_id
-                )
-                return redirect('receipt', tx_id=tx.id)
-            else:
-                user_profile.wallet_balance += plan.price
+        try:
+            with transaction.atomic():
+                user_profile.wallet_balance -= plan.price
                 user_profile.save()
-                messages.error(request, f"Failed: {response.get('status', 'Unknown Error')}")
+
+                ck = ClubKonnectService()
+                response, req_id = ck.buy_cable(plan.cable_type, plan.package_code, smartcard, phone)
+
+                if response.get('status') == 'ORDER_RECEIVED':
+                    tx = TxModel.objects.create(
+                        user=request.user,
+                        service_type="Cable TV",
+                        plan_name=f"{plan.cable_type.upper()}: {plan.name}",
+                        amount=plan.price,
+                        recipient=smartcard,
+                        status="Successful",
+                        reference=req_id
+                    )
+                    logger.info(f"CABLE_PURCHASE_SUCCESS: User {request.user.id} - {plan.name}")
+                    return redirect('receipt', tx_id=tx.id)
+                else:
+                    user_profile.wallet_balance += plan.price
+                    user_profile.save()
+                    messages.error(request, f"Failed: {response.get('status', 'Unknown Error')}")
+                    logger.warning(f"CABLE_PURCHASE_FAILED: {response.get('status')}")
+        except Exception as e:
+            user_profile.wallet_balance = Profile.objects.get(user=request.user).wallet_balance + plan.price
+            user_profile.save()
+            logger.critical(f"CABLE_PURCHASE_CRASH: Error: {str(e)}")
+            messages.error(request, "An unexpected error occurred. Money refunded.")
 
     return render(request, 'vtu_app/buy_cable.html', {'plans': plans})
 
@@ -349,3 +398,30 @@ def validate_cable(request):
     ck = ClubKonnectService()
     res = ck.verify_cable(cable_tv, smartcard)
     return JsonResponse(res)
+
+def set_transaction_pin(request):
+    """View to set or update the 4-digit transaction PIN."""
+    if not request.user.is_authenticated:
+        return redirect('login')
+        
+    if request.method == 'POST':
+        pin = request.POST.get('pin')
+        confirm_pin = request.POST.get('confirm_pin')
+        
+        if not pin or len(pin) != 4 or not pin.isdigit():
+            messages.error(request, "PIN must be exactly 4 digits.")
+            return render(request, 'vtu_app/set_pin.html')
+            
+        if pin != confirm_pin:
+            messages.error(request, "PINs do not match.")
+            return render(request, 'vtu_app/set_pin.html')
+            
+        profile = request.user.profile
+        profile.transaction_pin = pin
+        profile.is_pin_set = True
+        profile.save()
+        
+        messages.success(request, "Transaction PIN set successfully!")
+        return redirect('dashboard')
+        
+    return render(request, 'vtu_app/set_pin.html')

@@ -1,489 +1,76 @@
-<!DOCTYPE html>
-<html lang="en">
-
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <title>BT DataPlug | Payment Receipt</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;400;500;600;700;800&display=swap"
-        rel="stylesheet">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        body {
-            background: linear-gradient(145deg, #eef2ff 0%, #e2e8f0 100%);
-            font-family: 'Inter', sans-serif;
-            padding: 2rem 1rem;
-            min-height: 100vh;
-        }
-
-        .receipt-wrapper {
-            max-width: 520px;
-            margin: 0 auto;
-            padding: 0.5rem;
-        }
-
-        /* Premium Glass Card Effect */
-        .receipt-card {
-            background: #ffffff;
-            border-radius: 36px;
-            overflow: hidden;
-            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25), 0 0 0 1px rgba(37, 99, 235, 0.05);
-            transition: transform 0.2s ease;
-        }
-
-        /* Header with Premium Gradient */
-        .receipt-header {
-            background: linear-gradient(135deg, #2563eb 0%, #1e3a8a 100%);
-            padding: 2rem 1.8rem 3.2rem;
-            text-align: center;
-            position: relative;
-        }
-
-        /* Success Animation Ring */
-        .success-ring {
-            width: 80px;
-            height: 80px;
-            border-radius: 50%;
-            background: rgba(255, 255, 255, 0.18);
-            backdrop-filter: blur(2px);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            margin: 0 auto 1.2rem;
-            border: 2px solid rgba(255, 255, 255, 0.5);
-            animation: pulseRing 0.8s ease-out;
-        }
-
-        @keyframes pulseRing {
-            0% {
-                transform: scale(0.8);
-                opacity: 0;
-            }
-
-            100% {
-                transform: scale(1);
-                opacity: 1;
-            }
-        }
-
-        .success-ring i {
-            font-size: 2.4rem;
-            color: #fff;
-            filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.1));
-        }
-
-        /* Zigzag Divider (Tear Effect) */
-        .tear {
-            height: 28px;
-            background: linear-gradient(135deg, #2563eb 0%, #1e3a8a 100%);
-            position: relative;
-            margin-top: -1px;
-        }
-
-        .tear::after {
-            content: '';
-            display: block;
-            position: absolute;
-            bottom: 0;
-            left: 0;
-            right: 0;
-            height: 28px;
-            background: #ffffff;
-            clip-path: polygon(0% 100%, 4% 0%, 8% 100%, 12% 0%, 16% 100%, 20% 0%,
-                    24% 100%, 28% 0%, 32% 100%, 36% 0%, 40% 100%, 44% 0%,
-                    48% 100%, 52% 0%, 56% 100%, 60% 0%, 64% 100%, 68% 0%,
-                    72% 100%, 76% 0%, 80% 100%, 84% 0%, 88% 100%, 92% 0%,
-                    96% 100%, 100% 100%);
-        }
-
-        /* Receipt Body */
-        .receipt-body {
-            background: #ffffff;
-            padding: 1.8rem 1.8rem 0.8rem;
-        }
-
-        .receipt-row {
-            display: flex;
-            justify-content: space-between;
-            align-items: baseline;
-            padding: 0.9rem 0;
-            border-bottom: 1px solid #f0f2f5;
-        }
-
-        .receipt-row:last-child {
-            border-bottom: none;
-        }
-
-        .label {
-            font-size: 0.8rem;
-            color: #5b6e8c;
-            font-weight: 600;
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-        }
-
-        .value {
-            font-size: 0.95rem;
-            color: #0f172a;
-            font-weight: 600;
-            text-align: right;
-            max-width: 62%;
-            word-break: break-word;
-        }
-
-        /* Highlighted Amount Row */
-        .amount-row {
-            background: linear-gradient(115deg, #eff6ff 0%, #e0e7ff 100%);
-            border-radius: 20px;
-            padding: 1.1rem 1.3rem;
-            margin: 1.2rem 0 1.5rem;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            border: 1px solid #cbdffc;
-        }
-
-        .amount-row .label {
-            font-size: 0.85rem;
-            color: #1e40af;
-            font-weight: 700;
-        }
-
-        .amount-row .value {
-            font-size: 1.75rem;
-            color: #1e3a8a;
-            font-weight: 800;
-            letter-spacing: -0.02em;
-        }
-
-        /* Status Badge Elegant */
-        .status-badge {
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-            background: #dcfce7;
-            color: #15803d;
-            font-size: 0.75rem;
-            font-weight: 700;
-            padding: 5px 14px;
-            border-radius: 100px;
-            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
-        }
-
-        /* Dashed Divider with Dots */
-        .dashed-divider {
-            display: flex;
-            align-items: center;
-            margin: 0 -1rem;
-            position: relative;
-            padding: 0 1rem;
-        }
-
-        .dashed-divider::before,
-        .dashed-divider::after {
-            content: '';
-            width: 22px;
-            height: 22px;
-            border-radius: 50%;
-            background: #ffffff;
-            border: 2px solid #e2e8f0;
-            flex-shrink: 0;
-            z-index: 2;
-        }
-
-        .dashed-divider .line {
-            flex: 1;
-            border-top: 2px dashed #cbd5e1;
-        }
-
-        /* Footer with New Domain */
-        .receipt-footer {
-            background: #ffffff;
-            padding: 1.2rem 1.8rem 2rem;
-            text-align: center;
-        }
-
-        .brand-icon {
-            width: 48px;
-            height: 48px;
-            background: linear-gradient(145deg, #2563eb, #1e40af);
-            border-radius: 18px;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            margin-bottom: 0.8rem;
-            box-shadow: 0 8px 18px rgba(37, 99, 235, 0.2);
-        }
-
-        .thankyou-text {
-            font-weight: 700;
-            background: linear-gradient(135deg, #1e293b, #2563eb);
-            background-clip: text;
-            -webkit-background-clip: text;
-            color: transparent;
-            font-size: 1rem;
-        }
-
-        .domain-name {
-            font-family: monospace;
-            font-weight: 600;
-            background: #f1f5f9;
-            display: inline-block;
-            padding: 0.2rem 1rem;
-            border-radius: 40px;
-            font-size: 0.8rem;
-            letter-spacing: -0.2px;
-        }
-
-        /* Buttons Modern */
-        .btn-premium {
-            border-radius: 60px;
-            padding: 12px 8px;
-            font-weight: 700;
-            transition: all 0.2s ease;
-        }
-
-        .btn-premium i {
-            margin-right: 8px;
-        }
-
-        @media print {
-            .no-print {
-                display: none !important;
-            }
-
-            body {
-                background: white;
-                padding: 0;
-            }
-
-            .receipt-card {
-                box-shadow: none;
-                border: 1px solid #e2e8f0;
-            }
-        }
-    </style>
-</head>
-
-<body>
-
-    <div class="receipt-wrapper">
-        <!-- Navigation Back (Not printed) -->
-        <div class="d-flex align-items-center gap-3 mb-4 no-print">
-            <a href="{% url 'dashboard' %}" class="btn btn-light rounded-pill shadow-sm px-4 py-2 fw-semibold border">
-                <i class="fa fa-arrow-left me-2 text-primary"></i> Dashboard
-            </a>
-            <span class="fw-semibold text-dark"><i class="fa-regular fa-receipt me-1 text-primary"></i> Receipt</span>
-        </div>
-
-        <!-- Main Receipt Card -->
-        <div id="capture-area" class="receipt-card">
-            <!-- Header Gradient -->
-            <div class="receipt-header">
-                <div class="success-ring">
-                    <i class="fa-solid fa-check"></i>
-                </div>
-                <h4 class="text-white fw-bold mb-1" style="letter-spacing: -0.2px;">Payment Confirmed!</h4>
-                <p class="text-white-50 small mb-0 fw-medium">Transaction completed successfully</p>
+{% extends 'base.html' %}
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-5">
+        <div class="card border-0 shadow-lg rounded-4 overflow-hidden" id="receipt">
+            <div class="bg-primary p-4 text-center text-white">
+                <h5 class="mb-0 fw-bold">Transaction Receipt</h5>
+                <small class="opacity-75">BT SOFTWARE SERVICES LTD</small>
             </div>
+            <div class="card-body p-4">
+                <div class="text-center mb-4">
+                    <h2 class="fw-bold text-success">₦{{ tx.amount }}</h2>
+                    <span class="badge bg-success-subtle text-success rounded-pill px-3">SUCCESSFUL</span>
+                </div>
+                
+                <ul class="list-group list-group-flush small">
+                    <li class="list-group-item d-flex justify-content-between px-0">
+                        <span class="text-muted">Service:</span>
+                        <span class="fw-bold">{{ tx.service_type }}</span>
+                    </li>
+                    <li class="list-group-item d-flex justify-content-between px-0">
+                        <span class="text-muted">Plan:</span>
+                        <span class="fw-bold">{{ tx.plan_name }}</span>
+                    </li>
+                    <li class="list-group-item d-flex justify-content-between px-0">
+                        <span class="text-muted">Recipient:</span>
+                        <span class="fw-bold">{{ tx.recipient }}</span>
+                    </li>
+                    <li class="list-group-item d-flex justify-content-between px-0">
+                        <span class="text-muted">Date:</span>
+                        <span class="fw-bold">{{ tx.created_at|date:"d M Y, H:i" }}</span>
+                    </li>
+                    <li class="list-group-item d-flex justify-content-between px-0">
+                        <span class="text-muted">Ref:</span>
+                        <span class="fw-bold text-uppercase">{{ tx.reference }}</span>
+                    </li>
+                </ul>
 
-            <!-- Zigzag separator -->
-            <div class="tear"></div>
-
-            <!-- Receipt Details -->
-            <div class="receipt-body">
-                <div class="text-center mb-3">
-                    <div class="brand-icon mx-auto">
-                        <i class="fa-solid fa-bolt fa-xl text-white"></i>
-                    </div>
-                    <div class="fw-black fs-4 mt-2"
-                        style="background: linear-gradient(145deg, #1e293b, #2563eb); background-clip: text; -webkit-background-clip: text; color: transparent;">
-                        BT DATAPLUG</div>
-                    <div class="badge bg-primary bg-opacity-10 text-primary rounded-pill mt-1 px-3 py-1 fw-semibold">
-                        OFFICIAL RECEIPT</div>
-                </div>
-
-                <!-- Amount Section -->
-                <div class="amount-row">
-                    <span class="label"><i class="fa-regular fa-credit-card me-1"></i> TOTAL AMOUNT</span>
-                    <span class="value">₦{{ tx.amount }}</span>
-                </div>
-
-                <!-- Transaction Details -->
-                <div class="receipt-row">
-                    <span class="label"><i class="fa-regular fa-circle-check me-1"></i> Status</span>
-                    <span class="value">
-                        <span class="status-badge">
-                            <i class="fa-solid fa-check-circle"></i> {{ tx.status|default:"SUCCESSFUL" }}
-                        </span>
-                    </span>
-                </div>
-                <div class="receipt-row">
-                    <span class="label"><i class="fa-solid fa-tower-cell"></i> Service</span>
-                    <span class="value">{{ tx.service_type|default:"Data Bundle" }}</span>
-                </div>
-                <div class="receipt-row">
-                    <span class="label"><i class="fa-regular fa-chart-line"></i> Plan</span>
-                    <span class="value">{{ tx.plan_name|default:"Smart Value Plan" }}</span>
-                </div>
-                <div class="receipt-row">
-                    <span class="label"><i class="fa-regular fa-mobile-alt"></i> Recipient</span>
-                    <span class="value">{{ tx.recipient|default:"0803XXXXXXX" }}</span>
-                </div>
-                <div class="receipt-row">
-                    <span class="label"><i class="fa-regular fa-calendar-alt"></i> Date & Time</span>
-                    <span class="value">{{ tx.created_at|date:"d M Y, g:i A"|default:"April 7, 2026, 2:30 PM" }}</span>
-                </div>
-                <div class="receipt-row">
-                    <span class="label"><i class="fa-regular fa-hashtag"></i> Reference ID</span>
-                    <span class="value" style="font-family: 'SF Mono', monospace; font-size: 0.75rem;">{{
-                        tx.reference|default:"Processing..." }}</span>
-                </div>
-                <div class="receipt-row">
-                    <span class="label"><i class="fa-regular fa-user"></i> Customer</span>
-                    <span class="value">{{ tx.user.get_full_name|default:tx.user.username|default:"Michael O." }}</span>
-                </div>
-            </div>
-
-            <!-- Dashed line with circles -->
-            <div class="dashed-divider px-0 mx-3 mt-2">
-                <div class="line"></div>
-            </div>
-
-            <!-- Footer with new Domain & Thank you -->
-            <div class="receipt-footer">
-                <div class="thankyou-text mb-2">
-                    <i class="fa-regular fa-heart text-primary me-1"></i> Thank you for choosing BT DataPlug
-                </div>
-                <div class="domain-name mt-1">
-                    🌐 www.btdataplug.com
-                </div>
-                <p class="small text-muted mt-3 mb-0" style="font-size: 0.7rem;">
-                    <i class="fa-regular fa-clock"></i> Instant delivery • 24/7 support
-                </p>
-
-                <!-- Action Buttons (no-print) -->
-                <div class="mt-4 no-print d-grid gap-3">
-                    <button onclick="shareAsImage()" class="btn btn-success btn-premium py-3 shadow-sm">
-                        <i class="fab fa-whatsapp fa-lg me-2"></i> Share Receipt
-                    </button>
-                    <div class="d-flex gap-2">
-                        <button onclick="downloadImage()" class="btn btn-primary btn-premium flex-fill py-2">
-                            <i class="fa-regular fa-image"></i> Save Image
-                        </button>
-                        <button onclick="downloadPDF()"
-                            class="btn btn-outline-primary btn-premium flex-fill py-2 border-2">
-                            <i class="fa-regular fa-file-pdf"></i> PDF
+                <div class="mt-4 row g-2">
+                    <div class="col-6">
+                        <button class="btn btn-outline-primary w-100 rounded-pill py-2" onclick="window.print()">
+                            <i class="fa fa-print me-1"></i> Print
                         </button>
                     </div>
-                    <div class="d-flex gap-2">
-                        <button onclick="window.print()"
-                            class="btn btn-light btn-premium flex-fill border fw-semibold py-2">
-                            <i class="fa-regular fa-print"></i> Print
-                        </button>
-                        <a href="{% url 'buy_data' %}"
-                            class="btn btn-light btn-premium flex-fill border fw-semibold py-2">
-                            <i class="fa-regular fa-plus-circle"></i> Buy Again
+                    <div class="col-6">
+                        <a href="https://wa.me/?text=Successful%20Transaction%20on%20BT%20DataPlug!%20Amount:%20₦{{ tx.amount }}%20Ref:%20{{ tx.reference }}" class="btn btn-success w-100 rounded-pill py-2">
+                            <i class="fab fa-whatsapp me-1"></i> Share
                         </a>
                     </div>
                 </div>
             </div>
         </div>
+        <div class="text-center mt-3">
+            <a href="{% url 'dashboard' %}" class="text-decoration-none small fw-bold">
+                <i class="fa-solid fa-arrow-left me-1"></i> Back to Dashboard
+            </a>
+        </div>
     </div>
+</div>
 
-    <script>
-        // Global helper to temporarily hide buttons for clean capture
-        async function captureReceiptElement() {
-            const element = document.getElementById('capture-area');
-            // We don't physically remove no-print elements, but html2canvas will ignore them due to ignoreElements param
-            const canvas = await html2canvas(element, {
-                scale: 3,
-                backgroundColor: "#ffffff",
-                logging: false,
-                useCORS: true,
-                ignoreElements: (el) => {
-                    // hide all action buttons and the back navigation inside capture area
-                    if (el.classList && (el.classList.contains('no-print') || el.closest('.no-print'))) return true;
-                    // Also hide any .no-print descendant
-                    return false;
-                }
-            });
-            return canvas;
-        }
-
-        async function shareAsImage() {
-            try {
-                const canvas = await captureReceiptElement();
-                canvas.toBlob(async (blob) => {
-                    if (!blob) {
-                        alert("Could not generate receipt");
-                        return;
-                    }
-                    const file = new File([blob], `BT-Receipt-{{ tx.reference|default:'receipt' }}.png`, { type: "image/png" });
-                    if (navigator.canShare && navigator.canShare({ files: [file] })) {
-                        await navigator.share({
-                            files: [file],
-                            title: 'BT DataPlug Receipt',
-                            text: 'Transaction Successful! ✅ www.btdataplug.com'
-                        });
-                    } else {
-                        downloadImage();
-                        alert("Sharing not fully supported — receipt saved to downloads.");
-                    }
-                }, 'image/png');
-            } catch (err) {
-                console.error(err);
-                alert("Unable to share, but you can save the image.");
-            }
-        }
-
-        function downloadImage() {
-            captureReceiptElement().then(canvas => {
-                const link = document.createElement('a');
-                link.download = `BT-DataPlug-Receipt-{{ tx.reference|default:'transaction' }}.png`;
-                link.href = canvas.toDataURL("image/png");
-                link.click();
-            }).catch(err => {
-                alert("Error generating image, try again.");
-            });
-        }
-
-        function downloadPDF() {
-            const { jsPDF } = window.jspdf;
-            captureReceiptElement().then(canvas => {
-                const imgData = canvas.toDataURL('image/png');
-                const pdf = new jsPDF('p', 'mm', 'a4');
-                const imgProps = pdf.getImageProperties(imgData);
-                const pdfWidth = pdf.internal.pageSize.getWidth();
-                const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
-                pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
-                pdf.save(`BT-DataPlug-Receipt-{{ tx.reference|default:'transaction' }}.pdf`);
-            }).catch(err => {
-                alert("PDF generation failed, try again.");
-            });
-        }
-
-        // small improvement to ensure .no-print elements aren't interfering
-        document.querySelectorAll('.no-print').forEach(el => {
-            el.setAttribute('data-no-print', 'true');
-        });
-    </script>
-
-    <!-- Ensure fallback for dynamic template variables (Django style) but also works static preview) -->
-    {% comment %}
-    This template expects Django context with 'tx' object containing:
-    tx.amount, tx.status, tx.service_type, tx.plan_name, tx.recipient, tx.created_at, tx.reference, tx.user
-    For preview or demo, fallback strings are provided.
-    {% endcomment %}
-</body>
-
-</html>
+<style>
+@media print {
+    .mobile-header, .sidebar, .bottom-nav, .btn, .nav-item-custom, .alert, .no-print {
+        display: none !important;
+    }
+    .main-content {
+        margin: 0 !important;
+        padding: 0 !important;
+    }
+    .card {
+        box-shadow: none !important;
+        border: 1px solid #eee !important;
+    }
+}
+</style>
+{% endblock %}

@@ -2,11 +2,14 @@ import json
 import hmac
 import hashlib
 import os
+import logging
 from django.http import HttpResponse
 from django.views.decorators.csrf import csrf_exempt
 from .models import Profile, Transaction
 from django.contrib.auth.models import User
 from decimal import Decimal
+
+logger = logging.getLogger(__name__)
 
 @csrf_exempt
 def monnify_webhook(request):
@@ -21,7 +24,7 @@ def monnify_webhook(request):
         computed_hash = hmac.new(secret_key.encode(), request.body, hashlib.sha512).hexdigest()
 
         if computed_hash != signature:
-            print("BT DataPlug: Webhook Signature Mismatch!")
+            logger.warning(f"BT DataPlug: Webhook Signature Mismatch! Remote IP: {request.META.get('REMOTE_ADDR')}")
             # In production, we strictly return 401 on mismatch
             return HttpResponse(status=401)
 
@@ -57,14 +60,14 @@ def monnify_webhook(request):
                             recipient="Wallet",
                             status="Successful"
                         )
-                        print(f"BT DataPlug: Success! Credited {profile.user.username} with {amount_paid}")
+                        logger.info(f"PAYMENT_RECEIVED: User {profile.user.username} credited with ₦{amount_paid} via Monnify")
                         return HttpResponse(status=200)
                     except Profile.DoesNotExist:
-                        print(f"BT DataPlug: Error - Profile for User ID {user_id} not found.")
+                        logger.error(f"PAYMENT_ERROR: Profile for User ID {user_id} not found.")
                         return HttpResponse(status=404)
 
         except Exception as e:
-            print(f"BT DataPlug Webhook Error: {str(e)}")
+            logger.error(f"BT DataPlug Webhook Error: {str(e)}")
             # Returning 500 triggers a 'Failure' retry from Monnify's perspective
             return HttpResponse(status=500)
 

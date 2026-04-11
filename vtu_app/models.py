@@ -8,7 +8,10 @@ class Profile(models.Model):
     wallet_balance = models.DecimalField(max_digits=12, decimal_places=2, default=0.00)
     bvn = models.CharField(max_length=11, null=True, blank=True)
     nin = models.CharField(max_length=11, null=True, blank=True)
+    # KYC & PIN Security
     kyc_verified = models.BooleanField(default=False)
+    transaction_pin = models.CharField(max_length=4, default="0000") 
+    is_pin_set = models.BooleanField(default=False)
     
     # Store Monnify account details as JSON (Bank Name, Account Number, etc.)
     bank_accounts = models.JSONField(null=True, blank=True) 
