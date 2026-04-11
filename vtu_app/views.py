@@ -67,7 +67,7 @@ def register(request):
                     messages.info(request, "Account created! Your bank numbers will appear in a few seconds.")
             else:
                 print(f"Monnify Error: {response.get('responseMessage')}")
-                messages.warning(request, "Registration successful, but bank numbers are temporarily delayed.")
+                # We remove the warning here so the user isn't alarmed unnecessarily
         except Exception as e:
             print(f"Critical Account Generation Error: {e}")
             messages.warning(request, "Welcome! We're setting up your bank accounts shortly.")
