@@ -24,7 +24,7 @@
                 <!-- Success State -->
                 <div class="text-center mb-5">
                     {% if tx.service_type == 'Data Purchase' or tx.service_type == 'Cable TV' %}
-                        <div class="display-5 fw-bold text-dark">{{ tx.plan_name }}</div>
+                        <div class="display-5 fw-bold text-dark">{{ tx.clean_plan_name }}</div>
                         <div class="h5 text-muted mt-2 fw-bold">₦{{ tx.amount }}</div>
                     {% else %}
                         <div class="display-5 fw-bold text-dark">₦{{ tx.amount }}</div>
@@ -50,7 +50,7 @@
                     
                     <div class="col-12 border-top pt-3">
                         <small class="text-muted d-block mb-1 text-uppercase fw-bold" style="font-size: 10px;">Plan / Package</small>
-                        <span class="fw-bold text-dark">{{ tx.plan_name }}</span>
+                        <span class="fw-bold text-dark">{{ tx.clean_plan_name }}</span>
                     </div>
 
                     <div class="col-12 border-top pt-3">

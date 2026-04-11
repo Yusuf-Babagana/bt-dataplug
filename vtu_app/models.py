@@ -62,6 +62,16 @@ class Transaction(models.Model):
     reference = models.CharField(max_length=50, blank=True, null=True)  # ClubKonnect RequestID
     created_at = models.DateTimeField(auto_now_add=True)
 
+    @property
+    def clean_plan_name(self):
+        """Removes 'Daily', 'Weekly', 'Monthly' etc from plan name for cleaner receipts."""
+        import re
+        if not self.plan_name:
+            return ""
+        # Remove common duration keywords and parentheses
+        cleaned = re.sub(r'\(?(?:daily|weekly|monthly|yearly)\)?', '', self.plan_name, flags=re.IGNORECASE)
+        return cleaned.strip()
+
     def __str__(self):
         return f"{self.user.username} - {self.service_type} - {self.amount}"
 
