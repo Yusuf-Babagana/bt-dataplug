@@ -4,6 +4,7 @@ import hmac
 import hashlib
 import base64
 import uuid
+import time
 from django.conf import settings
 
 
@@ -172,19 +173,20 @@ class MonnifyService:
         url = f"{self.base_url}/api/v2/bank-transfer/reserved-accounts"
         headers = {'Authorization': f'Bearer {token}'}
 
-        # This is what will appear on OPay, Moniepoint, etc.
-        custom_display_name = f"BT-{user.username}".upper()
+        # Match the style: username in uppercase
+        # Example: BT-BILALSADASUB
+        display_name = f"BT-{user.username}".upper()
 
         data = {
-            "accountReference": f"REF-{user.id}",
-            "accountName": custom_display_name, # Priority 1
+            "accountReference": f"REF-{user.id}-{int(time.time())}", # Unique Ref
+            "accountName": display_name, 
             "currencyCode": "NGN",
             "contractCode": self.contract_code,
             "customerEmail": user.email or f"{user.username}@btdataplug.com",
-            "customerName": custom_display_name, # Priority 2 (Overrides BVN name in some banks)
+            "customerName": display_name, 
             "getAllAvailableBanks": True,
             "customerBvn": self.my_bvn, # Your proxy BVN
-            "nin": self.my_nin
+            "nin": self.my_nin        # Your NIN from .env
         }
 
         # Debug: log payload
