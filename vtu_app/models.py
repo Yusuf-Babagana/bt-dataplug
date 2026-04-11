@@ -62,6 +62,7 @@ class Transaction(models.Model):
     cost_price = models.DecimalField(max_digits=12, decimal_places=2, default=0.00)
     selling_price = models.DecimalField(max_digits=12, decimal_places=2, default=0.00)
     profit = models.DecimalField(max_digits=12, decimal_places=2, default=0.00)
+    fee = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)  # e.g. Monnify 1% fee
     
     amount = models.DecimalField(max_digits=12, decimal_places=2) # Legacy/User display amount
     recipient = models.CharField(max_length=20) # Phone number or "Wallet"
@@ -114,3 +115,20 @@ class CablePlan(models.Model):
 
     def __str__(self):
         return f"{self.get_cable_type_display()} - {self.name} (₦{self.price})"
+
+
+class ServiceSwitch(models.Model):
+    """Admin kill-switch to enable/disable networks from user purchase pages."""
+    NETWORK_CHOICES = [
+        ('MTN', 'MTN'),
+        ('Glo', 'Glo'),
+        ('9mobile', '9mobile'),
+        ('Airtel', 'Airtel'),
+    ]
+    network = models.CharField(max_length=20, choices=NETWORK_CHOICES, unique=True)
+    is_active = models.BooleanField(default=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        status = "ACTIVE" if self.is_active else "DISABLED"
+        return f"{self.network}: {status}"

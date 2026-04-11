@@ -27,3 +27,5 @@ INFO 2026-04-11 04:02:39,719 autoreload 22036 9440 C:\Users\DELL\Desktop\bt_data
 INFO 2026-04-11 04:02:40,737 autoreload 16272 9412 Watching for file changes with StatReloader
 INFO 2026-04-11 04:02:55,948 autoreload 16272 9412 C:\Users\DELL\Desktop\bt_dataplug\core\urls.py changed, reloading.
 INFO 2026-04-11 04:02:56,980 autoreload 24960 23344 Watching for file changes with StatReloader
+INFO 2026-04-11 04:16:43,177 autoreload 24960 23344 C:\Users\DELL\Desktop\bt_dataplug\vtu_app\models.py changed, reloading.
+INFO 2026-04-11 04:16:44,669 autoreload 27092 21208 Watching for file changes with StatReloader
