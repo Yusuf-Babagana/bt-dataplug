@@ -28,43 +28,56 @@
 <div class="card border-0 shadow-sm rounded-4 mb-4">
     <div class="card-body p-4">
         <h6 class="fw-bold text-dark mb-1">Automated Bank Transfer 👇👇👇</h6>
-        <p class="text-muted small mb-4">Make a transfer to this unique Account Number given to you and your wallet will be credited immediately.</p>
+        <p class="text-muted small mb-4">Make a transfer to this unique Account Number and your wallet will be credited immediately.</p>
 
         {% if user.profile.bank_accounts %}
             {% for acc in user.profile.bank_accounts %}
-            <div class="p-3 bg-light rounded-3 mb-3 border-start border-primary border-4">
-                <div class="row align-items-center">
-                    <div class="col">
-                        <span class="text-muted small d-block">Account Number:</span>
-                        <h5 class="fw-bold mb-0 text-primary">{{ acc.accountNumber }}</h5>
+            <div class="p-3 bg-light rounded-3 mb-3 border-start border-primary border-4 shadow-sm">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div>
+                        <span class="text-muted small d-block mb-1">Account Number:</span>
+                        <h4 class="fw-bold mb-0 text-primary tracking-tight" id="acc-{{ forloop.counter }}">
+                            {{ acc.accountNumber }}
+                        </h4>
                     </div>
-                    <div class="col-auto">
-                        <button class="btn btn-sm btn-outline-primary rounded-pill" onclick="copyToClipboard('{{ acc.accountNumber }}')">
-                            Copy
-                        </button>
+                    <button class="btn btn-sm btn-primary rounded-pill px-3" onclick="copyText('{{ acc.accountNumber }}')">
+                        <i class="fa fa-copy me-1"></i> Copy
+                    </button>
+                </div>
+                
+                <div class="row mt-3">
+                    <div class="col-6">
+                        <span class="text-muted small d-block">Bank Name:</span>
+                        <span class="fw-bold text-dark">{{ acc.bankName|upper }}</span>
                     </div>
-                </div>
-                <div class="mt-2">
-                    <span class="text-muted small d-block">Bank Name:</span>
-                    <span class="fw-bold">{{ acc.bankName|upper }}</span>
-                </div>
-                <div class="mt-2">
-                    <span class="text-muted small d-block">Account Name:</span>
-                    <span class="fw-bold text-uppercase">BT-{{ user.username }}</span>
+                    <div class="col-6">
+                        <span class="text-muted small d-block">Account Name:</span>
+                        <span class="fw-bold text-dark" style="font-size: 0.8rem;">BT SOFTWARE SERVICES LTD- YUS</span>
+                    </div>
                 </div>
             </div>
             {% endfor %}
-            <div class="text-danger small fw-bold">
-                <i class="fa fa-info-circle me-1"></i> Charges: 1% capped at 50 naira
+            
+            <div class="bg-danger-subtle p-2 rounded-3 text-center">
+                <span class="text-danger small fw-bold">
+                    <i class="fa fa-info-circle me-1"></i> Charges: 1% capped at 50 naira
+                </span>
             </div>
         {% else %}
-            <div class="text-center py-3">
-                <div class="spinner-border spinner-border-sm text-primary" role="status"></div>
-                <p class="small text-muted mt-2">Generating your unique accounts...</p>
+            <div class="text-center py-4">
+                <div class="spinner-border text-primary mb-2" role="status"></div>
+                <p class="small text-muted">Setting up your unique funding account...</p>
             </div>
         {% endif %}
     </div>
 </div>
+
+<script>
+function copyText(text) {
+    navigator.clipboard.writeText(text);
+    alert("Account Number Copied!");
+}
+</script>
 
 <div class="row g-2 g-md-3 mb-4">
     <div class="col-12 col-lg-4">

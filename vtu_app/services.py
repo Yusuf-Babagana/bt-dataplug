@@ -168,25 +168,23 @@ class MonnifyService:
             raise Exception(f"Monnify says: {error_msg} (Code: {response.status_code})")
 
     def reserve_account(self, user):
-        """Overrides the legal name with the Username for display"""
         token = self.get_auth_token()
         url = f"{self.base_url}/api/v2/bank-transfer/reserved-accounts"
         headers = {'Authorization': f'Bearer {token}'}
 
-        # Match the style: username in uppercase
-        # Example: BT-BILALSADASUB
-        display_name = f"BT-{user.username}".upper()
+        # Professional Company Branding
+        company_account_name = "BT SOFTWARE SERVICES LTD- YUS"
 
         data = {
-            "accountReference": f"REF-{user.id}-{int(time.time())}", # Unique Ref
-            "accountName": display_name, 
+            "accountReference": f"REF-{user.id}-{int(time.time())}",
+            "accountName": company_account_name, # Shows on the bank inquiry
             "currencyCode": "NGN",
             "contractCode": self.contract_code,
             "customerEmail": user.email or f"{user.username}@btdataplug.com",
-            "customerName": display_name, 
+            "customerName": company_account_name, # Some banks pull from here
             "getAllAvailableBanks": True,
-            "customerBvn": self.my_bvn, # Your proxy BVN
-            "nin": self.my_nin        # Your NIN from .env
+            "customerBvn": self.my_bvn,
+            "nin": self.my_nin
         }
 
         # Debug: log payload
