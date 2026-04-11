@@ -89,9 +89,12 @@
                 <!-- Action Buttons (No Print) -->
                 <div class="mt-5 row g-2 no-print">
                     <div class="col-12 mb-2">
+                        <button onclick="shareReceiptAsImage()" class="btn btn-primary w-100 rounded-pill py-3 fw-bold shadow-sm mb-2" id="shareImageBtn">
+                            <i class="fa-solid fa-image me-2"></i> Share as Image (Picture)
+                        </button>
                         <a href="https://wa.me/?text=Successful%20Transaction%20on%20BT%20DataPlug!%0AAmount:%20₦{{ tx.amount }}%0ARecipient:%20{{ tx.recipient }}%0ARef:%20{{ tx.reference }}%0AVisit:%20www.btdataplug.com" 
                            class="btn btn-success w-100 rounded-pill py-3 fw-bold shadow-sm">
-                            <i class="fab fa-whatsapp me-2 fa-lg"></i> Share on WhatsApp
+                            <i class="fab fa-whatsapp me-2 fa-lg"></i> Send as Text
                         </a>
                     </div>
                     <div class="col-6">
@@ -114,6 +117,72 @@
         </div>
     </div>
 </div>
+
+<!-- Load html2canvas for image generation -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+
+<script>
+async function shareReceiptAsImage() {
+    const btn = document.getElementById('shareImageBtn');
+    const originalText = btn.innerHTML;
+    const card = document.getElementById('receiptCard');
+    
+    try {
+        // 1. Show Loading State
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Generating...';
+
+        // 2. Capture the card (Scale 2 for high density/retina)
+        const canvas = await html2canvas(card, {
+            scale: 2,
+            useCORS: true,
+            backgroundColor: "#f1f5f9", // Match background
+            ignoreElements: (el) => el.classList.contains('no-print')
+        });
+
+        // 3. Convert to Blob
+        canvas.toBlob(async (blob) => {
+            const fileName = `BT-DataPlug-Receipt-${new Date().getTime()}.png`;
+            const file = new File([blob], fileName, { type: 'image/png' });
+
+            // 4. Try Web Share API (Mobile)
+            if (navigator.canShare && navigator.canShare({ files: [file] })) {
+                try {
+                    await navigator.share({
+                        files: [file],
+                        title: 'BT DataPlug Receipt',
+                        text: 'Successful Transaction Receipt from BT DataPlug'
+                    });
+                } catch (err) {
+                    console.log("Share failed, falling back to download");
+                    downloadImage(canvas, fileName);
+                }
+            } else {
+                // 5. Fallback: Save Image (Desktop/Older browsers)
+                downloadImage(canvas, fileName);
+                alert("Image generated! Please share the downloaded file to WhatsApp.");
+            }
+
+            // Restore button
+            btn.disabled = false;
+            btn.innerHTML = originalText;
+        }, 'image/png');
+
+    } catch (error) {
+        console.error("Image generation failed", error);
+        alert("Could not generate image. Please use standard share.");
+        btn.disabled = false;
+        btn.innerHTML = originalText;
+    }
+}
+
+function downloadImage(canvas, fileName) {
+    const link = document.createElement('a');
+    link.download = fileName;
+    link.href = canvas.toDataURL('image/png');
+    link.click();
+}
+</script>
 
 <style>
 .border-dashed { border-style: dashed !important; border-width: 2px !important; color: #e2e8f0; }
