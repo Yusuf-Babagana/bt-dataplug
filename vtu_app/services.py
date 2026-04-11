@@ -167,25 +167,24 @@ class MonnifyService:
             raise Exception(f"Monnify says: {error_msg} (Code: {response.status_code})")
 
     def reserve_account(self, user):
-        """Creates an account using Admin BVN/NIN as proxy with Customer Username as Account Name"""
+        """Overrides the legal name with the Username for display"""
         token = self.get_auth_token()
         url = f"{self.base_url}/api/v2/bank-transfer/reserved-accounts"
         headers = {'Authorization': f'Bearer {token}'}
 
-        # 1. SET THE ACCOUNT NAME TO USERNAME
-        # We add 'BT-' as a professional prefix for your brand
-        account_display_name = f"BT-{user.username}".upper()
+        # This is what will appear on OPay, Moniepoint, etc.
+        custom_display_name = f"BT-{user.username}".upper()
 
         data = {
             "accountReference": f"REF-{user.id}",
-            "accountName": account_display_name, 
+            "accountName": custom_display_name, # Priority 1
             "currencyCode": "NGN",
             "contractCode": self.contract_code,
             "customerEmail": user.email or f"{user.username}@btdataplug.com",
-            "customerName": f"{user.first_name} {user.last_name}".strip() or user.username,
+            "customerName": custom_display_name, # Priority 2 (Overrides BVN name in some banks)
             "getAllAvailableBanks": True,
-            "customerBvn": self.my_bvn, # Your BVN from .env acting as proxy
-            "nin": self.my_nin        # Your NIN from .env
+            "customerBvn": self.my_bvn, # Your proxy BVN
+            "nin": self.my_nin
         }
 
         # Debug: log payload
