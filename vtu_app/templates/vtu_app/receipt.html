@@ -23,7 +23,12 @@
             <div class="card-body p-4 p-md-5">
                 <!-- Success State -->
                 <div class="text-center mb-5">
-                    <div class="display-5 fw-bold text-dark">₦{{ tx.amount }}</div>
+                    {% if tx.service_type == 'Data Purchase' or tx.service_type == 'Cable TV' %}
+                        <div class="display-5 fw-bold text-dark">{{ tx.plan_name }}</div>
+                        <div class="h5 text-muted mt-2 fw-bold">₦{{ tx.amount }}</div>
+                    {% else %}
+                        <div class="display-5 fw-bold text-dark">₦{{ tx.amount }}</div>
+                    {% endif %}
                     <div class="d-flex align-items-center justify-content-center gap-2 mt-2">
                         <div class="bg-success rounded-circle d-flex align-items-center justify-content-center text-white" style="width: 20px; height: 20px;">
                             <i class="fa fa-check small" style="font-size: 10px;"></i>
