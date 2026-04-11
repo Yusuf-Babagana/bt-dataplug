@@ -5,7 +5,10 @@ import hashlib
 import base64
 import uuid
 import time
+import logging
 from django.conf import settings
+
+logger = logging.getLogger('vtu_app')
 
 
 class ClubKonnectService:
@@ -49,11 +52,10 @@ class ClubKonnectService:
         try:
             response = requests.get(url, headers=headers, timeout=30)
 
-            # DEEP DEBUG: Shows in PythonAnywhere Error Log
-            print(f"--- ClubKonnect Debug ---")
-            print(f"URL: {url.replace(self.api_key, 'HIDDEN')}")
-            print(f"Status: {response.status_code}")
-            print(f"Body: {response.text}")
+            # DEEP DEBUG: Shows in BT DataPlug logger
+            logger.info(f"ClubKonnect API Request to {url.replace(self.api_key, 'HIDDEN')}")
+            logger.info(f"ClubKonnect Response Status: {response.status_code}")
+            logger.info(f"ClubKonnect Response Body: {response.text}")
 
             # Safely attempt to parse JSON. If ClubKonnect returns a plain string 
             # (like INSUFFICIENT_BALANCE), we capture it without crashing.
@@ -64,7 +66,7 @@ class ClubKonnectService:
                 return {"status": response.text.strip(), "remark": response.text.strip()}, request_id
 
         except Exception as e:
-            print(f"ClubKonnect Connection Failed: {str(e)}")
+            logger.error(f"ClubKonnect Connection Failed: {str(e)}")
             return {"status": "ERROR", "remark": "Connection Timeout"}, request_id
 
     def buy_airtime(self, network_code, amount, phone):
@@ -81,7 +83,7 @@ class ClubKonnectService:
 
         try:
             response = requests.get(url, headers=headers, timeout=30)
-            print(f"--- Airtime Debug --- Status: {response.status_code} Body: {response.text}")
+            logger.info(f"Airtime Logic Debug --- Status: {response.status_code} Body: {response.text}")
 
             try:
                 return response.json(), request_id
@@ -101,7 +103,7 @@ class ClubKonnectService:
         headers = {'User-Agent': 'Mozilla/5.0 BT-DataPlug/1.0'}
         try:
             response = requests.get(url, headers=headers, timeout=20)
-            print(f"--- Cable Verify Debug --- Status: {response.status_code} Body: {response.text}")
+            logger.info(f"Cable Verify Logic --- Status: {response.status_code} Body: {response.text}")
             return response.json() # Returns {"customer_name": "..."}
         except:
             return {"customer_name": "Error validating number"}
@@ -117,7 +119,7 @@ class ClubKonnectService:
         headers = {'User-Agent': 'Mozilla/5.0 BT-DataPlug/1.0'}
         try:
             response = requests.get(url, headers=headers, timeout=30)
-            print(f"--- Cable Buy Debug --- Status: {response.status_code} Body: {response.text}")
+            logger.info(f"Cable Buy Logic --- Status: {response.status_code} Body: {response.text}")
             try:
                 return response.json(), request_id
             except ValueError:
@@ -188,7 +190,7 @@ class MonnifyService:
         }
 
         # Debug: log payload
-        print(f"[Monnify Proxy] Payload being sent: {data}")
+        logger.info(f"[Monnify Proxy] Sending account reservation for user {user.id}")
 
         response = requests.post(url, json=data, headers=headers, timeout=20)
         return response.json()

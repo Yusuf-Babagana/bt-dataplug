@@ -1,0 +1,4 @@
+INFO 2026-04-11 01:58:49,030 autoreload 27248 25140 Watching for file changes with StatReloader
+INFO 2026-04-11 01:58:58,538 autoreload 27248 25140 C:\Users\DELL\Desktop\bt_dataplug\vtu_app\models.py changed, reloading.
+INFO 2026-04-11 01:58:59,810 autoreload 2952 1748 Watching for file changes with StatReloader
+INFO 2026-04-11 02:00:00,437 autoreload 2952 1748 C:\Users\DELL\Desktop\bt_dataplug\vtu_app\views.py changed, reloading.

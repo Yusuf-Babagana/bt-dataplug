@@ -2,75 +2,124 @@
 {% block content %}
 <div class="row justify-content-center">
     <div class="col-md-5">
-        <div class="card border-0 shadow-lg rounded-4 overflow-hidden" id="receipt">
-            <div class="bg-primary p-4 text-center text-white">
-                <h5 class="mb-0 fw-bold">Transaction Receipt</h5>
-                <small class="opacity-75">BT SOFTWARE SERVICES LTD</small>
+        <!-- Dashboard Navigation (No Print) -->
+        <div class="d-flex align-items-center mb-4 gap-3 no-print">
+            <a href="{% url 'dashboard' %}" class="btn btn-light rounded-pill shadow-sm px-4 fw-bold">
+                <i class="fa fa-arrow-left me-2 text-primary"></i> Dashboard
+            </a>
+            <span class="fw-bold text-muted">Receipt</span>
+        </div>
+
+        <div class="card border-0 shadow-lg rounded-4 overflow-hidden" id="receiptCard">
+            <!-- Branded Header -->
+            <div class="p-4 text-center text-white" style="background: linear-gradient(135deg, #1e3a8a 0%, #2563eb 100%);">
+                <div class="bg-white text-primary rounded-circle d-inline-flex align-items-center justify-content-center mb-2 shadow-sm" style="width: 50px; height: 50px;">
+                    <i class="fa-solid fa-bolt fs-3"></i>
+                </div>
+                <h4 class="mb-0 fw-bold" style="letter-spacing: -0.5px;">BT DATAPLUG</h4>
+                <div class="badge bg-white bg-opacity-20 rounded-pill px-3 py-1 small mt-2 fw-medium">Official Transaction Receipt</div>
             </div>
-            <div class="card-body p-4">
-                <div class="text-center mb-4">
-                    <h2 class="fw-bold text-success">₦{{ tx.amount }}</h2>
-                    <span class="badge bg-success-subtle text-success rounded-pill px-3">SUCCESSFUL</span>
+
+            <div class="card-body p-4 p-md-5">
+                <!-- Success State -->
+                <div class="text-center mb-5">
+                    <div class="display-5 fw-bold text-dark">₦{{ tx.amount }}</div>
+                    <div class="d-flex align-items-center justify-content-center gap-2 mt-2">
+                        <div class="bg-success rounded-circle d-flex align-items-center justify-content-center text-white" style="width: 20px; height: 20px;">
+                            <i class="fa fa-check small" style="font-size: 10px;"></i>
+                        </div>
+                        <span class="fw-bold text-success small tracking-widest text-uppercase">Payment Successful</span>
+                    </div>
                 </div>
                 
-                <ul class="list-group list-group-flush small">
-                    <li class="list-group-item d-flex justify-content-between px-0">
-                        <span class="text-muted">Service:</span>
-                        <span class="fw-bold">{{ tx.service_type }}</span>
-                    </li>
-                    <li class="list-group-item d-flex justify-content-between px-0">
-                        <span class="text-muted">Plan:</span>
-                        <span class="fw-bold">{{ tx.plan_name }}</span>
-                    </li>
-                    <li class="list-group-item d-flex justify-content-between px-0">
-                        <span class="text-muted">Recipient:</span>
-                        <span class="fw-bold">{{ tx.recipient }}</span>
-                    </li>
-                    <li class="list-group-item d-flex justify-content-between px-0">
-                        <span class="text-muted">Date:</span>
-                        <span class="fw-bold">{{ tx.created_at|date:"d M Y, H:i" }}</span>
-                    </li>
-                    <li class="list-group-item d-flex justify-content-between px-0">
-                        <span class="text-muted">Ref:</span>
-                        <span class="fw-bold text-uppercase">{{ tx.reference }}</span>
-                    </li>
-                </ul>
-
-                <div class="mt-4 row g-2">
+                <!-- Transaction Details Grid -->
+                <div class="row g-3 mb-4">
                     <div class="col-6">
-                        <button class="btn btn-outline-primary w-100 rounded-pill py-2" onclick="window.print()">
-                            <i class="fa fa-print me-1"></i> Print
+                        <small class="text-muted d-block mb-1 text-uppercase fw-bold" style="font-size: 10px;">Service Type</small>
+                        <span class="fw-bold text-dark">{{ tx.service_type }}</span>
+                    </div>
+                    <div class="col-6 text-end">
+                        <small class="text-muted d-block mb-1 text-uppercase fw-bold" style="font-size: 10px;">Status</small>
+                        <span class="fw-bold text-success">Confirmed</span>
+                    </div>
+                    
+                    <div class="col-12 border-top pt-3">
+                        <small class="text-muted d-block mb-1 text-uppercase fw-bold" style="font-size: 10px;">Plan / Package</small>
+                        <span class="fw-bold text-dark">{{ tx.plan_name }}</span>
+                    </div>
+
+                    <div class="col-12 border-top pt-3">
+                        <small class="text-muted d-block mb-1 text-uppercase fw-bold" style="font-size: 10px;">Beneficiary</small>
+                        <span class="fw-bold text-dark">{{ tx.recipient }}</span>
+                    </div>
+
+                    <div class="col-12 border-top pt-3">
+                        <small class="text-muted d-block mb-1 text-uppercase fw-bold" style="font-size: 10px;">Transaction ID</small>
+                        <span class="fw-bold text-primary text-uppercase" style="font-family: monospace;">{{ tx.reference }}</span>
+                    </div>
+
+                    <div class="col-12 border-top pt-3">
+                        <small class="text-muted d-block mb-1 text-uppercase fw-bold" style="font-size: 10px;">Date & Time</small>
+                        <span class="fw-bold text-dark">{{ tx.created_at|date:"d M Y, H:i" }}</span>
+                    </div>
+                </div>
+
+                <!-- Tear-off style divider -->
+                <div class="d-flex align-items-center gap-2 my-4">
+                    <div class="flex-grow-1 border-top border-dashed"></div>
+                    <i class="fa-solid fa-scissors text-muted opacity-25" style="font-size: 12px;"></i>
+                    <div class="flex-grow-1 border-top border-dashed"></div>
+                </div>
+
+                <!-- Providers and Brand -->
+                <div class="text-center">
+                    <p class="small text-muted mb-1">Service Provider:</p>
+                    <p class="fw-bold text-dark mb-3">BT SOFTWARE SERVICES LTD</p>
+                    <div class="bg-light rounded-3 p-3">
+                        <p class="small text-muted mb-0">Reliability at your fingertips</p>
+                        <p class="fw-bold text-primary mb-0">www.btdataplug.com</p>
+                    </div>
+                </div>
+
+                <!-- Action Buttons (No Print) -->
+                <div class="mt-5 row g-2 no-print">
+                    <div class="col-12 mb-2">
+                        <a href="https://wa.me/?text=Successful%20Transaction%20on%20BT%20DataPlug!%0AAmount:%20₦{{ tx.amount }}%0ARecipient:%20{{ tx.recipient }}%0ARef:%20{{ tx.reference }}%0AVisit:%20www.btdataplug.com" 
+                           class="btn btn-success w-100 rounded-pill py-3 fw-bold shadow-sm">
+                            <i class="fab fa-whatsapp me-2 fa-lg"></i> Share on WhatsApp
+                        </a>
+                    </div>
+                    <div class="col-6">
+                        <button class="btn btn-outline-primary w-100 rounded-pill py-2 border-2 fw-bold" onclick="window.print()">
+                            <i class="fa fa-print me-2"></i> Print
                         </button>
                     </div>
                     <div class="col-6">
-                        <a href="https://wa.me/?text=Successful%20Transaction%20on%20BT%20DataPlug!%20Amount:%20₦{{ tx.amount }}%20Ref:%20{{ tx.reference }}" class="btn btn-success w-100 rounded-pill py-2">
-                            <i class="fab fa-whatsapp me-1"></i> Share
+                        <a href="{% url 'buy_data' %}" class="btn btn-outline-dark w-100 rounded-pill py-2 border-2 fw-bold">
+                            <i class="fa fa-plus me-2"></i> Buy Again
                         </a>
                     </div>
                 </div>
             </div>
         </div>
-        <div class="text-center mt-3">
-            <a href="{% url 'dashboard' %}" class="text-decoration-none small fw-bold">
-                <i class="fa-solid fa-arrow-left me-1"></i> Back to Dashboard
-            </a>
+        
+        <div class="text-center mt-4 no-print pb-5">
+            <p class="small text-muted mb-0">Need help with this transaction?</p>
+            <a href="https://wa.me/2348069278540" class="text-decoration-none small fw-bold">Contact Support</a>
         </div>
     </div>
 </div>
 
 <style>
+.border-dashed { border-style: dashed !important; border-width: 2px !important; color: #e2e8f0; }
 @media print {
-    .mobile-header, .sidebar, .bottom-nav, .btn, .nav-item-custom, .alert, .no-print {
+    body { background: white !important; }
+    .auth-wrapper, .mobile-header, .sidebar, .bottom-nav, .no-print, .messages {
         display: none !important;
     }
-    .main-content {
-        margin: 0 !important;
-        padding: 0 !important;
-    }
-    .card {
-        box-shadow: none !important;
-        border: 1px solid #eee !important;
-    }
+    .main-content { margin: 0 !important; padding: 0 !important; }
+    .container { max-width: 100% !important; width: 100% !important; margin: 0 !important; }
+    .card { box-shadow: none !important; border: 1px solid #eee !important; width: 100% !important; }
 }
 </style>
 {% endblock %}

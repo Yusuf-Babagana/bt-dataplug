@@ -10,14 +10,42 @@ class Profile(models.Model):
     nin = models.CharField(max_length=11, null=True, blank=True)
     # KYC & PIN Security
     kyc_verified = models.BooleanField(default=False)
-    transaction_pin = models.CharField(max_length=4, default="0000") 
+    transaction_pin = models.CharField(max_length=128, default="") # Hashed
     is_pin_set = models.BooleanField(default=False)
     
     # Store Monnify account details as JSON (Bank Name, Account Number, etc.)
     bank_accounts = models.JSONField(null=True, blank=True) 
     
+    def set_pin(self, raw_pin):
+        from django.contrib.auth.hashers import make_password
+        self.transaction_pin = make_password(raw_pin)
+        self.is_pin_set = True
+        self.save()
+
+    def check_pin(self, raw_pin):
+        from django.contrib.auth.hashers import check_password
+        return check_password(raw_pin, self.transaction_pin)
+
     def __str__(self):
         return f"{self.user.username}'s Profile"
+
+class WalletTransaction(models.Model):
+    """Deep audit trail for every single balance change."""
+    TRANSACTION_TYPES = [
+        ('CREDIT', 'Credit'),
+        ('DEBIT', 'Debit'),
+    ]
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    amount = models.DecimalField(max_digits=12, decimal_places=2)
+    previous_balance = models.DecimalField(max_digits=12, decimal_places=2)
+    new_balance = models.DecimalField(max_digits=12, decimal_places=2)
+    transaction_type = models.CharField(max_length=10, choices=TRANSACTION_TYPES)
+    reference = models.CharField(max_length=100, unique=True)
+    description = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.user.username} - {self.transaction_type} - {self.amount}"
 
 class Transaction(models.Model):
     SERVICE_CHOICES = [

@@ -1,5 +1,6 @@
 import json
 import logging
+import time
 from decimal import Decimal, InvalidOperation
 from django.shortcuts import render, redirect
 from django.contrib.auth.models import User
@@ -8,8 +9,9 @@ from django.contrib import messages
 from django.db import transaction
 from django.db.models import Sum
 from django.http import JsonResponse
-from .models import Profile, DataPlan, Transaction as TxModel, CablePlan
+from .models import Profile, DataPlan, Transaction as TxModel, CablePlan, WalletTransaction
 from .services import MonnifyService, ClubKonnectService
+from .services.transaction_service import TransactionService
 from .plan_data import DATA_PLANS
 
 logger = logging.getLogger(__name__)
@@ -66,10 +68,9 @@ def register(request):
                     # If the API was successful but the bank hasn't finished generating the number
                     messages.info(request, "Account created! Your bank numbers will appear in a few seconds.")
             else:
-                print(f"Monnify Error: {response.get('responseMessage')}")
-                # We remove the warning here so the user isn't alarmed unnecessarily
+                logger.error(f"MONNIFY_ERROR: {response.get('responseMessage')}")
         except Exception as e:
-            print(f"Critical Account Generation Error: {e}")
+            logger.critical(f"ACCOUNT_GEN_CRASH: {str(e)}")
             messages.warning(request, "Welcome! We're setting up your bank accounts shortly.")
 
         # 3. Log the user in and redirect to PIN setup (Mandatory)
@@ -150,10 +151,10 @@ def buy_data(request):
         plan_id = request.POST.get('plan')
         phone = request.POST.get('phone')
 
-        # Check Transaction PIN
+        # SECURE PIN VERIFICATION (Hashed)
         input_pin = request.POST.get('pin')
         user_profile = request.user.profile
-        if input_pin != user_profile.transaction_pin:
+        if not user_profile.check_pin(input_pin):
             messages.error(request, "Invalid Transaction PIN!")
             return redirect('buy_data')
 
@@ -165,59 +166,42 @@ def buy_data(request):
 
         user_profile = request.user.profile
 
-        # 1. Check Balance
-        if user_profile.wallet_balance < plan.price:
-            messages.error(request, f"Insufficient balance! You need ₦{plan.price} but have ₦{user_profile.wallet_balance}.")
+        # ACQUISITION OF LOCK & ATOMIC DEBIT
+        success, result = TransactionService.process_debit(
+            user=request.user,
+            amount=plan.price,
+            service_type="Data Purchase",
+            plan_name=plan.plan_name,
+            recipient=phone,
+            reference=f"DT-{int(time.time())}",
+            description=f"Purchase of {plan.plan_name} for {phone}"
+        )
+
+        if not success:
+            messages.error(request, f"Transaction failed: {result}")
             return redirect('buy_data')
 
-        # 2. Atomic Transaction: deduct first, refund if API fails
+        # CALL PROVIDER API
         try:
-            with transaction.atomic():
-                user_profile.wallet_balance -= plan.price
-                user_profile.save()
+            ck = ClubKonnectService()
+            response, req_id = ck.buy_data(plan.network, plan.dataplan_id, phone)
 
-                ck = ClubKonnectService()
-                response, req_id = ck.buy_data(plan.network, plan.dataplan_id, phone)
+            if response.get('status') == 'ORDER_RECEIVED':
+                TxModel.objects.filter(reference=result.reference).update(status="Successful")
+                return redirect('receipt', tx_id=TxModel.objects.get(reference=result.reference).id)
+            
+            else:
+                # REFUND ON API FAILURE
+                TransactionService.process_refund(request.user, plan.price, result.reference, "API Failure")
+                messages.error(request, "Service provider is currently busy. Your funds have been refunded.")
+                logger.warning(f"DATA_API_FAILED: {response.get('status')} - User {request.user.id}")
 
-                if response.get('status') == 'ORDER_RECEIVED':
-                    tx = TxModel.objects.create(
-                        user=request.user,
-                        service_type="Data Purchase",
-                        plan_name=plan.plan_name,
-                        amount=plan.price,
-                        recipient=phone,
-                        status="Successful",
-                        reference=req_id
-                    )
-                    logger.info(f"DATA_PURCHASE_SUCCESS: User {request.user.id} bought {plan.plan_name} for {phone}")
-                    return redirect('receipt', tx_id=tx.id)
-                
-                # --- START OF ERROR MASKING UPDATES ---
-                elif response.get('status') == 'INSUFFICIENT_BALANCE':
-                    # Refund on company wallet failure
-                    user_profile.wallet_balance += plan.price
-                    user_profile.save()
-                    
-                    # Mask the error for the client
-                    messages.error(request, "This service is currently undergoing a brief technical update. Please try again in 10 minutes or choose another network.")
-                    logger.error(f"ADMIN_ALERT: ClubKonnect balance empty for User {request.user.id}")
-                
-                else:
-                    # Refund on all other general failures
-                    user_profile.wallet_balance += plan.price
-                    user_profile.save()
-                    
-                    # Extract error message for logging
-                    error_msg = response.get('remark') or response.get('message') or str(response)
-                    logger.warning(f"DATA_PURCHASE_FAILED: User {request.user.id} - Error: {error_msg}")
-                    messages.error(request, "The network provider is currently busy. Please try again later.")
-                # --- END OF ERROR MASKING UPDATES ---
         except Exception as e:
-            # System crash or unexpected error: Safety Refund
-            user_profile.wallet_balance = Profile.objects.get(user=request.user).wallet_balance + plan.price
-            user_profile.save()
-            logger.critical(f"DATA_PURCHASE_CRASH: User {request.user.id} - Error: {str(e)}")
-            messages.error(request, "Connection timeout. Money refunded.")
+            TransactionService.process_refund(request.user, plan.price, result.reference, "System Crash")
+            logger.critical(f"DATA_CRASH: {str(e)}")
+            messages.error(request, "System error occurred. Funds refunded.")
+
+        return redirect('dashboard')
 
         return redirect('dashboard')
 
@@ -273,10 +257,10 @@ def buy_airtime(request):
         amount = request.POST.get('amount')
         phone = request.POST.get('phone')
 
-        # Check Transaction PIN
+        # SECURE PIN VERIFICATION
         input_pin = request.POST.get('pin')
         user_profile = request.user.profile
-        if input_pin != user_profile.transaction_pin:
+        if not user_profile.check_pin(input_pin):
             messages.error(request, "Invalid Transaction PIN!")
             return redirect('buy_airtime')
 
@@ -290,48 +274,40 @@ def buy_airtime(request):
             messages.error(request, "Minimum airtime purchase is ₦50.")
             return redirect('buy_airtime')
 
-        user_profile = request.user.profile
+        # ACQUISITION OF LOCK & ATOMIC DEBIT
+        success, result = TransactionService.process_debit(
+            user=request.user,
+            amount=amount,
+            service_type="Airtime Top-up",
+            plan_name=f"{network} Airtime",
+            recipient=phone,
+            reference=f"AT-{int(time.time())}",
+            description=f"Purchase of ₦{amount} {network} Airtime for {phone}"
+        )
 
-        if user_profile.wallet_balance < amount:
-            messages.error(request, "Insufficient balance to perform this transaction.")
+        if not success:
+            messages.error(request, f"Transaction failed: {result}")
             return redirect('buy_airtime')
 
+        # CALL PROVIDER API
         try:
-            with transaction.atomic():
-                user_profile.wallet_balance -= amount
-                user_profile.save()
+            ck = ClubKonnectService()
+            response, req_id = ck.buy_airtime(network, amount, phone)
 
-                ck = ClubKonnectService()
-                response, req_id = ck.buy_airtime(network, amount, phone)
+            if response.get('status') == 'ORDER_RECEIVED':
+                TxModel.objects.filter(reference=result.reference).update(status="Successful")
+                return redirect('receipt', tx_id=TxModel.objects.get(reference=result.reference).id)
+            
+            else:
+                # REFUND ON API FAILURE
+                TransactionService.process_refund(request.user, amount, result.reference, "API Failure")
+                messages.error(request, "Service provider is currently busy. Your funds have been refunded.")
+                logger.warning(f"AIRTIME_API_FAILED: {response.get('status')} - User {request.user.id}")
 
-                if response.get('status') == 'ORDER_RECEIVED':
-                    tx = TxModel.objects.create(
-                        user=request.user,
-                        service_type="Airtime Top-up",
-                        plan_name=f"{network} Airtime",
-                        amount=amount,
-                        recipient=phone,
-                        status="Successful",
-                        reference=req_id
-                    )
-                    logger.info(f"AIRTIME_PURCHASE_SUCCESS: User {request.user.id} - ₦{amount} for {phone}")
-                    return redirect('receipt', tx_id=tx.id)
-                
-                elif response.get('status') == 'INSUFFICIENT_BALANCE':
-                    user_profile.wallet_balance += amount
-                    user_profile.save()
-                    messages.error(request, "Service temporarily unavailable. Please try again later.")
-                    logger.error(f"ADMIN_ALERT: ClubKonnect balance empty for Airtime - User {request.user.id}")
-                else:
-                    user_profile.wallet_balance += amount
-                    user_profile.save()
-                    messages.error(request, "Network provider is currently busy. Try again shortly.")
-                    logger.warning(f"AIRTIME_PURCHASE_FAILED: {response.get('status')}")
         except Exception as e:
-            user_profile.wallet_balance = Profile.objects.get(user=request.user).wallet_balance + amount
-            user_profile.save()
-            logger.critical(f"AIRTIME_PURCHASE_CRASH: Error: {str(e)}")
-            messages.error(request, "Connection error. Your money has been refunded.")
+            TransactionService.process_refund(request.user, amount, result.reference, "System Crash")
+            logger.critical(f"AIRTIME_CRASH: {str(e)}")
+            messages.error(request, "System error occurred. Funds refunded.")
 
         return redirect('dashboard')
 
@@ -352,11 +328,11 @@ def buy_cable(request):
         plan_id = request.POST.get('plan')
         smartcard = request.POST.get('smartcard')
         phone = request.POST.get('phone')
-        
-        # Check Transaction PIN
+
+        # SECURE PIN VERIFICATION
         input_pin = request.POST.get('pin')
         user_profile = request.user.profile
-        if input_pin != user_profile.transaction_pin:
+        if not user_profile.check_pin(input_pin):
             messages.error(request, "Invalid Transaction PIN!")
             return redirect('buy_cable')
 
@@ -366,42 +342,42 @@ def buy_cable(request):
             messages.error(request, "Invalid plan selected.")
             return redirect('buy_cable')
 
-        user_profile = request.user.profile
+        # ACQUISITION OF LOCK & ATOMIC DEBIT
+        success, result = TransactionService.process_debit(
+            user=request.user,
+            amount=plan.price,
+            service_type="Cable TV",
+            plan_name=f"{plan.cable_type.upper()}: {plan.name}",
+            recipient=smartcard,
+            reference=f"CB-{int(time.time())}",
+            description=f"Subscription for {plan.name} on {smartcard}"
+        )
 
-        if user_profile.wallet_balance < plan.price:
-            messages.error(request, "Insufficient balance.")
+        if not success:
+            messages.error(request, f"Transaction failed: {result}")
             return redirect('buy_cable')
 
+        # CALL PROVIDER API
         try:
-            with transaction.atomic():
-                user_profile.wallet_balance -= plan.price
-                user_profile.save()
+            ck = ClubKonnectService()
+            response, req_id = ck.buy_cable(plan.cable_type, plan.package_code, smartcard, phone)
 
-                ck = ClubKonnectService()
-                response, req_id = ck.buy_cable(plan.cable_type, plan.package_code, smartcard, phone)
+            if response.get('status') == 'ORDER_RECEIVED':
+                TxModel.objects.filter(reference=result.reference).update(status="Successful")
+                return redirect('receipt', tx_id=TxModel.objects.get(reference=result.reference).id)
+            
+            else:
+                # REFUND ON API FAILURE
+                TransactionService.process_refund(request.user, plan.price, result.reference, "API Failure")
+                messages.error(request, "Service provider is currently busy. Your funds have been refunded.")
+                logger.warning(f"CABLE_API_FAILED: {response.get('status')} - User {request.user.id}")
 
-                if response.get('status') == 'ORDER_RECEIVED':
-                    tx = TxModel.objects.create(
-                        user=request.user,
-                        service_type="Cable TV",
-                        plan_name=f"{plan.cable_type.upper()}: {plan.name}",
-                        amount=plan.price,
-                        recipient=smartcard,
-                        status="Successful",
-                        reference=req_id
-                    )
-                    logger.info(f"CABLE_PURCHASE_SUCCESS: User {request.user.id} - {plan.name}")
-                    return redirect('receipt', tx_id=tx.id)
-                else:
-                    user_profile.wallet_balance += plan.price
-                    user_profile.save()
-                    messages.error(request, f"Failed: {response.get('status', 'Unknown Error')}")
-                    logger.warning(f"CABLE_PURCHASE_FAILED: {response.get('status')}")
         except Exception as e:
-            user_profile.wallet_balance = Profile.objects.get(user=request.user).wallet_balance + plan.price
-            user_profile.save()
-            logger.critical(f"CABLE_PURCHASE_CRASH: Error: {str(e)}")
-            messages.error(request, "An unexpected error occurred. Money refunded.")
+            TransactionService.process_refund(request.user, plan.price, result.reference, "System Crash")
+            logger.critical(f"CABLE_CRASH: {str(e)}")
+            messages.error(request, "System error occurred. Funds refunded.")
+
+        return redirect('dashboard')
 
     return render(request, 'vtu_app/buy_cable.html', {'plans': plans})
 
@@ -438,10 +414,9 @@ def set_transaction_pin(request):
             return render(request, 'vtu_app/set_pin.html')
             
         profile = request.user.profile
-        profile.transaction_pin = pin
-        profile.is_pin_set = True
-        profile.save()
+        profile.set_pin(pin)
         
+        logger.info(f"PIN_SETUP: User {request.user.id} configured their Transaction PIN.")
         messages.success(request, "Transaction PIN set successfully!")
         return redirect('dashboard')
         
