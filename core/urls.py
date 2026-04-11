@@ -20,7 +20,8 @@ from vtu_app import views as vtu_views
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path('accounts/', include('django.contrib.auth.urls')), # Built-in Login/Logout
+    path('accounts/login/', vtu_views.user_login, name='login'),  # Override default login
+    path('accounts/', include('django.contrib.auth.urls')),
     path('register/', vtu_views.register, name='register'),
     path('', include('vtu_app.urls')),
 ]

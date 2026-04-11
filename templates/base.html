@@ -365,6 +365,16 @@
                 <i class="fa-solid fa-clock-rotate-left icon-left"></i>
                 <span>History</span>
             </a>
+            {% if user.is_staff %}
+            <div class="px-4 mt-3 mb-1">
+                <span class="text-muted fw-bold" style="font-size:10px;letter-spacing:1.5px;">ADMINISTRATION</span>
+            </div>
+            <a href="{% url 'manager_dashboard' %}" class="nav-item-custom" style="color:#7c3aed;">
+                <i class="fa-solid fa-chart-pie icon-left" style="color:#7c3aed;"></i>
+                <span>Manager Dashboard</span>
+                <i class="fa-solid fa-chevron-right chevron"></i>
+            </a>
+            {% endif %}
         </div>
         <hr class="mx-4 mt-3 mb-2" style="background: #e2e8f0;">
         <div class="mb-4 mt-2">
@@ -431,6 +441,14 @@
             <a href="{% url 'transaction_history' %}" class="nav-item-custom">
                 <i class="fa-regular fa-clock icon-left"></i> History
             </a>
+            {% if user.is_staff %}
+            <div class="px-3 mt-3 mb-1">
+                <span class="text-muted fw-bold" style="font-size:10px;letter-spacing:1.5px;">ADMINISTRATION</span>
+            </div>
+            <a href="{% url 'manager_dashboard' %}" class="nav-item-custom" style="color:#7c3aed;">
+                <i class="fa-solid fa-chart-pie icon-left" style="color:#7c3aed;"></i> Manager Dashboard
+            </a>
+            {% endif %}
         </div>
     </div>
 

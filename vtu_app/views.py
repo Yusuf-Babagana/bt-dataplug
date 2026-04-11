@@ -2,6 +2,7 @@ import json
 import logging
 import time
 from decimal import Decimal, InvalidOperation
+from django.utils import timezone
 from django.shortcuts import render, redirect
 from django.contrib.auth.models import User
 from django.contrib.auth import login
@@ -22,6 +23,36 @@ def test_connection(request):
     service = ClubKonnectService()
     balance = service.get_balance()
     return render(request, 'test.html', {'balance': balance})
+
+
+def smart_redirect(user):
+    """Sends staff/admin to Manager Dashboard, regular users to their dashboard."""
+    if user.is_staff:
+        return redirect('manager_dashboard')
+    if not user.profile.is_pin_set:
+        return redirect('set_pin')
+    return redirect('dashboard')
+
+
+def user_login(request):
+    """Custom login view that redirects staff to the manager dashboard."""
+    if request.user.is_authenticated:
+        return smart_redirect(request.user)
+
+    if request.method == 'POST':
+        from django.contrib.auth import authenticate
+        username = request.POST.get('username')
+        password = request.POST.get('password')
+        user = authenticate(request, username=username, password=password)
+        if user is not None:
+            login(request, user)
+            logger.info(f"LOGIN: User {user.id} logged in (staff={user.is_staff})")
+            return smart_redirect(user)
+        else:
+            messages.error(request, "Invalid username or password.")
+
+    return render(request, 'registration/login.html')
+
 
 def register(request):
     if request.method == 'POST':
@@ -73,8 +104,10 @@ def register(request):
             logger.critical(f"ACCOUNT_GEN_CRASH: {str(e)}")
             messages.warning(request, "Welcome! We're setting up your bank accounts shortly.")
 
-        # 3. Log the user in and redirect to PIN setup (Mandatory)
+        # 3. Log the user in and redirect smartly
         login(request, user)
+        if user.is_staff:
+            return smart_redirect(user)
         messages.info(request, "Welcome! Please set a 4-digit Transaction PIN to secure your account.")
         return redirect('set_pin')
 
@@ -174,7 +207,8 @@ def buy_data(request):
             plan_name=plan.plan_name,
             recipient=phone,
             reference=f"DT-{int(time.time())}",
-            description=f"Purchase of {plan.plan_name} for {phone}"
+            description=f"Purchase of {plan.plan_name} for {phone}",
+            cost_price=plan.cost_price
         )
 
         if not success:
@@ -275,14 +309,18 @@ def buy_airtime(request):
             return redirect('buy_airtime')
 
         # ACQUISITION OF LOCK & ATOMIC DEBIT
+        # Airtime profit is typically a percentage. Hardcoded to 2% profit for now.
+        airtime_cost = amount * Decimal('0.98') 
+
         success, result = TransactionService.process_debit(
             user=request.user,
             amount=amount,
-            service_type="Airtime Top-up",
+            service_type="Airtime Purchase",
             plan_name=f"{network} Airtime",
             recipient=phone,
             reference=f"AT-{int(time.time())}",
-            description=f"Purchase of ₦{amount} {network} Airtime for {phone}"
+            description=f"Purchase of ₦{amount} {network} Airtime for {phone}",
+            cost_price=airtime_cost
         )
 
         if not success:
@@ -350,7 +388,8 @@ def buy_cable(request):
             plan_name=f"{plan.cable_type.upper()}: {plan.name}",
             recipient=smartcard,
             reference=f"CB-{int(time.time())}",
-            description=f"Subscription for {plan.name} on {smartcard}"
+            description=f"Subscription for {plan.name} on {smartcard}",
+            cost_price=plan.cost_price
         )
 
         if not success:
@@ -421,3 +460,47 @@ def set_transaction_pin(request):
         return redirect('dashboard')
         
     return render(request, 'vtu_app/set_pin.html')
+
+
+def manager_dashboard(request):
+    """CTO/Owner-only Business Intelligence Dashboard."""
+    if not request.user.is_authenticated or not request.user.is_staff:
+        return redirect('dashboard')
+
+    today = timezone.now().date()
+
+    # 1. Total Wallet Liability (money owed to users)
+    total_wallet_balances = Profile.objects.aggregate(Sum('wallet_balance'))['wallet_balance__sum'] or 0
+
+    # 2. Today's Performance
+    todays_tx = TxModel.objects.filter(created_at__date=today, status="Successful")
+    daily_revenue = todays_tx.aggregate(Sum('selling_price'))['selling_price__sum'] or 0
+    daily_profit = todays_tx.aggregate(Sum('profit'))['profit__sum'] or 0
+    daily_count = todays_tx.count()
+
+    # 3. All-Time Stats
+    all_success = TxModel.objects.filter(status="Successful")
+    total_revenue = all_success.aggregate(Sum('selling_price'))['selling_price__sum'] or 0
+    total_profit = all_success.aggregate(Sum('profit'))['profit__sum'] or 0
+    total_count = all_success.count()
+
+    # 4. Breakdown by service type (today)
+    service_breakdown = (
+        todays_tx.values('service_type')
+        .annotate(revenue=Sum('selling_price'), profit=Sum('profit'))
+        .order_by('-revenue')
+    )
+
+    context = {
+        'total_wallet_balances': total_wallet_balances,
+        'daily_revenue': daily_revenue,
+        'daily_profit': daily_profit,
+        'daily_count': daily_count,
+        'total_revenue': total_revenue,
+        'total_profit': total_profit,
+        'total_count': total_count,
+        'recent_sales': todays_tx.order_by('-created_at')[:20],
+        'service_breakdown': service_breakdown,
+        'today': today,
+    }
+    return render(request, 'vtu_app/manager_dashboard.html', context)

@@ -1,0 +1,113 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="row mb-4 align-items-center">
+    <div class="col">
+        <h4 class="fw-bold mb-0" style="letter-spacing:-0.5px">
+            <i class="fa-solid fa-chart-pie text-primary me-2"></i>Business Intelligence
+        </h4>
+        <p class="text-muted small mb-0">{{ today|date:"l, d F Y" }} · Staff View Only</p>
+    </div>
+    <div class="col-auto">
+        <span class="badge bg-primary bg-opacity-10 text-primary rounded-pill px-3 py-2 fw-bold">
+            <i class="fa-solid fa-shield-halved me-1"></i>CTO Dashboard
+        </span>
+    </div>
+</div>
+
+<!-- Today's Stats -->
+<div class="row g-3 mb-4">
+    <div class="col-6 col-md-3">
+        <div class="card border-0 rounded-4 p-3 h-100" style="background:linear-gradient(135deg,#2563eb,#1e40af);">
+            <small class="text-white opacity-75 fw-semibold text-uppercase" style="font-size:10px;">Today's Profit</small>
+            <div class="h3 fw-bold text-white my-1">₦{{ daily_profit|floatformat:2 }}</div>
+            <small class="text-white opacity-75">Revenue: ₦{{ daily_revenue|floatformat:2 }}</small>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="card border-0 rounded-4 p-3 h-100" style="background:linear-gradient(135deg,#059669,#065f46);">
+            <small class="text-white opacity-75 fw-semibold text-uppercase" style="font-size:10px;">All-Time Profit</small>
+            <div class="h3 fw-bold text-white my-1">₦{{ total_profit|floatformat:2 }}</div>
+            <small class="text-white opacity-75">Gross: ₦{{ total_revenue|floatformat:2 }}</small>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="card border-0 rounded-4 p-3 h-100" style="background:linear-gradient(135deg,#7c3aed,#4c1d95);">
+            <small class="text-white opacity-75 fw-semibold text-uppercase" style="font-size:10px;">Wallet Liability</small>
+            <div class="h3 fw-bold text-warning my-1">₦{{ total_wallet_balances|floatformat:2 }}</div>
+            <small class="text-white opacity-75">Funds held for users</small>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="card border-0 rounded-4 p-3 h-100 bg-white border" style="border:1px solid #e2e8f0 !important;">
+            <small class="text-muted fw-semibold text-uppercase" style="font-size:10px;">Today's Orders</small>
+            <div class="h3 fw-bold text-dark my-1">{{ daily_count }}</div>
+            <small class="text-muted">Total: {{ total_count }} all-time</small>
+        </div>
+    </div>
+</div>
+
+<!-- Service Breakdown -->
+{% if service_breakdown %}
+<div class="card border-0 rounded-4 shadow-sm mb-4">
+    <div class="card-body p-4">
+        <h6 class="fw-bold mb-3 text-uppercase" style="font-size:11px;letter-spacing:1px;">Today's Breakdown by Service</h6>
+        <div class="row g-2">
+            {% for s in service_breakdown %}
+            <div class="col-md-4">
+                <div class="bg-light rounded-3 p-3">
+                    <div class="fw-bold text-dark">{{ s.service_type }}</div>
+                    <div class="small text-muted">Revenue: <span class="fw-bold text-success">₦{{ s.revenue|floatformat:2 }}</span></div>
+                    <div class="small text-muted">Profit: <span class="fw-bold text-primary">₦{{ s.profit|floatformat:2 }}</span></div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Today's Transaction Table -->
+<div class="card border-0 rounded-4 shadow-sm">
+    <div class="card-body p-0">
+        <div class="p-4 border-bottom d-flex align-items-center justify-content-between">
+            <h6 class="fw-bold mb-0">Today's Transactions</h6>
+            <span class="badge bg-primary bg-opacity-10 text-primary rounded-pill">{{ daily_count }} orders</span>
+        </div>
+        <div class="table-responsive">
+            <table class="table align-middle mb-0">
+                <thead class="table-light">
+                    <tr class="small text-muted text-uppercase" style="font-size:11px;">
+                        <th class="ps-4">User</th>
+                        <th>Service</th>
+                        <th>Plan</th>
+                        <th>Cost Price</th>
+                        <th>Sale Price</th>
+                        <th class="fw-bold text-success">Net Profit</th>
+                        <th>Time</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for tx in recent_sales %}
+                    <tr>
+                        <td class="ps-4 fw-bold">{{ tx.user.username }}</td>
+                        <td><span class="badge bg-light text-dark rounded-pill">{{ tx.service_type }}</span></td>
+                        <td class="small">{{ tx.clean_plan_name }}</td>
+                        <td class="text-danger fw-semibold">₦{{ tx.cost_price|floatformat:2 }}</td>
+                        <td class="text-dark fw-semibold">₦{{ tx.selling_price|floatformat:2 }}</td>
+                        <td class="fw-bold text-success">₦{{ tx.profit|floatformat:2 }}</td>
+                        <td class="small text-muted">{{ tx.created_at|time:"H:i" }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="7" class="text-center py-5 text-muted">
+                            <i class="fa-regular fa-clock fa-2x mb-2 d-block opacity-25"></i>
+                            No transactions yet today.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

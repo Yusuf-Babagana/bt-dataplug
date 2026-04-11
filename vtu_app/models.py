@@ -52,11 +52,18 @@ class Transaction(models.Model):
         ('Wallet Funding', 'Wallet Funding'),
         ('Data Purchase', 'Data Purchase'),
         ('Airtime Purchase', 'Airtime Purchase'),
+        ('Cable TV', 'Cable TV'),
     ]
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     service_type = models.CharField(max_length=50, choices=SERVICE_CHOICES)
     plan_name = models.CharField(max_length=100)
-    amount = models.DecimalField(max_digits=12, decimal_places=2)
+    
+    # PROFIT TRACKING FIELDS
+    cost_price = models.DecimalField(max_digits=12, decimal_places=2, default=0.00)
+    selling_price = models.DecimalField(max_digits=12, decimal_places=2, default=0.00)
+    profit = models.DecimalField(max_digits=12, decimal_places=2, default=0.00)
+    
+    amount = models.DecimalField(max_digits=12, decimal_places=2) # Legacy/User display amount
     recipient = models.CharField(max_length=20) # Phone number or "Wallet"
     status = models.CharField(max_length=20, default="Successful")
     reference = models.CharField(max_length=50, blank=True, null=True)  # ClubKonnect RequestID
@@ -86,6 +93,7 @@ class DataPlan(models.Model):
     network = models.CharField(max_length=2, choices=NETWORK_CHOICES)
     plan_name = models.CharField(max_length=100)  # e.g., MTN 1GB SME
     dataplan_id = models.CharField(max_length=10)  # e.g., 1000
+    cost_price = models.DecimalField(max_digits=10, decimal_places=2, default=0.00) # What you pay
     price = models.DecimalField(max_digits=10, decimal_places=2)  # What you charge
 
     def __str__(self):
@@ -101,7 +109,8 @@ class CablePlan(models.Model):
     cable_type = models.CharField(max_length=20, choices=CABLE_TYPES)
     name = models.CharField(max_length=100) # e.g., GOtv Jolli
     package_code = models.CharField(max_length=50) # e.g., gotv-jolli
-    price = models.DecimalField(max_digits=10, decimal_places=2)
+    cost_price = models.DecimalField(max_digits=10, decimal_places=2, default=0.00) # What you pay
+    price = models.DecimalField(max_digits=10, decimal_places=2) # What you charge
 
     def __str__(self):
         return f"{self.get_cable_type_display()} - {self.name} (₦{self.price})"

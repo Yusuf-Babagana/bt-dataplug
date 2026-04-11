@@ -14,4 +14,5 @@ urlpatterns = [
     path('ajax/validate-cable/', views.validate_cable, name='validate_cable'),
     path('ajax/get-balance/', views.ajax_get_balance, name='get_balance'),
     path('set-pin/', views.set_transaction_pin, name='set_pin'),
+    path('manager/', views.manager_dashboard, name='manager_dashboard'),
 ]

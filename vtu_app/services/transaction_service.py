@@ -8,10 +8,10 @@ logger = logging.getLogger('vtu_app')
 
 class TransactionService:
     @staticmethod
-    def process_debit(user, amount, service_type, plan_name, recipient, reference, description):
+    def process_debit(user, amount, service_type, plan_name, recipient, reference, description, cost_price=Decimal('0.00')):
         """
         Fintech-grade balance deduction with race-condition protection.
-        Uses select_for_update() to lock the profile record during the atomic block.
+        Now includes cost_price and profit tracking.
         """
         try:
             with transaction.atomic():
@@ -39,12 +39,17 @@ class TransactionService:
                     description=description
                 )
 
-                # 3. Create Service Log (Transaction)
+                # 3. Create Service Log (Transaction) with Profit Tracking
+                profit = Decimal(amount) - Decimal(cost_price)
+                
                 TxModel.objects.create(
                     user=user,
                     service_type=service_type,
                     plan_name=plan_name,
                     amount=amount,
+                    selling_price=amount,
+                    cost_price=cost_price,
+                    profit=profit,
                     recipient=recipient,
                     status="Pending",
                     reference=reference
