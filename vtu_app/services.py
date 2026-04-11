@@ -167,14 +167,14 @@ class MonnifyService:
             raise Exception(f"Monnify says: {error_msg} (Code: {response.status_code})")
 
     def reserve_account(self, user):
-        """Creates an account using Admin BVN/NIN as proxy"""
+        """Creates an account using Admin BVN/NIN as proxy with Customer Username as Account Name"""
         token = self.get_auth_token()
         url = f"{self.base_url}/api/v2/bank-transfer/reserved-accounts"
         headers = {'Authorization': f'Bearer {token}'}
 
-        # The account name will show the customer's username
-        # Prefixing it with 'BT ' for professionalism (Business Initials)
-        account_display_name = f"BT {user.username}".upper()
+        # 1. SET THE ACCOUNT NAME TO USERNAME
+        # We add 'BT-' as a professional prefix for your brand
+        account_display_name = f"BT-{user.username}".upper()
 
         data = {
             "accountReference": f"REF-{user.id}",
@@ -184,8 +184,8 @@ class MonnifyService:
             "customerEmail": user.email or f"{user.username}@btdataplug.com",
             "customerName": f"{user.first_name} {user.last_name}".strip() or user.username,
             "getAllAvailableBanks": True,
-            "bvn": self.my_bvn, # Proxy Identity from .env
-            "nin": self.my_nin  # Proxy Identity from .env
+            "customerBvn": self.my_bvn, # Your BVN from .env acting as proxy
+            "nin": self.my_nin        # Your NIN from .env
         }
 
         # Debug: log payload
