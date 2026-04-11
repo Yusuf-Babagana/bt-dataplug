@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>{% block title %}BT DataPlug | Login{% endblock %}</title>
+    
+    <!-- Fonts: Poppins & Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <!-- Bootstrap 5 + FontAwesome + AOS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link href="https://unpkg.com/aos@2.3.1/dist/aos.css" rel="stylesheet">
+
+    <style>
+        :root {
+            --primary-blue: #2563eb;
+            --primary-dark: #1e3a8a;
+            --accent-glow: rgba(37, 99, 235, 0.4);
+            --glass-bg: rgba(255, 255, 255, 0.85);
+            --glass-border: rgba(255, 255, 255, 0.3);
+            --text-main: #0f172a;
+            --text-muted: #475569;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: #f8fafc;
+            min-height: 100vh;
+            overflow-x: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* Premium Animated Background */
+        .auth-wrapper {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(-45deg, #f1f5f9, #eff6ff, #dbeafe, #f8fafc);
+            background-size: 400% 400%;
+            animation: gradientBG 15s ease infinite;
+            z-index: -1;
+        }
+
+        @keyframes gradientBG {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+
+        /* Split-screen Layout */
+        .auth-container {
+            width: 100%;
+            max-width: 1100px;
+            min-height: 650px;
+            display: flex;
+            background: var(--glass-bg);
+            backdrop-filter: blur(20px);
+            border-radius: 32px;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.15);
+            border: 1px solid var(--glass-border);
+            overflow: hidden;
+            margin: 20px;
+        }
+
+        .auth-sidebar {
+            flex: 1;
+            background: linear-gradient(135deg, var(--primary-dark) 0%, var(--primary-blue) 100%);
+            padding: 50px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            color: white;
+            position: relative;
+        }
+
+        .auth-form-side {
+            flex: 1.1;
+            padding: 60px;
+            background: white;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+
+        /* Form Aesthetics */
+        .form-floating > .form-control:focus ~ label,
+        .form-floating > .form-control:not(:placeholder-shown) ~ label {
+            color: var(--primary-blue);
+            font-weight: 600;
+        }
+
+        .form-control {
+            border-radius: 14px;
+            padding: 12px 16px;
+            border: 1px solid #e2e8f0;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .form-control:focus {
+            border-color: var(--primary-blue);
+            box-shadow: 0 0 0 4px var(--accent-glow);
+        }
+
+        .btn-auth {
+            background: var(--primary-blue);
+            color: white;
+            border-radius: 14px;
+            padding: 14px;
+            font-weight: 700;
+            border: none;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .btn-auth:hover {
+            background: var(--primary-dark);
+            transform: translateY(-2px);
+            box-shadow: 0 10px 15px -3px rgba(37, 99, 235, 0.3);
+        }
+
+        /* Sidebar Accents */
+        .feature-item {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 25px;
+            padding: 15px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 18px;
+            backdrop-filter: blur(5px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            transition: 0.3s;
+        }
+
+        .feature-item:hover {
+            background: rgba(255, 255, 255, 0.15);
+            transform: translateX(5px);
+        }
+
+        .feature-icon {
+            width: 45px;
+            height: 45px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.25rem;
+        }
+
+        /* Password Strength */
+        .strength-meter {
+            height: 6px;
+            background: #e2e8f0;
+            border-radius: 10px;
+            margin-top: 8px;
+            overflow: hidden;
+            display: none;
+        }
+
+        .strength-bar {
+            height: 100%;
+            width: 0%;
+            transition: all 0.3s ease;
+        }
+
+        @media (max-width: 991.98px) {
+            .auth-container {
+                flex-direction: column;
+                max-width: 500px;
+                min-height: auto;
+            }
+            .auth-sidebar {
+                padding: 40px;
+                text-align: center;
+            }
+            .auth-sidebar .features-list {
+                display: none;
+            }
+            .auth-form-side {
+                padding: 40px;
+            }
+        }
+
+        /* Loading State */
+        .btn-loading {
+            color: transparent !important;
+            pointer-events: none;
+        }
+
+        .btn-loading::after {
+            content: "";
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            top: 50%;
+            left: 50%;
+            margin-top: -10px;
+            margin-left: -10px;
+            border: 3px solid rgba(255,255,255,0.3);
+            border-radius: 50%;
+            border-top-color: #fff;
+            animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+    </style>
+    {% block extra_head %}{% endblock %}
+</head>
+<body>
+    <div class="auth-wrapper"></div>
+
+    <div class="container d-flex justify-content-center align-items-center">
+        <div class="auth-container" data-aos="zoom-in" data-aos-duration="600">
+            <!-- Sidebar (Left) -->
+            <div class="auth-sidebar">
+                <div class="mb-5">
+                    <div class="d-flex align-items-center gap-3 mb-2">
+                        <div class="bg-white rounded-3 d-flex align-items-center justify-content-center shadow-sm" style="width: 48px; height: 48px;">
+                            <i class="fa-solid fa-bolt text-primary fs-3"></i>
+                        </div>
+                        <h2 class="fw-bold mb-0">BT DataPlug</h2>
+                    </div>
+                    <h5 class="opacity-75 fw-medium">Reliability at your fingertips</h5>
+                </div>
+
+                <div class="features-list">
+                    <div class="feature-item" data-aos="fade-right" data-aos-delay="200">
+                        <div class="feature-icon"><i class="fa-solid fa-gauge-high"></i></div>
+                        <div>
+                            <h6 class="mb-0 fw-bold">Instant Delivery</h6>
+                            <small class="opacity-75">Data & Airtime delivered in seconds</small>
+                        </div>
+                    </div>
+                    <div class="feature-item" data-aos="fade-right" data-aos-delay="300">
+                        <div class="feature-icon"><i class="fa-solid fa-shield-halved"></i></div>
+                        <div>
+                            <h6 class="mb-0 fw-bold">Secure Transactions</h6>
+                            <small class="opacity-75">Bank-grade security and 2FA</small>
+                        </div>
+                    </div>
+                    <div class="feature-item" data-aos="fade-right" data-aos-delay="400">
+                        <div class="feature-icon"><i class="fa-solid fa-headset"></i></div>
+                        <div>
+                            <h6 class="mb-0 fw-bold">24/7 Support</h6>
+                            <small class="opacity-75">We are always here to help you</small>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mt-auto pt-4 border-top border-white border-opacity-10">
+                    <p class="small opacity-75 mb-0">© 2026 BT Software Services Ltd. All rights reserved.</p>
+                </div>
+            </div>
+
+            <!-- Form Side (Right) -->
+            <div class="auth-form-side">
+                {% if messages %}
+                    {% for message in messages %}
+                        <div class="alert alert-{% if message.tags == 'error' %}danger{% else %}{{ message.tags }}{% endif %} rounded-4 border-0 shadow-sm mb-4 small">
+                            <i class="fa-solid fa-circle-info me-2"></i> {{ message }}
+                        </div>
+                    {% endfor %}
+                {% endif %}
+
+                {% block auth_content %}{% endblock %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>
+    <script>
+        AOS.init();
+
+        // Loading state handler
+        document.querySelectorAll('form').forEach(form => {
+            form.addEventListener('submit', function() {
+                const btn = this.querySelector('button[type="submit"]');
+                if (btn) btn.classList.add('btn-loading');
+            });
+        });
+
+        // Password Toggle Logic
+        function togglePassword(inputId, iconId) {
+            const input = document.getElementById(inputId);
+            const icon = document.getElementById(iconId);
+            if (input.type === 'password') {
+                input.type = 'text';
+                icon.classList.remove('fa-eye');
+                icon.classList.add('fa-eye-slash');
+            } else {
+                input.type = 'password';
+                icon.classList.remove('fa-eye-slash');
+                icon.classList.add('fa-eye');
+            }
+        }
+    </script>
+    {% block extra_body %}{% endblock %}
+</body>
+</html>
