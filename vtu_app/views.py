@@ -72,9 +72,10 @@ def register(request):
             print(f"Critical Account Generation Error: {e}")
             messages.warning(request, "Welcome! We're setting up your bank accounts shortly.")
 
-        # 3. Log the user in and redirect to dashboard
+        # 3. Log the user in and redirect to PIN setup (Mandatory)
         login(request, user)
-        return redirect('dashboard')
+        messages.info(request, "Welcome! Please set a 4-digit Transaction PIN to secure your account.")
+        return redirect('set_pin')
 
     return render(request, 'registration/register.html')
 
@@ -92,6 +93,10 @@ def dashboard(request):
         return redirect('login')
         
     user_profile = request.user.profile
+    
+    # MANDATORY PIN CHECK
+    if not user_profile.is_pin_set:
+        return redirect('set_pin')
     
     # Calculate Real Stats for this user
     total_spent = TxModel.objects.filter(
@@ -124,12 +129,20 @@ def transaction_history(request):
     if not request.user.is_authenticated:
         return redirect('login')
         
+    # MANDATORY PIN CHECK
+    if not request.user.profile.is_pin_set:
+        return redirect('set_pin')
+        
     transactions = TxModel.objects.filter(user=request.user).order_by('-created_at')
     return render(request, 'vtu_app/transactions.html', {'transactions': transactions})
 
 def buy_data(request):
     if not request.user.is_authenticated:
         return redirect('login')
+
+    # MANDATORY PIN CHECK
+    if not request.user.profile.is_pin_set:
+        return redirect('set_pin')
 
     plans = DataPlan.objects.all().order_by('network', 'price')
 
@@ -251,6 +264,10 @@ def buy_airtime(request):
     if not request.user.is_authenticated:
         return redirect('login')
 
+    # MANDATORY PIN CHECK
+    if not request.user.profile.is_pin_set:
+        return redirect('set_pin')
+
     if request.method == 'POST':
         network = request.POST.get('network')
         amount = request.POST.get('amount')
@@ -324,6 +341,10 @@ def buy_airtime(request):
 def buy_cable(request):
     if not request.user.is_authenticated:
         return redirect('login')
+        
+    # MANDATORY PIN CHECK
+    if not request.user.profile.is_pin_set:
+        return redirect('set_pin')
         
     plans = CablePlan.objects.all().order_by('cable_type', 'price')
     

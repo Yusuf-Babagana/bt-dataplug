@@ -5,10 +5,15 @@
         <div class="card border-0 shadow-lg rounded-4 p-4" data-aos="zoom-in">
             <div class="text-center mb-4">
                 <div class="bg-primary-subtle text-primary rounded-circle d-inline-flex align-items-center justify-content-center mb-3" style="width: 70px; height: 70px;">
-                    <i class="fa-solid fa-key fs-2"></i>
+                    <i class="fa-solid fa-lock fs-2"></i>
                 </div>
                 <h3 class="fw-bold text-dark">Set Transaction PIN</h3>
-                <p class="text-muted small">Choose a secure 4-digit PIN for your transactions. Default PIN is <b>0000</b>.</p>
+                {% if not request.user.profile.is_pin_set %}
+                <div class="badge bg-danger rounded-pill px-3 py-2 mb-2">SECURITY REQUIREMENT</div>
+                <p class="text-muted small">You must set a 4-digit PIN before you can access the dashboard or perform transactions.</p>
+                {% else %}
+                <p class="text-muted small">Update your secure 4-digit PIN for your transactions.</p>
+                {% endif %}
             </div>
 
             <form method="POST">
@@ -27,20 +32,22 @@
                 </div>
 
                 <button type="submit" class="btn btn-primary w-100 py-3 rounded-pill fw-bold shadow-sm">
-                    <i class="fa-solid fa-shield-check me-2"></i> Set PIN Now
+                    <i class="fa-solid fa-shield-check me-2"></i> Confirm & Proceed
                 </button>
             </form>
 
             <div class="text-center mt-4 pt-3 border-top">
-                <p class="small text-muted mb-0">Never share your PIN with anyone, including BT DataPlug support.</p>
+                <p class="small text-muted mb-0">Never share your PIN with anyone.</p>
             </div>
         </div>
 
+        {% if request.user.profile.is_pin_set %}
         <div class="text-center mt-3">
             <a href="{% url 'dashboard' %}" class="text-decoration-none small fw-bold text-primary">
                 <i class="fa-solid fa-arrow-left me-1"></i> Back to Dashboard
             </a>
         </div>
+        {% endif %}
     </div>
 </div>
 {% endblock %}
