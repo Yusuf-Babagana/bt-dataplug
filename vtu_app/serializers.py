@@ -2,10 +2,16 @@ from rest_framework import serializers
 from .models import Profile, DataPlan, Transaction
 
 class DataPlanSerializer(serializers.ModelSerializer):
+    # This ensures the mobile app always gets clean, trimmed names
+    network = serializers.SerializerMethodField()
+
     class Meta:
         model = DataPlan
         # Using the exact fields from your 'Choices' list in the error
         fields = ['id', 'network', 'plan_name', 'price', 'dataplan_id']
+
+    def get_network(self, obj):
+        return obj.network.strip().upper()
 
 class TransactionSerializer(serializers.ModelSerializer):
     class Meta:
