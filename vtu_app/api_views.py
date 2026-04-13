@@ -1,4 +1,5 @@
 import time
+from django.views.decorators.csrf import csrf_exempt
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.views import APIView
@@ -106,6 +107,7 @@ class TransactionHistory(APIView):
         } for tx in transactions]
         return Response(data)
 
+@csrf_exempt
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def api_buy_data(request):
