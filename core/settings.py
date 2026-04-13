@@ -64,6 +64,7 @@ INSTALLED_APPS = [
     
     # Third Party
     'rest_framework',
+    'rest_framework.authtoken',
     'corsheaders',
 
     # Local App
@@ -201,7 +202,8 @@ if not os.path.exists(LOGS_DIR):
     os.makedirs(LOGS_DIR)
 
 # --- CORS & LOGIN SETTINGS ---
-CORS_ALLOWED_ORIGINS = os.getenv('CORS_ALLOWED_ORIGINS', 'http://localhost:8081,http://127.0.0.1:8000').split(',')
+CORS_ALLOW_ALL_ORIGINS = True # During development
+# CORS_ALLOWED_ORIGINS = os.getenv('CORS_ALLOWED_ORIGINS', 'http://localhost:8081,http://127.0.0.1:8000').split(',')
 
 CRISPY_ALLOWED_TEMPLATE_PACKS = "bootstrap5"
 CRISPY_TEMPLATE_PACK = "bootstrap5"

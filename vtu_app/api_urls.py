@@ -1,0 +1,14 @@
+from django.urls import path
+from rest_framework.authtoken.views import obtain_auth_token
+from . import api_views
+
+urlpatterns = [
+    # Mobile Login: Returns a Token
+    path('login/', obtain_auth_token, name='api_login'),
+    
+    # Dashboard Data (Balance, History)
+    path('dashboard/', api_views.MobileDashboard.as_view(), name='api_dashboard'),
+    
+    # Data Plans for the mobile dropdown
+    path('data-plans/', api_views.DataPlanList.as_view(), name='api_plans'),
+]

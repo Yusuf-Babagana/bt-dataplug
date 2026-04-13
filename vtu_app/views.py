@@ -145,8 +145,7 @@ def dashboard(request):
     ck_balance = "0.00"
     if request.user.is_staff:
         ck_service = ClubKonnectService()
-        res = ck_service.get_balance()
-        ck_balance = res.get('balance', 'Error')
+        ck_balance = ck_service.get_balance()
     
     context = {
         'ck_balance': ck_balance,
@@ -491,7 +490,11 @@ def manager_dashboard(request):
         .order_by('-revenue')
     )
 
+    service = ClubKonnectService()
+    api_balance = service.get_balance()
+
     context = {
+        'api_balance': api_balance,
         'total_wallet_balances': total_wallet_balances,
         'daily_revenue': daily_revenue,
         'daily_profit': daily_profit,

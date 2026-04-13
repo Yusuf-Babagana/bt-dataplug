@@ -24,15 +24,28 @@ class ClubKonnectService:
         try:
             # Since you are on a Paid Account, no proxy is needed
             response = requests.get(url, timeout=15)
-            data = response.json()
             
+            try:
+                data = response.json()
+            except ValueError:
+                # API returned plain text or an HTML error page
+                logger.error(f"CK API Error (Not JSON): {response.text[:200]}")
+                return "Auth/Server Error"
+                
             # Check for error strings in the response
             if isinstance(data, str) and "INVALID" in data:
-                return {"error": data}
+                logger.error(f"CK API Returned Invalid: {data}")
+                return "Auth Error"
                 
-            return data # Returns {"date": "...", "id": "...", "balance": "3500"}
+            if isinstance(data, dict) and 'balance' in data:
+                return data['balance']
+            else:
+                logger.error(f"CK API Unexpected JSON: {data}")
+                return "API Format Error"
+                
         except Exception as e:
-            return {"error": str(e)}
+            logger.error(f"Connection Error: {str(e)}")
+            return "Conn Error"
 
     def buy_data(self, network_code, plan_id, phone):
         """Send data to a customer using the APIDatabundleV1 endpoint."""
