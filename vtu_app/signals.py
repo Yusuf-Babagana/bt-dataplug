@@ -5,19 +5,8 @@ from .models import Profile
 from .services import MonnifyService
 
 @receiver(post_save, sender=User)
-def create_monnify_account(sender, instance, created, **kwargs):
+def create_user_profile(sender, instance, created, **kwargs):
     if created:
-        # 1. Create the local profile (if not already handled)
+        # 1. Create the local profile ONLY to avoid duplicate API calls
+        # The reservation is handled in the register/kyc views
         profile, _ = Profile.objects.get_or_create(user=instance)
-        
-        # 2. Call Monnify to reserve accounts
-        monnify = MonnifyService()
-        try:
-            response = monnify.reserve_account(instance)
-            if response.get('requestSuccessful'):
-                # Extract accounts (Wema, Moniepoint, etc.)
-                accounts = response['responseBody']['accounts']
-                profile.bank_accounts = accounts
-                profile.save()
-        except Exception as e:
-            print(f"Monnify Account Reservation Failed: {e}")

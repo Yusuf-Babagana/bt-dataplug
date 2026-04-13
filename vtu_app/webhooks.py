@@ -42,8 +42,13 @@ def monnify_webhook(request):
                 raw_ref = product_data.get('reference') or event_data.get('paymentReference')
 
                 if raw_ref:
-                    # Extract only digits to get the User ID (REF-1 becomes 1)
-                    user_id = "".join(filter(str.isdigit, str(raw_ref)))
+                    # Extract the ID from the REF-{user_id}-{timestamp} format
+                    parts = str(raw_ref).split('-')
+                    if len(parts) >= 2 and parts[1].isdigit():
+                        user_id = parts[1]
+                    else:
+                        # Fallback for unexpected formats
+                        user_id = "".join(filter(str.isdigit, str(raw_ref)))
                     
                     # 2. Update Wallet
                     try:
