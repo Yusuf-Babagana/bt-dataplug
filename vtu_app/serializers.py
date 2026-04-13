@@ -11,7 +11,14 @@ class DataPlanSerializer(serializers.ModelSerializer):
         fields = ['id', 'network', 'plan_name', 'price', 'dataplan_id']
 
     def get_network(self, obj):
-        return obj.network.strip().upper()
+        mapping = {
+            '01': 'MTN',
+            '02': 'GLO',
+            '03': '9MOBILE',
+            '04': 'AIRTEL'
+        }
+        raw_network = obj.network.strip()
+        return mapping.get(raw_network, raw_network).upper()
 
 class TransactionSerializer(serializers.ModelSerializer):
     class Meta:
