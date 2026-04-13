@@ -203,7 +203,26 @@ if not os.path.exists(LOGS_DIR):
 
 # --- CORS & LOGIN SETTINGS ---
 CORS_ALLOW_ALL_ORIGINS = True # During development
+CORS_ALLOW_CREDENTIALS = True
 # CORS_ALLOWED_ORIGINS = os.getenv('CORS_ALLOWED_ORIGINS', 'http://localhost:8081,http://127.0.0.1:8000').split(',')
+
+CORS_ALLOW_METHODS = [
+    "DELETE",
+    "GET",
+    "OPTIONS",
+    "PATCH",
+    "POST",
+    "PUT",
+]
+
+CORS_ALLOW_HEADERS = [
+    "accept",
+    "authorization",
+    "content-type",
+    "user-agent",
+    "x-csrftoken",
+    "x-requested-with",
+]
 
 CRISPY_ALLOWED_TEMPLATE_PACKS = "bootstrap5"
 CRISPY_TEMPLATE_PACK = "bootstrap5"
