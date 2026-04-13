@@ -14,7 +14,7 @@ urlpatterns = [
     path('data-plans/', api_views.DataPlanList.as_view(), name='api_plans'),
     
     # Wallet Record (Transaction History)
-    path('transactions/', api_views.TransactionHistory.as_view(), name='api_transactions'),
+    path('transactions/', api_views.api_transaction_history, name='api_transactions'),
 
     # Transactions
     path('buy-data/', api_views.api_buy_data, name='api_buy_data'),

@@ -92,20 +92,26 @@ def api_register(request):
     except Exception as e:
         return Response({"message": f"Server Error: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-class TransactionHistory(APIView):
-    permission_classes = [IsAuthenticated]
-
-    def get(self, request):
-        # Using order_by instead of the typo'd order_back
-        transactions = Transaction.objects.filter(user=request.user).order_by("-created_at")[:20]
-        data = [{
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def api_transaction_history(request):
+    # Fetch last 30 transactions for the user
+    transactions = Transaction.objects.filter(user=request.user).order_by('-created_at')[:30]
+    
+    data = []
+    for tx in transactions:
+        data.append({
             "id": tx.id,
-            "type": tx.service_type,
-            "amount": tx.amount,
-            "status": tx.status,
-            "date": tx.created_at.strftime("%d %b, %H:%M")
-        } for tx in transactions]
-        return Response(data)
+            "service": tx.service_type,
+            "recipient": tx.recipient,
+            "amount": str(tx.amount),
+            "status": tx.status, # e.g., Successful, Failed, Pending
+            "date": tx.created_at.strftime("%d %b, %Y"),
+            "time": tx.created_at.strftime("%I:%M %p"),
+            "ref": tx.reference
+        })
+    
+    return Response(data)
 
 @csrf_exempt
 @api_view(['POST'])
