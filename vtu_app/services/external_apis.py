@@ -27,21 +27,23 @@ class ClubKonnectService:
             
             try:
                 data = response.json()
+                # Some versions of the API use 'balance' or 'wallet_balance'
+                if isinstance(data, dict):
+                    return data.get('balance', data.get('wallet_balance', "Format Error"))
+                
+                # Check for error strings in the response
+                if isinstance(data, str) and "INVALID" in data:
+                    logger.error(f"CK API Returned Invalid: {data}")
+                    return "Auth Error"
             except ValueError:
+                # If JSON fails, it might be raw text (e.g., "5000.00")
+                raw_text = response.text.strip()
+                if raw_text.replace('.', '', 1).isdigit():
+                    return raw_text
+                
                 # API returned plain text or an HTML error page
-                logger.error(f"CK API Error (Not JSON): {response.text[:200]}")
-                return "Auth/Server Error"
-                
-            # Check for error strings in the response
-            if isinstance(data, str) and "INVALID" in data:
-                logger.error(f"CK API Returned Invalid: {data}")
-                return "Auth Error"
-                
-            if isinstance(data, dict) and 'balance' in data:
-                return data['balance']
-            else:
-                logger.error(f"CK API Unexpected JSON: {data}")
-                return "API Format Error"
+                logger.error(f"CK API Error (Not JSON): {raw_text[:200]}")
+                return f"Raw Error: {raw_text[:20]}"
                 
         except Exception as e:
             logger.error(f"Connection Error: {str(e)}")

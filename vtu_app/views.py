@@ -492,6 +492,7 @@ def manager_dashboard(request):
 
     service = ClubKonnectService()
     api_balance = service.get_balance()
+    print(f"DEBUG: CK Balance Response is: {api_balance}") # Check your server logs for this
 
     context = {
         'api_balance': api_balance,
