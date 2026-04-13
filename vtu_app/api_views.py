@@ -35,39 +35,53 @@ class DataPlanList(APIView):
 @permission_classes([AllowAny])
 def api_register(request):
     data = request.data
+    
+    # Extract data (matching your website form fields)
     username = data.get('username')
     email = data.get('email')
     password = data.get('password')
     first_name = data.get('first_name', '')
     last_name = data.get('last_name', '')
 
+    # 1. Validation (Same as website)
     if User.objects.filter(username=username).exists():
-        return Response({"message": "Username already taken"}, status=status.HTTP_400_BAD_REQUEST)
+        return Response({"message": "Username already exists"}, status=status.HTTP_400_BAD_REQUEST)
+    
+    if User.objects.filter(email=email).exists():
+        return Response({"message": "Email already registered"}, status=status.HTTP_400_BAD_REQUEST)
 
     try:
-        # 1. Create User
+        # 2. Create User exactly like the web registration
         user = User.objects.create_user(
-            username=username, 
-            email=email, 
+            username=username,
+            email=email,
             password=password,
             first_name=first_name,
             last_name=last_name
         )
-        
-        # 2. Profile is usually created via signals, but let's ensure it exists
-        profile, created = Profile.objects.get_or_create(user=user)
-        
-        # 3. Trigger Monnify Account Reservation (The YUS Branding)
-        try:
-            monnify = MonnifyService()
-            res = monnify.reserve_account(user)
-            if res.get('requestSuccessful'):
-                profile.bank_accounts = res.get('responseBody', {}).get('accounts', [])
-                profile.save()
-        except Exception as e:
-            print(f"Monnify background error: {e}")
 
-        return Response({"message": "Registration successful"}, status=status.HTTP_201_CREATED)
+        # 3. Create Profile (Ensure it matches your website signal or manual creation)
+        profile, created = Profile.objects.get_or_create(user=user)
+
+        # 4. Trigger the Monnify Account Reservation (The "YUS" Branding)
+        # This is the "Magic" that makes the mobile app match the site
+        monnify = MonnifyService()
+        response = monnify.reserve_account(user)
+        
+        if response.get('requestSuccessful'):
+            accounts = response.get('responseBody', {}).get('accounts', [])
+            profile.bank_accounts = accounts
+            profile.save()
+            return Response({
+                "message": "Registration Successful",
+                "accounts_generated": True
+            }, status=status.HTTP_201_CREATED)
+        else:
+            # Even if Monnify fails, the user is created (just like your site logic)
+            return Response({
+                "message": "Account created, but bank numbers are pending.",
+                "accounts_generated": False
+            }, status=status.HTTP_201_CREATED)
 
     except Exception as e:
-        return Response({"message": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        return Response({"message": f"Server Error: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
