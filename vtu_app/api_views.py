@@ -146,12 +146,17 @@ def api_buy_data(request):
         # Corrected argument order: network, plan_id, phone
         response, req_id = ck.buy_data(plan.network, plan.dataplan_id, phone)
 
-        if response.get('status') == 'ORDER_RECEIVED':
+        if response.get('status') in ['ORDER_RECEIVED', 'SUCCESSFUL']:
             # 3. SUCCESS - Finalize record
             Transaction.objects.filter(reference=result.reference).update(status="Successful")
+            tx = Transaction.objects.get(reference=result.reference)
+            
             return Response({
                 "message": "Transaction Successful!",
                 "new_balance": str(user.profile.wallet_balance),
+                "transaction_id": tx.id,
+                "plan": plan.plan_name,
+                "phone": phone,
                 "order_id": response.get('order_id', req_id)
             }, status=status.HTTP_200_OK)
         
@@ -159,9 +164,9 @@ def api_buy_data(request):
             # 4. REFUND ON API FAILURE
             TransactionService.process_refund(user, plan.price, result.reference, "API Failure (Mobile)")
             return Response({
-                "message": f"Service provider busy: {response.get('remarks', 'Try again later')}. Funds refunded."
+                "message": f"Provider Error: {response.get('remarks', 'Try again later')}. Funds refunded."
             }, status=status.HTTP_400_BAD_REQUEST)
 
     except Exception as e:
         TransactionService.process_refund(user, plan.price, result.reference, "System Crash (Mobile)")
-        return Response({"message": f"System error occurred. Funds refunded."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        return Response({"message": f"System error occurred. Funds refunded. Detail: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
