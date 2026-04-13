@@ -13,13 +13,16 @@ class MobileDashboard(APIView):
 
     def get(self, request):
         user = request.user
-        recent_tx = Transaction.objects.filter(user=user).order_by('-created_at')[:5]
+        profile = user.profile
         
+        # We ensure the bank_accounts field is sent as a list
         return Response({
             "username": user.username,
-            "wallet_balance": user.profile.wallet_balance,
-            "recent_transactions": TransactionSerializer(recent_tx, many=True).data,
-            "api_status": "Active"
+            "profile": {
+                "wallet_balance": str(profile.wallet_balance),
+                "bank_accounts": profile.bank_accounts if isinstance(profile.bank_accounts, list) else []
+            },
+            "system_announcement": "Welcome to the new BT DataPlug Mobile App!"
         })
 
 class DataPlanList(APIView):
@@ -85,3 +88,18 @@ def api_register(request):
 
     except Exception as e:
         return Response({"message": f"Server Error: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+class TransactionHistory(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        # Using order_by instead of the typo'd order_back
+        transactions = Transaction.objects.filter(user=request.user).order_by("-created_at")[:20]
+        data = [{
+            "id": tx.id,
+            "type": tx.service_type,
+            "amount": tx.amount,
+            "status": tx.status,
+            "date": tx.created_at.strftime("%d %b, %H:%M")
+        } for tx in transactions]
+        return Response(data)

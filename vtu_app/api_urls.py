@@ -12,4 +12,7 @@ urlpatterns = [
     
     # Data Plans for the mobile dropdown
     path('data-plans/', api_views.DataPlanList.as_view(), name='api_plans'),
+    
+    # Wallet Record (Transaction History)
+    path('transactions/', api_views.TransactionHistory.as_view(), name='api_transactions'),
 ]
