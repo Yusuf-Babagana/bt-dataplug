@@ -19,8 +19,10 @@ class MobileDashboard(APIView):
         })
 
 class DataPlanList(APIView):
-    # Public: So users can see prices even before login
+    permission_classes = [] # Public access
+    
     def get(self, request):
-        plans = DataPlan.objects.filter(is_active=True)
+        # Removed .filter(is_active=True) because the field doesn't exist yet
+        plans = DataPlan.objects.all() 
         serializer = DataPlanSerializer(plans, many=True)
         return Response(serializer.data)

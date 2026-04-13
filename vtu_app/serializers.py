@@ -4,7 +4,8 @@ from .models import Profile, DataPlan, Transaction
 class DataPlanSerializer(serializers.ModelSerializer):
     class Meta:
         model = DataPlan
-        fields = ['id', 'network', 'size', 'selling_price', 'validity']
+        # Using the exact fields from your 'Choices' list in the error
+        fields = ['id', 'network', 'plan_name', 'price', 'dataplan_id']
 
 class TransactionSerializer(serializers.ModelSerializer):
     class Meta:

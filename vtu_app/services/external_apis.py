@@ -19,34 +19,29 @@ class ClubKonnectService:
         self.balance_url = f"{self.base_url}/APIWalletBalanceV1.asp"
 
     def get_balance(self):
-        """Check your main BT DataPlug balance on ClubKonnect"""
-        url = f"{self.balance_url}?UserID={self.user_id}&APIKey={self.api_key}"
+        # USE THE NEW V1 URL FROM THE DOCS
+        url = f"https://www.nellobytesystems.com/APIWalletBalanceV1.asp?UserID={self.user_id}&APIKey={self.api_key}"
+        
         try:
-            # Since you are on a Paid Account, no proxy is needed
             response = requests.get(url, timeout=15)
             
-            try:
-                data = response.json()
-                # Some versions of the API use 'balance' or 'wallet_balance'
-                if isinstance(data, dict):
-                    return data.get('balance', data.get('wallet_balance', "Format Error"))
+            # The docs say it returns JSON
+            data = response.json()
+            
+            # Check if 'balance' exists in the response
+            if 'balance' in data:
+                return data['balance']
+            else:
+                # If 'balance' isn't there, Nellobyte might have sent an error string
+                logger.error(f"Nellobyte API Error Response: {data}")
+                return "Auth Error"
                 
-                # Check for error strings in the response
-                if isinstance(data, str) and "INVALID" in data:
-                    logger.error(f"CK API Returned Invalid: {data}")
-                    return "Auth Error"
-            except ValueError:
-                # If JSON fails, it might be raw text (e.g., "5000.00")
-                raw_text = response.text.strip()
-                if raw_text.replace('.', '', 1).isdigit():
-                    return raw_text
-                
-                # API returned plain text or an HTML error page
-                logger.error(f"CK API Error (Not JSON): {raw_text[:200]}")
-                return f"Raw Error: {raw_text[:20]}"
-                
+        except ValueError:
+            # This happens if the API returns a raw string instead of JSON
+            logger.error(f"Nellobyte returned non-JSON response: {response.text}")
+            return "Format Error"
         except Exception as e:
-            logger.error(f"Connection Error: {str(e)}")
+            logger.error(f"Connection Error to Nellobyte: {e}")
             return "Conn Error"
 
     def buy_data(self, network_code, plan_id, phone):
