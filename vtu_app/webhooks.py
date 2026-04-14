@@ -36,15 +36,13 @@ def monnify_webhook(request):
                 # Monnify sends amount as a float/string, we must convert carefully
                 amount_paid = Decimal(str(event_data.get('amountPaid', 0)))
                 
-                # --- FLAT FEE LOGIC ---
-                # Deduct flat 50. If deposit is <= 50, do not credit.
-                FEE_AMOUNT = Decimal('50.00')
+                # --- DYNAMIC MONNIFY FEE LOGIC ---
+                # 1% capped at 50
+                monnify_fee = amount_paid * Decimal('0.01')
+                if monnify_fee > Decimal('50.00'):
+                    monnify_fee = Decimal('50.00')
                 
-                if amount_paid <= FEE_AMOUNT:
-                    logger.warning(f"PAYMENT_IGNORED: User deposit of ₦{amount_paid} is too small to cover ₦50 fee.")
-                    return HttpResponse(status=200) # Stop Monnify retries
-                
-                credit_amount = amount_paid - FEE_AMOUNT
+                credit_amount = amount_paid - monnify_fee
                 # -----------------------
 
                 # Get the Reference (e.g., "REF-1")
@@ -66,19 +64,22 @@ def monnify_webhook(request):
                         profile.wallet_balance += credit_amount
                         profile.save()
 
-                        # 3. Create History with Audit Fields
-                        Transaction.objects.create(
+                        # 3. Create History with Deep Audit Fields
+                        tx = Transaction.objects.create(
                             user=profile.user,
                             service_type="Wallet Funding",
                             plan_name="Monnify Transfer",
-                            amount=amount_paid,      # Gross Amount
-                            fee=FEE_AMOUNT,          # Flat Fee
-                            net_amount=credit_amount, # Actual Credit
+                            amount_customer_paid=amount_paid,
+                            cost_from_klubconnect=Decimal('0.00'),
+                            monnify_fee_on_this_tx=monnify_fee,
+                            bt_service_charge=Decimal('0.00'),
                             recipient="Wallet",
                             status="Successful",
                             reference=raw_ref
                         )
-                        logger.info(f"PAYMENT_RECEIVED: User {profile.user.username} credited with ₦{credit_amount} (Gross: ₦{amount_paid}, Fee: ₦{FEE_AMOUNT})")
+                        tx.calculate_totals()
+                        
+                        logger.info(f"PAYMENT_RECEIVED: User {profile.user.username} credited with ₦{credit_amount} (Fee: ₦{monnify_fee})")
                         return HttpResponse(status=200)
                     except Profile.DoesNotExist:
                         logger.error(f"PAYMENT_ERROR: Profile for User ID {user_id} not found.")

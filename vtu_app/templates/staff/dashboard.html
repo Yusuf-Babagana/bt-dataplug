@@ -1,0 +1,99 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2 class="fw-bold text-dark mb-0">BT DataPlug Business Overview</h2>
+        <span class="badge bg-light text-dark shadow-sm p-2 rounded-3 border">
+            <i class="fa fa-calendar me-1"></i> {{ today|date:"d M, Y" }}
+        </span>
+    </div>
+
+    <div class="row g-3">
+        <div class="col-md-3">
+            <div class="card bg-primary text-white shadow-sm border-0 rounded-4">
+                <div class="card-body p-4">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <h6 class="text-white-50 fw-bold mb-0">Today's Profit</h6>
+                        <i class="fa fa-chart-line opacity-50"></i>
+                    </div>
+                    <h2 class="fw-bold mb-1">₦{{ stats.today_profit|floatformat:2 }}</h2>
+                    <p class="mb-0 small opacity-75">From {{ stats.today_sales }} sales</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-success text-white shadow-sm border-0 rounded-4">
+                <div class="card-body p-4">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <h6 class="text-white-50 fw-bold mb-0">Total Net Profit</h6>
+                        <i class="fa fa-vault opacity-50"></i>
+                    </div>
+                    <h2 class="fw-bold mb-1">₦{{ stats.total_profit|floatformat:2 }}</h2>
+                    <p class="mb-0 small opacity-75">Lifetime earnings</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-info text-dark shadow-sm border-0 rounded-4">
+                <div class="card-body p-4">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <h6 class="text-dark-50 fw-bold mb-0">Total Revenue</h6>
+                        <i class="fa fa-money-bill-transfer opacity-50"></i>
+                    </div>
+                    <h2 class="fw-bold mb-1">₦{{ stats.total_revenue|floatformat:2 }}</h2>
+                    <p class="mb-0 small opacity-75">Money processed</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card shadow-sm mb-4 border-0 rounded-4 overflow-hidden">
+        <div class="card-header bg-dark text-white py-3">
+            <h5 class="fw-bold mb-0">Live Transaction Audit (Money Map)</h5>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th class="ps-4">Date/Time</th>
+                        <th>Customer</th>
+                        <th>Service</th>
+                        <th class="text-primary">Selling Price</th>
+                        <th class="text-danger">Cost Price</th>
+                        <th class="text-warning">Monnify Fee</th>
+                        <th class="text-info">Our Charge</th>
+                        <th class="bg-success text-white fw-bold pe-4">NET PROFIT</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for tx in recent_tx %}
+                    <tr>
+                        <td class="ps-4 text-muted small">{{ tx.created_at|date:"d/m H:i" }}</td>
+                        <td class="fw-bold">₦{{ tx.amount_customer_paid }}</td>
+                        <td>
+                            <span class="small">{{ tx.service_type }}</span>
+                            <br><small class="text-muted">{{ tx.plan_name }}</small>
+                        </td>
+                        
+                        <td class="text-primary fw-bold">₦{{ tx.amount_customer_paid }}</td>
+                        
+                        <td class="text-danger">-₦{{ tx.cost_from_klubconnect }}</td>
+                        
+                        <td class="text-warning">-₦{{ tx.monnify_fee_on_this_tx }}</td>
+                        
+                        <td class="text-info">+₦{{ tx.bt_service_charge }}</td>
+                        
+                        <td class="bg-success text-white fw-bold pe-4">₦{{ tx.net_profit }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="8" class="text-center py-5 text-muted">No transactions found for the Money Map.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

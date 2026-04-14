@@ -58,14 +58,13 @@ class Transaction(models.Model):
     service_type = models.CharField(max_length=50, choices=SERVICE_CHOICES)
     plan_name = models.CharField(max_length=100)
     
-    # PROFIT TRACKING FIELDS
-    cost_price = models.DecimalField(max_digits=12, decimal_places=2, default=0.00)
-    selling_price = models.DecimalField(max_digits=12, decimal_places=2, default=0.00)
-    profit = models.DecimalField(max_digits=12, decimal_places=2, default=0.00)
-    fee = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)  # e.g. Monnify 1% fee
-    net_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0.00) # What user actually got
+    # THE MONEY MAP (Deep Audit)
+    amount_customer_paid = models.DecimalField(max_digits=12, decimal_places=2, default=0.00) # Gross Selling Price
+    cost_from_klubconnect = models.DecimalField(max_digits=12, decimal_places=2, default=0.00) # Provider Cost
+    monnify_fee_on_this_tx = models.DecimalField(max_digits=10, decimal_places=2, default=0.00) # Monnify Charge
+    bt_service_charge = models.DecimalField(max_digits=10, decimal_places=2, default=0.00) # Internal Charge
+    net_profit = models.DecimalField(max_digits=12, decimal_places=2, default=0.00) # Actual Margin
     
-    amount = models.DecimalField(max_digits=12, decimal_places=2) # Legacy/User display amount
     recipient = models.CharField(max_length=20) # Phone number or "Wallet"
     status = models.CharField(max_length=20, default="Successful")
     reference = models.CharField(max_length=50, blank=True, null=True)  # ClubKonnect RequestID
@@ -81,8 +80,14 @@ class Transaction(models.Model):
         cleaned = re.sub(r'\(?(?:daily|weekly|monthly|yearly)\)?', '', self.plan_name, flags=re.IGNORECASE)
         return cleaned.strip()
 
+    def calculate_totals(self):
+        # Profit = (Selling Price - Cost Price) - (Processing Fees)
+        # Note: bt_service_charge is usually already inside amount_customer_paid
+        self.net_profit = (self.amount_customer_paid - self.cost_from_klubconnect) - self.monnify_fee_on_this_tx
+        self.save()
+
     def __str__(self):
-        return f"{self.user.username} - {self.service_type} - {self.amount}"
+        return f"{self.user.username} - {self.service_type} - {self.amount_customer_paid}"
 
 
 class DataPlan(models.Model):
@@ -97,6 +102,7 @@ class DataPlan(models.Model):
     dataplan_id = models.CharField(max_length=10)  # e.g., 1000
     cost_price = models.DecimalField(max_digits=10, decimal_places=2, default=0.00) # What you pay
     price = models.DecimalField(max_digits=10, decimal_places=2)  # What you charge
+    additional_fee = models.DecimalField(max_digits=10, decimal_places=2, default=0.00) # Internal charge
 
     def __str__(self):
         return f"{self.get_network_display()} - {self.plan_name} (₦{self.price})"
@@ -113,6 +119,7 @@ class CablePlan(models.Model):
     package_code = models.CharField(max_length=50) # e.g., gotv-jolli
     cost_price = models.DecimalField(max_digits=10, decimal_places=2, default=0.00) # What you pay
     price = models.DecimalField(max_digits=10, decimal_places=2) # What you charge
+    additional_fee = models.DecimalField(max_digits=10, decimal_places=2, default=0.00) # Internal charge
 
     def __str__(self):
         return f"{self.get_cable_type_display()} - {self.name} (₦{self.price})"

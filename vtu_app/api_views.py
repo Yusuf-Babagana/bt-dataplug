@@ -156,8 +156,12 @@ def api_buy_data(request):
 
         if response.get('status') in ['ORDER_RECEIVED', 'SUCCESSFUL']:
             # 3. SUCCESS - Finalize record
-            Transaction.objects.filter(reference=result.reference).update(status="Successful")
-            tx = Transaction.objects.get(reference=result.reference)
+            TxModel.objects.filter(reference=result.reference).update(
+                status="Successful",
+                bt_service_charge=plan.additional_fee
+            )
+            tx = TxModel.objects.get(reference=result.reference)
+            tx.calculate_totals() # Recalculate with potential service charge
             
             return Response({
                 "message": "Transaction Successful!",
@@ -165,6 +169,7 @@ def api_buy_data(request):
                 "transaction_id": tx.id,
                 "plan": plan.plan_name,
                 "phone": phone,
+                "amount_paid": str(tx.amount_customer_paid),
                 "order_id": response.get('order_id', req_id)
             }, status=status.HTTP_200_OK)
         

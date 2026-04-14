@@ -14,6 +14,8 @@ from .models import Profile, DataPlan, Transaction as TxModel, CablePlan, Wallet
 from .services import MonnifyService, ClubKonnectService
 from .services.transaction_service import TransactionService
 from .plan_data import DATA_PLANS
+from django.contrib.admin.views.decorators import staff_member_required
+from datetime import timedelta
 
 logger = logging.getLogger(__name__)
 
@@ -136,7 +138,7 @@ def dashboard(request):
     total_spent = TxModel.objects.filter(
         user=request.user, 
         status="Successful"
-    ).aggregate(Sum('amount'))['amount__sum'] or 0
+    ).aggregate(Sum('amount_customer_paid'))['amount_customer_paid__sum'] or 0
     
     # Recent Transactions for the dashboard table
     recent_transactions = TxModel.objects.filter(user=request.user).order_by('-created_at')[:5]
@@ -220,8 +222,13 @@ def buy_data(request):
             response, req_id = ck.buy_data(plan.network, plan.dataplan_id, phone)
 
             if response.get('status') == 'ORDER_RECEIVED':
-                TxModel.objects.filter(reference=result.reference).update(status="Successful")
-                return redirect('receipt', tx_id=TxModel.objects.get(reference=result.reference).id)
+                TxModel.objects.filter(reference=result.reference).update(
+                    status="Successful",
+                    bt_service_charge=plan.additional_fee
+                )
+                tx = TxModel.objects.get(reference=result.reference)
+                tx.calculate_totals()
+                return redirect('receipt', tx_id=tx.id)
             
             else:
                 # REFUND ON API FAILURE
@@ -479,14 +486,14 @@ def manager_dashboard(request):
 
     # 3. All-Time Stats
     all_success = TxModel.objects.filter(status="Successful")
-    total_revenue = all_success.aggregate(Sum('selling_price'))['selling_price__sum'] or 0
-    total_profit = all_success.aggregate(Sum('profit'))['profit__sum'] or 0
+    total_revenue = all_success.aggregate(Sum('amount_customer_paid'))['amount_customer_paid__sum'] or 0
+    total_profit = all_success.aggregate(Sum('net_profit'))['net_profit__sum'] or 0
     total_count = all_success.count()
 
     # 4. Breakdown by service type (today)
     service_breakdown = (
         todays_tx.values('service_type')
-        .annotate(revenue=Sum('selling_price'), profit=Sum('profit'))
+        .annotate(revenue=Sum('amount_customer_paid'), profit=Sum('net_profit'))
         .order_by('-revenue')
     )
 
@@ -508,3 +515,21 @@ def manager_dashboard(request):
         'today': today,
     }
     return render(request, 'vtu_app/manager_dashboard.html', context)
+
+@staff_member_required
+def staff_dashboard(request):
+    today = timezone.now().date()
+    yesterday = today - timedelta(days=1)
+    
+    # Aggregates
+    stats = {
+        'total_revenue': TxModel.objects.filter(status='Successful').aggregate(Sum('amount_customer_paid'))['amount_customer_paid__sum'] or 0,
+        'total_profit': TxModel.objects.filter(status='Successful').aggregate(Sum('net_profit'))['net_profit__sum'] or 0,
+        'today_sales': TxModel.objects.filter(status='Successful', created_at__date=today).count(),
+        'today_profit': TxModel.objects.filter(status='Successful', created_at__date=today).aggregate(Sum('net_profit'))['net_profit__sum'] or 0,
+    }
+    
+    # Recent Transactions for the table
+    recent_tx = TxModel.objects.all().order_by('-created_at')[:10]
+    
+    return render(request, 'staff/dashboard.html', {'stats': stats, 'recent_tx': recent_tx})

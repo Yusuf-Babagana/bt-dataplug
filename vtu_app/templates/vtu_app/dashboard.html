@@ -277,7 +277,7 @@ function copyText(text) {
                             <span class="fw-bold d-block">{{ tx.service_type }}</span>
                             <small class="text-muted">{{ tx.plan_name }}</small>
                         </td>
-                        <td class="fw-bold">₦{{ tx.amount }}</td>
+                        <td class="fw-bold">₦{{ tx.amount_customer_paid }}</td>
                         <td>
                             {% if tx.status == "Successful" %}
                                 <span class="badge bg-success-subtle text-success">Success</span>
