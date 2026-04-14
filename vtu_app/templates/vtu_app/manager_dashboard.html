@@ -92,9 +92,9 @@
                         <td class="ps-4 fw-bold">{{ tx.user.username }}</td>
                         <td><span class="badge bg-light text-dark rounded-pill">{{ tx.service_type }}</span></td>
                         <td class="small">{{ tx.clean_plan_name }}</td>
-                        <td class="text-danger fw-semibold">₦{{ tx.cost_price|floatformat:2 }}</td>
-                        <td class="text-dark fw-semibold">₦{{ tx.selling_price|floatformat:2 }}</td>
-                        <td class="fw-bold text-success">₦{{ tx.profit|floatformat:2 }}</td>
+                        <td class="text-danger fw-semibold">₦{{ tx.cost_from_klubconnect|floatformat:2 }}</td>
+                        <td class="text-dark fw-semibold">₦{{ tx.amount_customer_paid|floatformat:2 }}</td>
+                        <td class="fw-bold text-success">₦{{ tx.net_profit|floatformat:2 }}</td>
                         <td class="small text-muted">{{ tx.created_at|time:"H:i" }}</td>
                     </tr>
                     {% empty %}

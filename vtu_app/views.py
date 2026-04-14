@@ -480,8 +480,8 @@ def manager_dashboard(request):
 
     # 2. Today's Performance
     todays_tx = TxModel.objects.filter(created_at__date=today, status="Successful")
-    daily_revenue = todays_tx.aggregate(Sum('selling_price'))['selling_price__sum'] or 0
-    daily_profit = todays_tx.aggregate(Sum('profit'))['profit__sum'] or 0
+    daily_revenue = todays_tx.aggregate(Sum('amount_customer_paid'))['amount_customer_paid__sum'] or 0
+    daily_profit = todays_tx.aggregate(Sum('net_profit'))['net_profit__sum'] or 0
     daily_count = todays_tx.count()
 
     # 3. All-Time Stats
