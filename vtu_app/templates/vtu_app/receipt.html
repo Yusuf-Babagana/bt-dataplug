@@ -25,9 +25,9 @@
                 <div class="text-center mb-5">
                     {% if tx.service_type == 'Data Purchase' or tx.service_type == 'Cable TV' %}
                         <div class="display-5 fw-bold text-dark">{{ tx.clean_plan_name }}</div>
-                        <div class="h5 text-muted mt-2 fw-bold">₦{{ tx.amount }}</div>
+                        <div class="h5 text-muted mt-2 fw-bold">₦{{ tx.amount_customer_paid }}</div>
                     {% else %}
-                        <div class="display-5 fw-bold text-dark">₦{{ tx.amount }}</div>
+                        <div class="display-5 fw-bold text-dark">₦{{ tx.amount_customer_paid }}</div>
                     {% endif %}
                     <div class="d-flex align-items-center justify-content-center gap-2 mt-2">
                         <div class="bg-success rounded-circle d-flex align-items-center justify-content-center text-white" style="width: 20px; height: 20px;">
@@ -92,7 +92,7 @@
                         <button onclick="shareReceiptAsImage()" class="btn btn-primary w-100 rounded-pill py-3 fw-bold shadow-sm mb-2" id="shareImageBtn">
                             <i class="fa-solid fa-image me-2"></i> Share as Image (Picture)
                         </button>
-                        <a href="https://wa.me/?text=Successful%20Transaction%20on%20BT%20DataPlug!%0AAmount:%20₦{{ tx.amount }}%0ARecipient:%20{{ tx.recipient }}%0ARef:%20{{ tx.reference }}%0AVisit:%20www.btdataplug.com" 
+                        <a href="https://wa.me/?text=Successful%20Transaction%20on%20BT%20DataPlug!%0AAmount:%20₦{{ tx.amount_customer_paid }}%0ARecipient:%20{{ tx.recipient }}%0ARef:%20{{ tx.reference }}%0AVisit:%20www.btdataplug.com" 
                            class="btn btn-success w-100 rounded-pill py-3 fw-bold shadow-sm">
                             <i class="fab fa-whatsapp me-2 fa-lg"></i> Send as Text
                         </a>
