@@ -1,6 +1,7 @@
 from django.db import models
 from django.contrib.auth.models import User
 import json
+import uuid
 
 class Profile(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE)
@@ -8,6 +9,11 @@ class Profile(models.Model):
     wallet_balance = models.DecimalField(max_digits=12, decimal_places=2, default=0.00)
     bvn = models.CharField(max_length=11, null=True, blank=True)
     nin = models.CharField(max_length=11, null=True, blank=True)
+    
+    # Referral System
+    referral_code = models.CharField(max_length=12, unique=True, blank=True)
+    referred_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='referrals')
+
     # KYC & PIN Security
     kyc_verified = models.BooleanField(default=False)
     transaction_pin = models.CharField(max_length=128, default="") # Hashed
@@ -25,6 +31,12 @@ class Profile(models.Model):
     def check_pin(self, raw_pin):
         from django.contrib.auth.hashers import check_password
         return check_password(raw_pin, self.transaction_pin)
+
+    def save(self, *args, **kwargs):
+        if not self.referral_code:
+            # Generate a clean code like BT-XXXXXX
+            self.referral_code = f"BT-{uuid.uuid4().hex[:6].upper()}"
+        super().save(*args, **kwargs)
 
     def __str__(self):
         return f"{self.user.username}'s Profile"

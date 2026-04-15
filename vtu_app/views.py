@@ -5,8 +5,9 @@ from decimal import Decimal, InvalidOperation
 from django.utils import timezone
 from django.shortcuts import render, redirect
 from django.contrib.auth.models import User
-from django.contrib.auth import login
 from django.contrib import messages
+from django.contrib.auth import login, update_session_auth_hash
+from django.contrib.auth.decorators import login_required
 from django.db import transaction
 from django.db.models import Sum
 from django.http import JsonResponse
@@ -533,3 +534,25 @@ def staff_dashboard(request):
     recent_tx = TxModel.objects.all().order_by('-created_at')[:10]
     
     return render(request, 'staff/dashboard.html', {'stats': stats, 'recent_tx': recent_tx})
+
+@login_required
+def profile_settings(request):
+    if request.method == 'POST':
+        # Logic for password change
+        if 'change_password' in request.POST:
+            old_pass = request.POST.get('old_password')
+            new_pass = request.POST.get('new_password')
+            if request.user.check_password(old_pass):
+                request.user.set_password(new_pass)
+                request.user.save()
+                update_session_auth_hash(request, request.user) # Keeps user logged in
+                messages.success(request, "Password updated successfully!")
+            else:
+                messages.error(request, "Incorrect old password.")
+        return redirect('profile_settings')
+    
+    # Generate the full referral link
+    # In production, use your actual domain
+    ref_link = f"https://www.btdataplug.com/register/?ref={request.user.profile.referral_code}"
+    
+    return render(request, 'vtu_app/profile.html', {'ref_link': ref_link})

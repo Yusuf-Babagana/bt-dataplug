@@ -16,4 +16,5 @@ urlpatterns = [
     path('set-pin/', views.set_transaction_pin, name='set_pin'),
     path('manager/', views.manager_dashboard, name='manager_dashboard'),
     path('staff/dashboard/', views.staff_dashboard, name='staff_dashboard'),
+    path('settings/profile/', views.profile_settings, name='profile_settings'),
 ]
