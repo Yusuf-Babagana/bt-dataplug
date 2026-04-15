@@ -105,8 +105,8 @@ def api_transaction_history(request):
             "id": tx.id,
             "service": tx.service_type,
             "recipient": tx.recipient,
-            "amount": str(tx.amount),
-            "status": tx.status, # e.g., Successful, Failed, Pending
+            "amount": str(tx.amount_customer_paid),
+            "status": tx.status, 
             "date": tx.created_at.strftime("%d %b, %Y"),
             "time": tx.created_at.strftime("%I:%M %p"),
             "ref": tx.reference
@@ -211,6 +211,20 @@ def api_buy_airtime(request):
     if not user.profile.check_pin(pin):
         return Response({"message": "Invalid Transaction PIN"}, status=status.HTTP_401_UNAUTHORIZED)
 
+    # 0. NETWORK MAPPING (String to ClubKonnect ID)
+    network_map = {
+        'MTN': '01',
+        'GLO': '02',
+        'AIRTEL': '03',
+        '9MOBILE': '04'
+    }
+    
+    # Handle matching regardless of case
+    network_id = network_map.get(str(network).upper())
+
+    if not network_id:
+        return Response({"message": f"Invalid Network: {network}. Select MTN, GLO, AIRTEL, or 9MOBILE."}, status=status.HTTP_400_BAD_REQUEST)
+
     try:
         amount = float(amount_str)
         if amount <= 0:
@@ -240,7 +254,7 @@ def api_buy_airtime(request):
     # 2. CALL PROVIDER API
     try:
         ck = ClubKonnectService()
-        response, req_id = ck.buy_airtime(network, amount, phone)
+        response, req_id = ck.buy_airtime(network_id, amount, phone)
 
         if response.get('status') in ['ORDER_RECEIVED', 'SUCCESSFUL']:
             # 3. SUCCESS - Finalize record
