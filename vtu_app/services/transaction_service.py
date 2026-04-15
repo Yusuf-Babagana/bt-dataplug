@@ -54,7 +54,7 @@ class TransactionService:
                 )
                 tx.calculate_totals()
                 
-                return True, profile
+                return True, tx
         except Exception as e:
             logger.error(f"DEBIT_ERROR: {str(e)}")
             return False, str(e)

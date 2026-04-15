@@ -18,4 +18,5 @@ urlpatterns = [
 
     # Transactions
     path('buy-data/', api_views.api_buy_data, name='api_buy_data'),
+    path('buy-airtime/', api_views.api_buy_airtime, name='api_buy_airtime'),
 ]

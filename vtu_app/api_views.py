@@ -1,4 +1,5 @@
 import time
+from decimal import Decimal
 from django.views.decorators.csrf import csrf_exempt
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
@@ -182,4 +183,79 @@ def api_buy_data(request):
 
     except Exception as e:
         TransactionService.process_refund(user, plan.price, result.reference, "System Crash (Mobile)")
+        return Response({"message": f"System error occurred. Funds refunded. Detail: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+@csrf_exempt
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def api_buy_airtime(request):
+    """
+    Production-grade Mobile Airtime Purchase.
+    Uses TransactionService for atomic balance deductions and audit tracking.
+    """
+    user = request.user
+    network = request.data.get('network')
+    amount_str = request.data.get('amount')
+    phone = request.data.get('phone')
+
+    if not network or not amount_str or not phone:
+        return Response({"message": "Missing network, amount, or phone number"}, status=status.HTTP_400_BAD_REQUEST)
+
+    try:
+        amount = float(amount_str)
+        if amount <= 0:
+            raise ValueError
+    except ValueError:
+        return Response({"message": "Invalid amount"}, status=status.HTTP_400_BAD_REQUEST)
+
+    # CTO LOGIC: 1:1 Charge (No discount)
+    selling_price = Decimal(str(amount)).quantize(Decimal('0.01'))
+    cost_price = Decimal(str(amount * 0.97)).quantize(Decimal('0.01')) # Assuming 3% is what they charge YOU
+    
+    # 1. ACQUISITION OF LOCK & ATOMIC DEBIT
+    success, tx = TransactionService.process_debit(
+        user=user,
+        amount=selling_price,
+        service_type=f"Airtime Purchase (Mobile)",
+        plan_name=f"{network} {amount}",
+        recipient=phone,
+        reference=f"ATM-{int(time.time())}",
+        description=f"Mobile Airtime purchase of {network} {amount} for {phone}",
+        cost_price=cost_price
+    )
+
+    if not success:
+        return Response({"message": f"Transaction failed: {tx}"}, status=status.HTTP_400_BAD_REQUEST)
+
+    # 2. CALL PROVIDER API
+    try:
+        ck = ClubKonnectService()
+        response, req_id = ck.buy_airtime(network, amount, phone)
+
+        if response.get('status') in ['ORDER_RECEIVED', 'SUCCESSFUL']:
+            # 3. SUCCESS - Finalize record
+            Transaction.objects.filter(reference=tx.reference).update(status="Successful")
+            final_tx = Transaction.objects.get(reference=tx.reference)
+            final_tx.calculate_totals()
+            
+            return Response({
+                "message": "Airtime Sent!",
+                "new_balance": str(user.profile.wallet_balance),
+                "transaction_id": final_tx.id,
+                "network": network,
+                "amount": str(amount),
+                "phone": phone,
+                "amount_paid": str(final_tx.amount_customer_paid),
+                "order_id": response.get('order_id', req_id)
+            }, status=status.HTTP_200_OK)
+        
+        else:
+            # 4. REFUND ON API FAILURE
+            TransactionService.process_refund(user, selling_price, tx.reference, "API Failure (Mobile)")
+            return Response({
+                "message": f"Provider Error: {response.get('remark', 'Try again later')}. Funds refunded."
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+    except Exception as e:
+        TransactionService.process_refund(user, selling_price, tx.reference, "System Crash (Mobile)")
         return Response({"message": f"System error occurred. Funds refunded. Detail: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
