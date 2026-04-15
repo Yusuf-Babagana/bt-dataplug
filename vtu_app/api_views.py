@@ -125,9 +125,14 @@ def api_buy_data(request):
     user = request.user
     plan_id = request.data.get('plan_id')
     phone = request.data.get('phone')
+    pin = request.data.get('pin')
 
-    if not plan_id or not phone:
-        return Response({"message": "Missing plan_id or phone number"}, status=status.HTTP_400_BAD_REQUEST)
+    if not plan_id or not phone or not pin:
+        return Response({"message": "Missing plan_id, phone number, or pin"}, status=status.HTTP_400_BAD_REQUEST)
+
+    # SECURE PIN VERIFICATION
+    if not user.profile.check_pin(pin):
+        return Response({"message": "Invalid Transaction PIN"}, status=status.HTTP_401_UNAUTHORIZED)
 
     try:
         plan = DataPlan.objects.get(id=plan_id)
@@ -197,9 +202,14 @@ def api_buy_airtime(request):
     network = request.data.get('network')
     amount_str = request.data.get('amount')
     phone = request.data.get('phone')
+    pin = request.data.get('pin')
 
-    if not network or not amount_str or not phone:
-        return Response({"message": "Missing network, amount, or phone number"}, status=status.HTTP_400_BAD_REQUEST)
+    if not network or not amount_str or not phone or not pin:
+        return Response({"message": "Missing network, amount, phone, or pin"}, status=status.HTTP_400_BAD_REQUEST)
+
+    # SECURE PIN VERIFICATION
+    if not user.profile.check_pin(pin):
+        return Response({"message": "Invalid Transaction PIN"}, status=status.HTTP_401_UNAUTHORIZED)
 
     try:
         amount = float(amount_str)

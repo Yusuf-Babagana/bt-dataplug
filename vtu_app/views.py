@@ -176,10 +176,6 @@ def buy_data(request):
     if not request.user.is_authenticated:
         return redirect('login')
 
-    # MANDATORY PIN CHECK
-    if not request.user.profile.is_pin_set:
-        return redirect('set_pin')
-
     plans = DataPlan.objects.all().order_by('network', 'price')
 
     if request.method == 'POST':
@@ -289,10 +285,6 @@ def buy_airtime(request):
     if not request.user.is_authenticated:
         return redirect('login')
 
-    # MANDATORY PIN CHECK
-    if not request.user.profile.is_pin_set:
-        return redirect('set_pin')
-
     if request.method == 'POST':
         network = request.POST.get('network')
         amount = request.POST.get('amount')
@@ -362,10 +354,6 @@ def buy_airtime(request):
 def buy_cable(request):
     if not request.user.is_authenticated:
         return redirect('login')
-        
-    # MANDATORY PIN CHECK
-    if not request.user.profile.is_pin_set:
-        return redirect('set_pin')
         
     plans = CablePlan.objects.all().order_by('cable_type', 'price')
     

@@ -33,9 +33,18 @@ class Profile(models.Model):
         return check_password(raw_pin, self.transaction_pin)
 
     def save(self, *args, **kwargs):
+        from django.contrib.auth.hashers import make_password
+        
+        # 1. Initialize Default PIN (0000) if not set
+        if not self.is_pin_set or not self.transaction_pin:
+            self.transaction_pin = make_password("0000")
+            self.is_pin_set = True
+
+        # 2. Generate Referral Code
         if not self.referral_code:
             # Generate a clean code like BT-XXXXXX
             self.referral_code = f"BT-{uuid.uuid4().hex[:6].upper()}"
+            
         super().save(*args, **kwargs)
 
     def __str__(self):
