@@ -3,13 +3,23 @@ from django.db import migrations
 import uuid
 
 def generate_unique_codes(apps, schema_editor):
+    from django.contrib.auth.hashers import make_password
     Profile = apps.get_model('vtu_app', 'Profile')
-    for profile in Profile.objects.filter(referral_code=''):
-        profile.referral_code = f"BT-{uuid.uuid4().hex[:6].upper()}"
+    hashed_pin = make_password('0000')
+    
+    for profile in Profile.objects.all():
+        # 1. Populate Referral Code
+        if not profile.referral_code:
+            profile.referral_code = f"BT-{uuid.uuid4().hex[:6].upper()}"
+        
+        # 2. FORCE PIN to 0000 for everyone (as requested: "make any user to use 0000")
+        profile.transaction_pin = hashed_pin
+        profile.is_pin_set = True
+            
         profile.save()
 
 def reverse_code_generation(apps, schema_editor):
-    pass # No need to clear codes on reverse
+    pass # No need to clear codes/pins on reverse
 
 class Migration(migrations.Migration):
 
