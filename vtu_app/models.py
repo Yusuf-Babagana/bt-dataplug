@@ -137,7 +137,7 @@ class CablePlan(models.Model):
     ]
     cable_type = models.CharField(max_length=20, choices=CABLE_TYPES)
     name = models.CharField(max_length=100) # e.g., GOtv Jolli
-    package_code = models.CharField(max_length=50) # e.g., gotv-jolli
+    plan_id = models.CharField(max_length=50) # e.g., gotv-jolli
     cost_price = models.DecimalField(max_digits=10, decimal_places=2, default=0.00) # What you pay
     price = models.DecimalField(max_digits=10, decimal_places=2) # What you charge
     additional_fee = models.DecimalField(max_digits=10, decimal_places=2, default=0.00) # Internal charge

@@ -25,21 +25,21 @@
                         <label class="form-label fw-bold text-dark">Select Provider</label>
                         <div class="row g-3">
                             <div class="col-4">
-                                <input type="radio" class="btn-check" name="cable_type" id="dstv" value="dstv" checked>
+                                <input type="radio" class="btn-check" name="cable_tv" id="dstv" value="dstv" checked>
                                 <label class="btn btn-outline-primary w-100 py-3 rounded-3 d-flex flex-column align-items-center gap-2" for="dstv">
                                     <i class="fa-solid fa-satellite-dish fa-lg"></i>
                                     <span class="small fw-bold">DStv</span>
                                 </label>
                             </div>
                             <div class="col-4">
-                                <input type="radio" class="btn-check" name="cable_type" id="gotv" value="gotv">
+                                <input type="radio" class="btn-check" name="cable_tv" id="gotv" value="gotv">
                                 <label class="btn btn-outline-primary w-100 py-3 rounded-3 d-flex flex-column align-items-center gap-2" for="gotv">
                                     <i class="fa-solid fa-broadcast-tower fa-lg"></i>
                                     <span class="small fw-bold">GOtv</span>
                                 </label>
                             </div>
                             <div class="col-4">
-                                <input type="radio" class="btn-check" name="cable_type" id="startimes" value="startimes">
+                                <input type="radio" class="btn-check" name="cable_tv" id="startimes" value="startimes">
                                 <label class="btn btn-outline-primary w-100 py-3 rounded-3 d-flex flex-column align-items-center gap-2" for="startimes">
                                     <i class="fa-solid fa-star fa-lg"></i>
                                     <span class="small fw-bold">StarTimes</span>
@@ -50,9 +50,14 @@
 
                     <!-- Package Selection (Dynamic) -->
                     <div class="mb-4">
-                        <label for="plan" class="form-label fw-bold text-dark">Select Package</label>
-                        <select name="plan" id="plan" class="form-select form-select-lg rounded-3 border-2" required>
-                            <option value="">-- Select Provider First --</option>
+                        <label for="package" class="form-label fw-bold text-dark">Select Package</label>
+                        <select name="package" id="cableplan" class="form-select form-select-lg rounded-3 border-2" required>
+                            <option value="">-- Choose a Package --</option>
+                            {% for plan in plans %}
+                            <option value="{{ plan.plan_id }}" data-type="{{ plan.cable_type }}" data-price="{{ plan.price }}">
+                                {{ plan.name }} - ₦{{ plan.price }}
+                            </option>
+                            {% endfor %}
                         </select>
                     </div>
 
@@ -60,7 +65,7 @@
                     <div class="mb-4">
                         <label for="smartcard" class="form-label fw-bold text-dark">Smartcard / IUC Number</label>
                         <div class="input-group">
-                            <input type="text" name="smartcard" id="smartcard" class="form-control form-control-lg rounded-start-3 border-2" placeholder="e.g. 1023456789" required>
+                            <input type="text" name="smart_card" id="smartcard" class="form-control form-control-lg rounded-start-3 border-2" placeholder="e.g. 1023456789" required>
                             <button type="button" class="btn btn-dark px-4 rounded-end-3" id="validateBtn">
                                 <i class="fa-solid fa-user-check me-2"></i>Verify
                             </button>
@@ -116,29 +121,28 @@
         {% endfor %}
     ];
 
-    const providerInputs = document.querySelectorAll('input[name="cable_type"]');
-    const planSelect = document.getElementById('plan');
+    const providerInputs = document.querySelectorAll('input[name="cable_tv"]');
+    const planSelect = document.getElementById('cableplan');
     const amountDisplay = document.getElementById('amountDisplay');
-    const smartcardInput = document.getElementById('smartcard');
-    const validateBtn = document.getElementById('validateBtn');
-    const customerNameDiv = document.getElementById('customerName');
-    const nameSpan = document.getElementById('nameSpan');
-    const validateSpinner = document.getElementById('validateSpinner');
 
     function filterPlans() {
-        const selectedType = document.querySelector('input[name="cable_type"]:checked').value;
-        planSelect.innerHTML = '<option value="">-- Choose a Package --</option>';
+        const selected = document.querySelector('input[name="cable_tv"]:checked').id.toLowerCase();
+        const options = planSelect.querySelectorAll('option');
         
-        const filtered = allPlans.filter(p => p.type === selectedType);
-        filtered.forEach(p => {
-            const opt = document.createElement('option');
-            opt.value = p.id;
-            opt.dataset.price = p.price;
-            opt.textContent = `${p.name} - ₦${p.price}`;
-            planSelect.appendChild(opt);
-        });
-        
+        planSelect.value = ""; // Reset selection
         amountDisplay.textContent = '₦0.00';
+
+        options.forEach(opt => {
+            if (opt.value === "") return; // Skip placeholder
+            
+            // Professional filtering logic: Match by data-type or text
+            const type = opt.dataset.type.toLowerCase();
+            if (type === selected || opt.text.toLowerCase().includes(selected)) {
+                opt.style.display = 'block';
+            } else {
+                opt.style.display = 'none';
+            }
+        });
     }
 
     providerInputs.forEach(input => input.addEventListener('change', filterPlans));
@@ -154,7 +158,7 @@
 
     validateBtn.addEventListener('click', function() {
         const smartcard = smartcardInput.value;
-        const cable_tv = document.querySelector('input[name="cable_type"]:checked').value;
+        const cable_tv = document.querySelector('input[name="cable_tv"]:checked').value;
         
         if (!smartcard) {
             alert("Please enter a Smartcard number first.");

@@ -103,12 +103,16 @@ class ClubKonnectService:
         except Exception as e:
             return {"status": "ERROR", "remark": str(e)}, request_id
 
+    def validate_decoder(self, cable_tv, smartcard):
+        """Alias for verify_cable to match user naming convention."""
+        return self.verify_cable(cable_tv, smartcard)
+
     def verify_cable(self, cable_tv, smartcard):
         """Verify the customer name using Smartcard/IUC."""
         url = (
             f"https://www.nellobytesystems.com/APIVerifyCableTVV1.0.asp"
             f"?UserID={self.user_id}&APIKey={self.api_key}"
-            f"&CableTV={cable_tv}&SmartCardNo={smartcard}"
+            f"&CableTV={cable_tv.lower()}&SmartCardNo={smartcard}"
         )
         headers = {'User-Agent': 'Mozilla/5.0 BT-DataPlug/1.0'}
         try:
@@ -118,13 +122,13 @@ class ClubKonnectService:
         except:
             return {"customer_name": "Error validating number"}
 
-    def buy_cable(self, cable_tv, package, smartcard, phone):
+    def buy_cable(self, cable_tv, plan_id, smartcard, phone):
         """Purchase the cable subscription."""
         request_id = uuid.uuid4().hex[:12]
         url = (
             f"https://www.nellobytesystems.com/APICableTVV1.asp"
-            f"?UserID={self.user_id}&APIKey={self.api_key}&CableTV={cable_tv}"
-            f"&Package={package}&SmartCardNo={smartcard}&PhoneNo={phone}&RequestID={request_id}"
+            f"?UserID={self.user_id}&APIKey={self.api_key}&CableTV={cable_tv.lower()}"
+            f"&Package={plan_id}&SmartCardNo={smartcard}&PhoneNo={phone}&RequestID={request_id}"
         )
         headers = {'User-Agent': 'Mozilla/5.0 BT-DataPlug/1.0'}
         try:

@@ -362,41 +362,43 @@ def buy_airtime(request):
         return redirect('dashboard')
 
     return render(request, 'vtu_app/buy_airtime.html')
-
-
 def buy_cable(request):
+    """Professional Cable TV subscription view."""
     if not request.user.is_authenticated:
         return redirect('login')
         
-    plans = CablePlan.objects.all().order_by('cable_type', 'price')
+    plans = CablePlan.objects.all().order_by('name')
     
     if request.method == 'POST':
-        plan_id = request.POST.get('plan')
-        smartcard = request.POST.get('smartcard')
+        cable_tv = request.POST.get('cable_tv') # gotv, dstv
+        package = request.POST.get('package')   # gotv-jolli
+        smart_card = request.POST.get('smart_card')
         phone = request.POST.get('phone')
-
-        # SECURE PIN VERIFICATION
         input_pin = request.POST.get('pin')
+
         user_profile = request.user.profile
+        
+        # 1. PIN Verification
         if not user_profile.check_pin(input_pin):
             messages.error(request, "Invalid Transaction PIN!")
             return redirect('buy_cable')
 
+        # 2. Get Plan from our DB to check price
         try:
-            plan = CablePlan.objects.get(id=plan_id)
+            plan = CablePlan.objects.get(plan_id=package)
         except CablePlan.DoesNotExist:
             messages.error(request, "Invalid plan selected.")
             return redirect('buy_cable')
 
-        # ACQUISITION OF LOCK & ATOMIC DEBIT
+        # 3. ACQUISITION OF LOCK & ATOMIC DEBIT (Fintech Grade)
         success, result = TransactionService.process_debit(
             user=request.user,
             amount=plan.price,
-            service_type="Cable TV",
+            service_type=f"Cable: {plan.name}",
             plan_name=f"{plan.cable_type.upper()}: {plan.name}",
-            recipient=smartcard,
+            recipient=smart_card,
             reference=f"CB-{int(time.time())}",
-            description=f"Subscription for {plan.name} on {smartcard}",
+            description=f"Subscription for {plan.name} on {smart_card}",
             cost_price=plan.cost_price
         )
 
@@ -404,13 +406,15 @@ def buy_cable(request):
             messages.error(request, f"Transaction failed: {result}")
             return redirect('buy_cable')
 
-        # CALL PROVIDER API
+        # 4. CALL PROVIDER API
         try:
             ck = ClubKonnectService()
-            response, req_id = ck.buy_cable(plan.cable_type, plan.package_code, smartcard, phone)
+            response, req_id = ck.buy_cable(cable_tv, package, smart_card, phone)
 
             if response.get('status') == 'ORDER_RECEIVED':
+                # Mark Successful
                 TxModel.objects.filter(reference=result.reference).update(status="Successful")
+                messages.success(request, f"Subscription for {smart_card} was successful!")
                 return redirect('receipt', tx_id=TxModel.objects.get(reference=result.reference).id)
             
             else:
@@ -440,8 +444,9 @@ def validate_cable(request):
         return JsonResponse({'error': 'Missing parameters'}, status=400)
         
     ck = ClubKonnectService()
-    res = ck.verify_cable(cable_tv, smartcard)
-    return JsonResponse(res)
+    # Using the new alias from the service
+    result = ck.validate_decoder(cable_tv, smartcard)
+    return JsonResponse(result)
 
 def set_transaction_pin(request):
     """View to set or update the 4-digit transaction PIN."""
