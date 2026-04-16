@@ -87,6 +87,14 @@ def register(request):
         
         # 2. Call Monnify
         try:
+            # Handle Referrals
+            ref_code = request.POST.get('referral_code')
+            if ref_code:
+                referrer_profile = Profile.objects.filter(referral_code=ref_code.strip().upper()).first()
+                if referrer_profile:
+                    user.profile.referred_by = referrer_profile.user
+                    user.profile.save()
+
             service = MonnifyService()
             response = service.reserve_account(user)
             

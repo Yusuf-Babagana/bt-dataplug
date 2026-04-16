@@ -70,7 +70,15 @@ def api_register(request):
         # 3. Create Profile (Ensure it matches your website signal or manual creation)
         profile, created = Profile.objects.get_or_create(user=user)
 
-        # 4. Trigger the Monnify Account Reservation (The "YUS" Branding)
+        # 4. Handle Referral Tracking
+        ref_code = data.get('referral_code')
+        if ref_code:
+            referrer_profile = Profile.objects.filter(referral_code=ref_code.strip().upper()).first()
+            if referrer_profile:
+                profile.referred_by = referrer_profile.user
+                profile.save()
+
+        # 5. Trigger the Monnify Account Reservation (The "YUS" Branding)
         # This is the "Magic" that makes the mobile app match the site
         monnify = MonnifyService()
         response = monnify.reserve_account(user)

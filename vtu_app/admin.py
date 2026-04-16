@@ -30,5 +30,6 @@ class TransactionAdmin(admin.ModelAdmin):
 
 @admin.register(Profile)
 class ProfileAdmin(admin.ModelAdmin):
-    list_display = ('user', 'wallet_balance', 'kyc_verified', 'phone_number')
-    search_fields = ('user__username',)
+    list_display = ('user', 'wallet_balance', 'referral_code', 'referred_by', 'kyc_verified')
+    search_fields = ('user__username', 'referral_code')
+    list_filter = ('kyc_verified',)

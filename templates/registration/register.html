@@ -60,6 +60,18 @@
             <i class="fa-regular fa-eye" id="regIcon2"></i>
         </button>
     </div>
+    
+    <!-- Referral Code (Optional) -->
+    <div class="mb-3">
+        <div class="form-floating">
+            <input type="text" name="referral_code" class="form-control" id="id_referral_code" 
+                   placeholder="Referral Code (Optional)" value="{{ request.GET.ref }}">
+            <label for="id_referral_code"><i class="fas fa-user-friends me-2"></i>Referral Code (Optional)</label>
+        </div>
+        <div id="ref-hint" class="form-text text-success d-none ps-2 mt-1" style="font-size: 11px; font-weight: 600;">
+            <i class="fas fa-check-circle"></i> You are joining via a referral link!
+        </div>
+    </div>
 
     <div class="form-check mb-4">
         <input class="form-check-input" type="checkbox" value="" id="tAndC" required>
@@ -131,5 +143,15 @@
             if (submitBtn) submitBtn.classList.remove('btn-loading');
         }
     });
+
+    // Automatically show the "Joining via referral" hint if code is present
+    window.onload = function() {
+        const urlParams = new URLSearchParams(window.location.search);
+        const refCode = urlParams.get('ref');
+        if (refCode) {
+            const hint = document.getElementById('ref-hint');
+            if (hint) hint.classList.remove('d-none');
+        }
+    }
 </script>
 {% endblock %}
