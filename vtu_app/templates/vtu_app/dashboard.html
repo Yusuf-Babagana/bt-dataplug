@@ -114,6 +114,40 @@ function copyText(text) {
     </div>
 </div>
 
+<!-- Refer and Earn Section -->
+<div class="card border-0 shadow-sm rounded-4 mb-4" style="background: linear-gradient(135deg, #ffffff 0%, #f0f9ff 100%);">
+    <div class="card-body p-4">
+        <div class="d-flex align-items-center mb-3">
+            <div class="bg-primary bg-opacity-10 p-2 rounded-3 me-3">
+                <i class="fa-solid fa-gift text-primary fs-4"></i>
+            </div>
+            <div>
+                <h5 class="fw-bold mb-0">Refer and Earn Rewards</h5>
+                <p class="text-muted small mb-0">Share your link and earn bonuses on every wallet funding.</p>
+            </div>
+        </div>
+        
+        <div class="bg-white p-3 rounded-3 border border-dashed border-primary border-opacity-25 shadow-sm">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <span class="text-muted small d-block mb-1">Your Referral Link:</span>
+                    <h6 class="fw-bold text-dark mb-0 text-truncate" style="max-width: 200px;">{{ ref_link }}</h6>
+                </div>
+                <button class="btn btn-primary rounded-pill px-4 fw-bold shadow-sm" onclick="copyReferral('{{ ref_link }}')">
+                    <i class="fa fa-copy me-1"></i> Copy Link
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function copyReferral(text) {
+    navigator.clipboard.writeText(text);
+    alert("Referral Link Copied! Share it with your friends.");
+}
+</script>
+
 <style>
     .action-card {
         cursor: pointer;

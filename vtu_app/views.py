@@ -158,6 +158,9 @@ def dashboard(request):
         ck_service = ClubKonnectService()
         ck_balance = ck_service.get_balance()
     
+    # Generate the full referral link
+    ref_link = request.build_absolute_uri(f"/register/?ref={user_profile.referral_code}")
+    
     context = {
         'ck_balance': ck_balance,
         'user_wallet': user_profile.wallet_balance,
@@ -166,6 +169,8 @@ def dashboard(request):
         'plan_data_json': json.dumps(DATA_PLANS),
         'site_name': 'BT DataPlug',
         'pin_not_set': not user_profile.is_pin_set,
+        'referral_code': user_profile.referral_code,
+        'ref_link': ref_link,
     }
     return render(request, 'vtu_app/dashboard.html', context)
 
