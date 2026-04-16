@@ -2,9 +2,32 @@
 {% load crispy_forms_tags %}
 
 {% block content %}
-<div class="row mb-3">
-    <div class="col-12">
-        <h4 class="fw-bold fs-3">Welcome back, {{ user.username }}!</h4>
+<div class="row g-4 mb-4 align-items-center">
+    <div class="col-md-7">
+        <div class="d-flex align-items-center">
+            <div class="avatar-circle me-3 shadow-sm" style="width: 70px; height: 70px; font-size: 1.8rem; background: var(--primary-gradient);">
+                {{ user.username|first|upper }}
+            </div>
+            <div>
+                <h3 class="fw-bold mb-1 gradient-text">Welcome, {{ user.username|upper }}!</h3>
+                <p class="text-muted small mb-0"><i class="fa-solid fa-calendar-day me-1"></i> Today is {% now "jS F, Y" %}</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-5">
+        <div class="glass-card p-3 border-0 d-flex justify-content-between align-items-center">
+            <div>
+                <span class="text-muted small d-block mb-1 fw-bold text-uppercase" style="font-size: 10px; letter-spacing: 1px;">Member Account</span>
+                <span class="badge bg-primary bg-opacity-10 text-primary rounded-pill px-3 py-2 fw-bold">
+                    <i class="fa-solid fa-id-card me-2"></i> ID: #{{ user.id }}
+                </span>
+            </div>
+            <a href="{% url 'profile_settings' %}" class="btn btn-soft-primary btn-sm rounded-pill px-3 fw-bold">
+                <i class="fa-solid fa-user-gear me-1"></i> Manage
+            </a>
+        </div>
+    </div>
+</div>
 
         <!-- Security Alert: Set PIN -->
         {% if pin_not_set %}
