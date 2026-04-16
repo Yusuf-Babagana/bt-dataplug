@@ -124,6 +124,11 @@
     const providerInputs = document.querySelectorAll('input[name="cable_tv"]');
     const planSelect = document.getElementById('cableplan');
     const amountDisplay = document.getElementById('amountDisplay');
+    const smartcardInput = document.getElementById('smartcard');
+    const validateBtn = document.getElementById('validateBtn');
+    const customerNameDiv = document.getElementById('customerName');
+    const nameSpan = document.getElementById('nameSpan');
+    const validateSpinner = document.getElementById('validateSpinner');
 
     function filterPlans() {
         const selected = document.querySelector('input[name="cable_tv"]:checked').id.toLowerCase();
