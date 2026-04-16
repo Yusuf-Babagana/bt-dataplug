@@ -335,6 +335,21 @@
             <span class="logo-text">BT DataPlug</span>
         </div>
 
+        <!-- SIDEBAR PROFILE SECTION -->
+        <div class="px-3 mb-4 mt-2">
+            <div class="glass-card p-3 border-0 d-flex align-items-center shadow-sm" style="border-radius: 20px !important; background: #f8fafc;">
+                <div class="avatar-circle me-3" style="width: 50px; height: 50px; font-size: 1.2rem; min-width: 50px;">
+                    {{ user.username|first|upper }}
+                </div>
+                <div class="overflow-hidden">
+                    <h6 class="fw-bold mb-0 text-dark text-truncate">{{ user.username|upper }}</h6>
+                    <span class="badge bg-primary bg-opacity-10 text-primary p-1 px-2 fw-bold mt-1" style="font-size: 9px;">
+                        ID: #{{ user.id }}
+                    </span>
+                </div>
+            </div>
+        </div>
+
         <div class="flex-grow-1 mt-2">
             <a href="{% url 'dashboard' %}" class="nav-item-custom">
                 <i class="fa-solid fa-chart-line icon-left"></i>
@@ -424,6 +439,17 @@
             <button type="button" class="btn-close" data-bs-dismiss="offcanvas"></button>
         </div>
         <div class="offcanvas-body p-3">
+            <!-- MOBILE PROFILE QUICK VIEW -->
+            <div class="p-3 mb-3 bg-light rounded-4 d-flex align-items-center">
+                <div class="avatar-circle me-3 shadow-sm" style="width: 48px; height: 48px; font-size: 1.1rem; min-width: 48px;">
+                    {{ user.username|first|upper }}
+                </div>
+                <div>
+                    <h6 class="fw-bold mb-0">{{ user.username|upper }}</h6>
+                    <small class="text-muted">Member #{{ user.id }}</small>
+                </div>
+            </div>
+
             <a href="{% url 'dashboard' %}" class="nav-item-custom">
                 <i class="fa-solid fa-chart-line icon-left"></i> Dashboard
             </a>
