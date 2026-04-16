@@ -12,6 +12,7 @@ urlpatterns = [
     
     # Data Plans for the mobile dropdown
     path('data-plans/', api_views.DataPlanList.as_view(), name='api_plans'),
+    path('cable-plans/', api_views.CablePlanList.as_view(), name='api_cable_plans'),
     
     # Wallet Record (Transaction History)
     path('transactions/', api_views.api_transaction_history, name='api_transactions'),
@@ -20,4 +21,8 @@ urlpatterns = [
     path('buy-data/', api_views.api_buy_data, name='api_buy_data'),
     path('buy-airtime/', api_views.api_buy_airtime, name='api_buy_airtime'),
     path('change-pin/', api_views.api_change_pin, name='api_change_pin'),
+    
+    # Cable TV
+    path('validate-cable/', api_views.api_validate_cable, name='api_validate_cable'),
+    path('buy-cable/', api_views.api_buy_cable, name='api_buy_cable'),
 ]

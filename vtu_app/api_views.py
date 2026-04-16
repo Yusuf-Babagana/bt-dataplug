@@ -7,8 +7,8 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from django.contrib.auth.models import User
-from .models import DataPlan, Transaction, Profile
-from .serializers import DataPlanSerializer, TransactionSerializer
+from .models import DataPlan, Transaction, Profile, CablePlan
+from .serializers import DataPlanSerializer, TransactionSerializer, CablePlanSerializer
 from .services import MonnifyService, ClubKonnectService
 from .services.transaction_service import TransactionService
 
@@ -36,6 +36,14 @@ class DataPlanList(APIView):
         # Removed .filter(is_active=True) because the field doesn't exist yet
         plans = DataPlan.objects.all() 
         serializer = DataPlanSerializer(plans, many=True)
+        return Response(serializer.data)
+
+class CablePlanList(APIView):
+    permission_classes = [] # Public access
+    
+    def get(self, request):
+        plans = CablePlan.objects.all().order_by('price')
+        serializer = CablePlanSerializer(plans, many=True)
         return Response(serializer.data)
 
 @api_view(['POST'])
@@ -313,5 +321,93 @@ def api_change_pin(request):
 
     # 3. Save New PIN (Secure Hashing)
     user.profile.set_pin(new_pin)
+    user.profile.save()
     
     return Response({"message": "Transaction PIN updated successfully"})
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def api_validate_cable(request):
+    """Mobile API for real-time decoder verification."""
+    cable_tv = request.GET.get('cable_tv') # gotv, dstv, etc
+    smart_card = request.GET.get('smart_card')
+    
+    if not cable_tv or not smart_card:
+        return Response({"error": "Missing cable_tv or smart_card"}, status=400)
+    
+    service = ClubKonnectService()
+    result = service.validate_decoder(cable_tv, smart_card)
+    return Response(result)
+
+@csrf_exempt
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def api_buy_cable(request):
+    """
+    Secure Mobile Cable TV purchase.
+    Uses TransactionService for atomic deductions and PIN verification.
+    """
+    user = request.user
+    cable_tv = request.data.get('cable_tv')
+    package_id = request.data.get('package_id') # This is the plan_id
+    smart_card = request.data.get('smart_card')
+    phone = request.data.get('phone')
+    pin = request.data.get('pin')
+
+    if not all([cable_tv, package_id, smart_card, phone, pin]):
+        return Response({"message": "Missing required fields"}, status=400)
+
+    # 1. PIN VERIFICATION
+    if not user.profile.check_pin(pin):
+        return Response({"message": "Invalid Transaction PIN"}, status=401)
+
+    # 2. GET PLAN
+    try:
+        plan = CablePlan.objects.get(plan_id=package_id)
+    except CablePlan.DoesNotExist:
+        return Response({"message": "Invalid Package ID"}, status=400)
+
+    # 3. ATOMIC DEBIT
+    success, tx = TransactionService.process_debit(
+        user=user,
+        amount=plan.price,
+        service_type=f"Cable: {plan.name} (Mobile)",
+        plan_name=f"{plan.cable_type.upper()}: {plan.name}",
+        recipient=smart_card,
+        reference=f"CB-{int(time.time())}",
+        description=f"Mobile Subscription for {plan.name} on {smart_card}",
+        cost_price=plan.cost_price
+    )
+
+    if not success:
+        return Response({"message": f"Transaction failed: {tx}"}, status=400)
+
+    # 4. CALL PROVIDER API
+    try:
+        ck = ClubKonnectService()
+        response, req_id = ck.buy_cable(cable_tv, package_id, smart_card, phone)
+
+        if response.get('status') == 'ORDER_RECEIVED':
+            # SUCCESS
+            Transaction.objects.filter(reference=tx.reference).update(status="Successful")
+            final_tx = Transaction.objects.get(reference=tx.reference)
+            final_tx.calculate_totals()
+            
+            return Response({
+                "message": "Subscription Received Successfully",
+                "new_balance": str(user.profile.wallet_balance),
+                "transaction_id": final_tx.id,
+                "order_id": response.get('orderid', req_id)
+            })
+        
+        else:
+            # FAILURE - REFUND
+            TransactionService.process_refund(user, plan.price, tx.reference, "API Failure (Mobile)")
+            return Response({
+                "message": f"Provider Error: {response.get('remark', 'Try again later')}",
+                "status": response.get('status')
+            }, status=400)
+
+    except Exception as e:
+        TransactionService.process_refund(user, plan.price, tx.reference, "System Crash (Mobile)")
+        return Response({"message": f"System error: {str(e)}"}, status=500)

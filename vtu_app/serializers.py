@@ -1,5 +1,10 @@
 from rest_framework import serializers
-from .models import Profile, DataPlan, Transaction
+from .models import Profile, DataPlan, Transaction, CablePlan
+
+class CablePlanSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = CablePlan
+        fields = ['id', 'cable_type', 'name', 'plan_id', 'price']
 
 class DataPlanSerializer(serializers.ModelSerializer):
     # This ensures the mobile app always gets clean, trimmed names
