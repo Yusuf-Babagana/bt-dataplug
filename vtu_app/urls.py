@@ -17,4 +17,5 @@ urlpatterns = [
     path('manager/', views.manager_dashboard, name='manager_dashboard'),
     path('staff/dashboard/', views.staff_dashboard, name='staff_dashboard'),
     path('settings/profile/', views.profile_settings, name='profile_settings'),
+    path('profile/change-pin/', views.change_pin_view, name='change_pin'),
 ]

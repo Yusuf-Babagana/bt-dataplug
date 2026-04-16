@@ -544,3 +544,32 @@ def profile_settings(request):
     ref_link = f"https://www.btdataplug.com/register/?ref={request.user.profile.referral_code}"
     
     return render(request, 'vtu_app/profile.html', {'ref_link': ref_link})
+
+@login_required
+def change_pin_view(request):
+    if request.method == 'POST':
+        old_pin = request.POST.get('old_pin')
+        new_pin = request.POST.get('new_pin')
+        confirm_pin = request.POST.get('confirm_pin')
+
+        profile = request.user.profile
+
+        # 1. Verify Old PIN (Secure Check)
+        if not profile.check_pin(old_pin):
+            messages.error(request, "The current PIN you entered is incorrect.")
+        
+        # 2. Match New PINs
+        elif new_pin != confirm_pin:
+            messages.error(request, "New PIN and Confirmation do not match.")
+        
+        # 3. Validation (Ensure 4 digits)
+        elif not new_pin.isdigit() or len(new_pin) != 4:
+            messages.error(request, "PIN must be exactly 4 digits.")
+            
+        else:
+            # 4. Save New PIN (Secure Hashing)
+            profile.set_pin(new_pin)
+            messages.success(request, "Transaction PIN updated successfully! You can now use it for purchases.")
+            return redirect('profile_settings')
+
+    return render(request, 'dashboard/change_pin.html')

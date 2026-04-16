@@ -283,3 +283,27 @@ def api_buy_airtime(request):
     except Exception as e:
         TransactionService.process_refund(user, selling_price, tx.reference, "System Crash (Mobile)")
         return Response({"message": f"System error occurred. Funds refunded. Detail: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def api_change_pin(request):
+    """Secure Mobile API endpoint to update Transaction PIN."""
+    user = request.user
+    old_pin = request.data.get('old_pin')
+    new_pin = request.data.get('new_pin')
+
+    if not old_pin or not new_pin:
+        return Response({"message": "Current PIN and New PIN are required"}, status=status.HTTP_400_BAD_REQUEST)
+
+    # 1. Verify Old PIN (Secure Hashing Check)
+    if not user.profile.check_pin(old_pin):
+        return Response({"message": "The current PIN you entered is incorrect"}, status=status.HTTP_400_BAD_REQUEST)
+    
+    # 2. Validation (Ensure 4 digits)
+    if not str(new_pin).isdigit() or len(str(new_pin)) != 4:
+        return Response({"message": "New PIN must be exactly 4 digits"}, status=status.HTTP_400_BAD_REQUEST)
+
+    # 3. Save New PIN (Secure Hashing)
+    user.profile.set_pin(new_pin)
+    
+    return Response({"message": "Transaction PIN updated successfully"})

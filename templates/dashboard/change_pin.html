@@ -1,0 +1,44 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-md-5">
+            <div class="card shadow-lg border-0 rounded-4">
+                <div class="card-body p-5">
+                    <div class="text-center mb-4">
+                        <div class="bg-light-primary rounded-circle d-inline-flex p-3 mb-3">
+                            <i class="fas fa-user-shield fa-2x text-primary"></i>
+                        </div>
+                        <h4 class="fw-bold">Transaction PIN</h4>
+                        <p class="text-muted small">Keep your wallet secure by updating your PIN regularly.</p>
+                    </div>
+
+                    <form method="POST">
+                        {% csrf_token %}
+                        <div class="mb-3">
+                            <label class="form-label small fw-bold">Current PIN</label>
+                            <input type="password" name="old_pin" class="form-control form-control-lg text-center" 
+                                   placeholder="****" maxlength="4" inputmode="numeric" required>
+                            <div class="form-text">Default PIN is usually 0000</div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label small fw-bold">New 4-Digit PIN</label>
+                            <input type="password" name="new_pin" class="form-control form-control-lg text-center" 
+                                   placeholder="****" maxlength="4" inputmode="numeric" required>
+                        </div>
+
+                        <div class="mb-4">
+                            <label class="form-label small fw-bold">Confirm New PIN</label>
+                            <input type="password" name="confirm_pin" class="form-control form-control-lg text-center" 
+                                   placeholder="****" maxlength="4" inputmode="numeric" required>
+                        </div>
+
+                        <button type="submit" class="btn btn-primary btn-lg w-100 rounded-3">Update PIN</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
