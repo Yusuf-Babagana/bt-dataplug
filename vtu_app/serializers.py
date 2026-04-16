@@ -1,5 +1,18 @@
+from django.contrib.auth.models import User
 from rest_framework import serializers
 from .models import Profile, DataPlan, Transaction, CablePlan
+
+class ProfileSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Profile
+        fields = ['wallet_balance', 'referral_code', 'referred_by']
+
+class UserSerializer(serializers.ModelSerializer):
+    profile = ProfileSerializer() # Nests profile inside user data
+
+    class Meta:
+        model = User
+        fields = ['id', 'username', 'email', 'profile']
 
 class CablePlanSerializer(serializers.ModelSerializer):
     class Meta:
