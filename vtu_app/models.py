@@ -74,6 +74,7 @@ class Transaction(models.Model):
         ('Data Purchase', 'Data Purchase'),
         ('Airtime Purchase', 'Airtime Purchase'),
         ('Cable TV', 'Cable TV'),
+        ('Electricity Bill', 'Electricity Bill'),
     ]
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     service_type = models.CharField(max_length=50, choices=SERVICE_CHOICES)

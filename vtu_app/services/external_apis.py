@@ -141,6 +141,41 @@ class ClubKonnectService:
         except Exception as e:
             return {"status": "ERROR", "remark": str(e)}, request_id
 
+    def validate_meter(self, disco_code, meter_no, meter_type):
+        """Verify the meter number and customer name."""
+        url = (
+            f"https://www.nellobytesystems.com/APIVerifyElectricityV1.asp"
+            f"?UserID={self.user_id}&APIKey={self.api_key}"
+            f"&ElectricCompany={disco_code}&MeterNo={meter_no}&MeterType={meter_type}"
+        )
+        headers = {'User-Agent': 'Mozilla/5.0 BT-DataPlug/1.0'}
+        try:
+            response = requests.get(url, headers=headers, timeout=20)
+            logger.info(f"Electricity Verify Logic --- Status: {response.status_code} Body: {response.text}")
+            return response.json() # Returns {"customer_name": "..."}
+        except:
+            return {"customer_name": "Error validating meter"}
+
+    def pay_electricity(self, disco_code, meter_no, meter_type, amount, phone):
+        """Purchase the electricity token."""
+        request_id = uuid.uuid4().hex[:12]
+        url = (
+            f"https://www.nellobytesystems.com/APIElectricityV1.asp"
+            f"?UserID={self.user_id}&APIKey={self.api_key}"
+            f"&ElectricCompany={disco_code}&MeterType={meter_type}"
+            f"&MeterNo={meter_no}&Amount={amount}&PhoneNo={phone}&RequestID={request_id}"
+        )
+        headers = {'User-Agent': 'Mozilla/5.0 BT-DataPlug/1.0'}
+        try:
+            response = requests.get(url, headers=headers, timeout=30)
+            logger.info(f"Electricity Pay Logic --- Status: {response.status_code} Body: {response.text}")
+            try:
+                return response.json(), request_id
+            except ValueError:
+                return {"status": response.text.strip()}, request_id
+        except Exception as e:
+            return {"status": "ERROR", "remark": str(e)}, request_id
+
 
 class MonnifyService:
     def __init__(self):
