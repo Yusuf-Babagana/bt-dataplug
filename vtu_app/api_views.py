@@ -7,10 +7,31 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from django.contrib.auth.models import User
-from .models import DataPlan, Transaction, Profile, CablePlan
+from .models import DataPlan, Transaction, Profile, CablePlan, Notification
 from .serializers import DataPlanSerializer, TransactionSerializer, CablePlanSerializer
 from .services import MonnifyService, ClubKonnectService
 from .services.transaction_service import TransactionService
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def api_get_notifications(request):
+    """Serve combined global and personal notifications for the mobile app."""
+    from django.db.models import Q
+    # Get global notifications OR notifications meant for this user
+    notifications = Notification.objects.filter(
+        Q(user=request.user) | Q(user__isnull=True)
+    ).order_by('-created_at')
+    
+    data = [{
+        "id": n.id,
+        "title": n.title,
+        "message": n.message,
+        "date": n.created_at.strftime("%d %b, %H:%M"),
+        "is_global": n.user is None,
+        "is_read": n.is_read
+    } for n in notifications]
+    
+    return Response(data)
 
 class MobileDashboard(APIView):
     permission_classes = [IsAuthenticated] # Must have a Token
@@ -24,6 +45,7 @@ class MobileDashboard(APIView):
             "username": user.username,
             "profile": {
                 "wallet_balance": str(profile.wallet_balance),
+                "referral_code": profile.referral_code,
                 "bank_accounts": profile.bank_accounts if isinstance(profile.bank_accounts, list) else []
             },
             "system_announcement": "Welcome to the new BT DataPlug Mobile App!"
@@ -410,4 +432,102 @@ def api_buy_cable(request):
 
     except Exception as e:
         TransactionService.process_refund(user, plan.price, tx.reference, "System Crash (Mobile)")
+        return Response({"message": f"System error: {str(e)}"}, status=500)
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def api_validate_meter(request):
+    """Mobile API for real-time meter verification."""
+    disco = request.GET.get('disco')
+    meter_no = request.GET.get('meter_no')
+    meter_type = request.GET.get('meter_type')
+    
+    if not disco or not meter_no or not meter_type:
+        return Response({"error": "Missing disco, meter_no, or meter_type"}, status=400)
+    
+    service = ClubKonnectService()
+    result = service.validate_meter(disco, meter_no, meter_type)
+    return Response(result)
+
+@csrf_exempt
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def api_pay_electricity(request):
+    """
+    Secure Mobile Electricity bill payment.
+    Uses TransactionService for atomic deductions and PIN verification.
+    """
+    user = request.user
+    disco = request.data.get('disco')
+    meter_no = request.data.get('meter_no')
+    meter_type = request.data.get('meter_type')
+    amount_str = request.data.get('amount')
+    phone = request.data.get('phone')
+    pin = request.data.get('pin')
+
+    if not all([disco, meter_no, meter_type, amount_str, phone, pin]):
+        return Response({"message": "Missing required fields"}, status=400)
+
+    # 1. PIN VERIFICATION
+    if not user.profile.check_pin(pin):
+        return Response({"message": "Invalid Transaction PIN"}, status=401)
+
+    try:
+        amount = Decimal(str(amount_str))
+        if amount < 1000:
+            return Response({"message": "Minimum amount for electricity is ₦1,000"}, status=400)
+    except (InvalidOperation, ValueError, TypeError):
+        return Response({"message": "Invalid amount"}, status=400)
+
+    # 2. Calculation (Bill + BT Service Fee)
+    service_fee = Decimal('100.00')
+    total_to_pay = amount + service_fee
+
+    # 3. ATOMIC DEBIT (Fintech Grade)
+    success, tx = TransactionService.process_debit(
+        user=user,
+        amount=total_to_pay,
+        service_type=f"Electricity: {disco} (Mobile)",
+        plan_name=f"Electricity: {disco} ({'Prepaid' if meter_type == '01' else 'Postpaid'})",
+        recipient=meter_no,
+        reference=f"ELE-{int(time.time())}",
+        description=f"Mobile Bill Payment for {meter_no}. Amount: ₦{amount}, Fee: ₦{service_fee}",
+        cost_price=amount
+    )
+
+    if not success:
+        return Response({"message": f"Transaction failed: {tx}"}, status=400)
+
+    # 4. CALL PROVIDER API
+    try:
+        ck = ClubKonnectService()
+        response, req_id = ck.pay_electricity(disco, meter_no, meter_type, amount, phone)
+
+        if response.get('status') == 'ORDER_RECEIVED':
+            # Mark Successful
+            TxModel.objects.filter(reference=tx.reference).update(
+                status="Successful",
+                bt_service_charge=service_fee
+            )
+            final_tx = TxModel.objects.get(reference=tx.reference)
+            final_tx.calculate_totals()
+            
+            return Response({
+                "message": "Payment Successful",
+                "token": response.get('metertoken', 'Processing...'),
+                "new_balance": str(user.profile.wallet_balance),
+                "transaction_id": final_tx.id,
+                "order_id": response.get('orderid', req_id)
+            })
+        
+        else:
+            # FAILURE - REFUND
+            TransactionService.process_refund(user, total_to_pay, tx.reference, "API Failure (Mobile)")
+            return Response({
+                "message": f"Provider Error: {response.get('remark', 'Try again later')}",
+                "status": response.get('status')
+            }, status=400)
+
+    except Exception as e:
+        TransactionService.process_refund(user, total_to_pay, tx.reference, "System Crash (Mobile)")
         return Response({"message": f"System error: {str(e)}"}, status=500)

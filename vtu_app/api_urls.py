@@ -25,4 +25,11 @@ urlpatterns = [
     # Cable TV
     path('validate-cable/', api_views.api_validate_cable, name='api_validate_cable'),
     path('buy-cable/', api_views.api_buy_cable, name='api_buy_cable'),
+
+    # Electricity
+    path('validate-meter/', api_views.api_validate_meter, name='api_validate_meter'),
+    path('pay-electricity/', api_views.api_pay_electricity, name='api_pay_electricity'),
+    
+    # Notifications
+    path('notifications/', api_views.api_get_notifications, name='api_notifications'),
 ]

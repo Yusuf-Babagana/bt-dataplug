@@ -162,3 +162,15 @@ class ServiceSwitch(models.Model):
     def __str__(self):
         status = "ACTIVE" if self.is_active else "DISABLED"
         return f"{self.network}: {status}"
+
+
+class Notification(models.Model):
+    """Model for global and personal notification messages."""
+    user = models.ForeignKey(User, on_delete=models.CASCADE, null=True, blank=True) # Null means "Global Message"
+    title = models.CharField(max_length=200)
+    message = models.TextField()
+    is_read = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.title} ({self.created_at.strftime('%Y-%m-%d')})"

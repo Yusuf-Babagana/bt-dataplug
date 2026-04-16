@@ -33,3 +33,12 @@ class ProfileAdmin(admin.ModelAdmin):
     list_display = ('user', 'wallet_balance', 'referral_code', 'referred_by', 'kyc_verified')
     search_fields = ('user__username', 'referral_code')
     list_filter = ('kyc_verified',)
+
+from .models import Notification
+
+@admin.register(Notification)
+class NotificationAdmin(admin.ModelAdmin):
+    list_display = ('title', 'user', 'is_read', 'created_at')
+    list_filter = ('is_read', 'created_at')
+    search_fields = ('title', 'message', 'user__username')
+    ordering = ('-created_at',)
