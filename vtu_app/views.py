@@ -586,3 +586,22 @@ def change_pin_view(request):
             return redirect('profile_settings')
 
     return render(request, 'dashboard/change_pin.html')
+
+def referral_redirect(request, ref_id):
+    """
+    Handles clean referral links like bt-dataplug.com/ref/3 or bt-dataplug.com/ref/BT-123456
+    Redirects to the registration page with the ref parameter.
+    """
+    from .models import Profile
+    
+    # 1. Try to find by Referral Code (Modern way)
+    profile = Profile.objects.filter(referral_code=ref_id.strip().upper()).first()
+    
+    # 2. If not found and ref_id is numeric, try to find by User ID (Legacy compatibility)
+    if not profile and str(ref_id).isdigit():
+        profile = Profile.objects.filter(user__id=ref_id).first()
+    
+    if profile:
+        return redirect(f"/register/?ref={profile.referral_code}")
+    
+    return redirect('register')
