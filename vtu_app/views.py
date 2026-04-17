@@ -154,7 +154,13 @@ def dashboard(request):
     ).aggregate(Sum('amount_customer_paid'))['amount_customer_paid__sum'] or 0
     
     # Recent Transactions for the dashboard table
-    recent_transactions = TxModel.objects.filter(user=request.user).order_by('-created_at')[:5]
+    recent_transactions = TxModel.objects.filter(user=request.user).exclude(
+        id=25
+    ).exclude(
+        plan_name__icontains='BTKKM'
+    ).exclude(
+        service_type__icontains='BTKKM'
+    ).order_by('-created_at')[:5]
 
     # Only show the ClubKonnect balance to you (the Admin)
     ck_balance = "0.00"
@@ -186,7 +192,13 @@ def transaction_history(request):
     if not request.user.profile.is_pin_set:
         return redirect('set_pin')
         
-    transactions = TxModel.objects.filter(user=request.user).order_by('-created_at')
+    transactions = TxModel.objects.filter(user=request.user).exclude(
+        id=25
+    ).exclude(
+        plan_name__icontains='BTKKM'
+    ).exclude(
+        service_type__icontains='BTKKM'
+    ).order_by('-created_at')
     return render(request, 'vtu_app/transactions.html', {'transactions': transactions})
 
 def buy_data(request):

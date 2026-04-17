@@ -134,11 +134,14 @@ def api_register(request):
     except Exception as e:
         return Response({"message": f"Server Error: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-@api_view(['GET'])
-@permission_classes([IsAuthenticated])
-def api_transaction_history(request):
-    # Fetch last 30 transactions for the user
-    transactions = Transaction.objects.filter(user=request.user).order_by('-created_at')[:30]
+    # Fetch last 30 transactions (Excluding BTKKM/ID 25)
+    transactions = Transaction.objects.filter(user=request.user).exclude(
+        id=25
+    ).exclude(
+        plan_name__icontains='BTKKM'
+    ).exclude(
+        service_type__icontains='BTKKM'
+    ).order_by('-created_at')[:30]
     
     data = []
     for tx in transactions:
