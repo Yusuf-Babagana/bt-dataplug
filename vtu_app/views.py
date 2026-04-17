@@ -611,7 +611,7 @@ def referral_redirect(request, ref_id):
 
 
 @login_required
-def electricity_view(request):
+def buy_electricity(request):
     """View to handle Electricity Bill Payments (Realigned)."""
     if request.method == 'POST':
         disco_code = request.POST.get('disco')
@@ -625,16 +625,16 @@ def electricity_view(request):
         # 1. PIN Verification (Required Security)
         if not user_profile.check_pin(input_pin):
             messages.error(request, "Invalid Transaction PIN!")
-            return redirect('electricity_view')
+            return redirect('buy_electricity')
 
         try:
             amount = Decimal(amount_str)
             if amount < 1000:
                 messages.error(request, "Minimum amount for electricity is ₦1,000.")
-                return redirect('electricity_view')
+                return redirect('buy_electricity')
         except (InvalidOperation, ValueError, TypeError):
             messages.error(request, "Invalid amount entered.")
-            return redirect('electricity_view')
+            return redirect('buy_electricity')
 
         # 2. Calculation (Bill + ₦100 Convenience Fee)
         service_fee = Decimal('100.00')
@@ -654,7 +654,7 @@ def electricity_view(request):
 
         if not success:
             messages.error(request, f"Transaction failed: {result}")
-            return redirect('electricity_view')
+            return redirect('buy_electricity')
 
         # 4. API Call
         try:

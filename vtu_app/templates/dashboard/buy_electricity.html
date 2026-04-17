@@ -16,7 +16,7 @@
     <div class="card-body p-4 p-md-5">
         <div class="row g-5">
             <div class="col-md-7">
-                <form action="{% url 'electricity_view' %}" method="post" id="payForm">
+                <form action="{% url 'buy_electricity' %}" method="post" id="payForm">
                     {% csrf_token %}
                     
                     <div class="mb-4">
