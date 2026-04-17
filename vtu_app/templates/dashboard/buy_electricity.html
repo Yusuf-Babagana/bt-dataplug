@@ -1,0 +1,124 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="card shadow-sm border-0 rounded-4 overflow-hidden">
+    <div class="card-header bg-primary text-white p-4 border-0">
+        <div class="d-flex align-items-center gap-3">
+            <div class="bg-white bg-opacity-20 p-3 rounded-3">
+                <i class="fas fa-bolt fa-2x"></i>
+            </div>
+            <div>
+                <h4 class="fw-bold mb-1 text-white">Electricity Bill</h4>
+                <p class="mb-0 small opacity-75 text-white">Secure and instant token generation</p>
+            </div>
+        </div>
+    </div>
+    
+    <div class="card-body p-4 p-md-5">
+        <div class="row g-5">
+            <div class="col-md-7">
+                <form action="{% url 'electricity_view' %}" method="post" id="payForm">
+                    {% csrf_token %}
+                    
+                    <div class="mb-4">
+                        <label class="form-label small fw-bold text-uppercase text-muted">Select Distribution Company (Disco)</label>
+                        <select class="form-select form-select-lg border-2 rounded-3" id="disco" name="disco" required>
+                            <option value="04">Kano Electric (KEDCO)</option>
+                            <option value="03">Abuja Electric (AEDC)</option>
+                            <option value="01">Eko Electric (EKEDC)</option>
+                            <option value="02">Ikeja Electric (IKEDC)</option>
+                            <option value="05">Port Harcourt (PHEDC)</option>
+                        </select>
+                    </div>
+
+                    <div class="row mb-4">
+                        <div class="col-6">
+                            <label class="form-label small fw-bold text-uppercase text-muted">Meter Type</label>
+                            <select class="form-select border-2 rounded-3" id="meter_type" name="meter_type" required>
+                                <option value="01">Prepaid</option>
+                                <option value="02">Postpaid</option>
+                            </select>
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label small fw-bold text-uppercase text-muted">Amount (₦)</label>
+                            <input type="number" id="amount" name="amount" class="form-control border-2 rounded-3" placeholder="Min 1000" min="1000" required>
+                        </div>
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="form-label small fw-bold text-uppercase text-muted">Meter Number</label>
+                        <div class="input-group">
+                            <input type="number" id="meter_no" name="meter_no" class="form-control border-2 rounded-start-3" placeholder="Enter Meter No" required>
+                            <button type="button" class="btn btn-dark px-4 rounded-end-3 fw-bold" id="verify_btn">Verify</button>
+                        </div>
+                    </div>
+
+                    <div id="result_box" class="alert alert-info border-0 rounded-4 d-none mb-4 animate__animated animate__fadeIn">
+                        <div class="d-flex align-items-center gap-2">
+                            <i class="fas fa-user-check fs-4"></i>
+                            <div>
+                                <div class="small fw-bold opacity-75">CUSTOMER NAME</div>
+                                <div id="customer_name" class="fw-bold fs-5">...</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="form-label small fw-bold text-uppercase text-muted">Transaction PIN</label>
+                        <input type="password" id="pin" name="pin" class="form-control border-2 rounded-3 text-center fs-4" placeholder="••••" maxlength="4" required style="letter-spacing: 12px;">
+                        <div class="form-text text-center small text-danger"><i class="fa-solid fa-shield-halved me-1"></i> Enter your 4-digit security PIN</div>
+                    </div>
+
+                    <button class="btn btn-primary btn-lg w-100 fw-bold py-3 rounded-pill shadow-sm mt-2" id="pay_btn" disabled>
+                        Generate Token
+                    </button>
+                    <div class="text-center mt-3">
+                        <p class="text-muted small mb-0"><i class="fa-solid fa-circle-info me-1"></i> A ₦100 service charge applies to all bill payments.</p>
+                    </div>
+                </form>
+            </div>
+            
+            <div class="col-md-5 d-none d-md-flex align-items-center justify-content-center bg-light rounded-4">
+                <div class="text-center p-5">
+                    <div class="bg-white p-4 rounded-circle shadow-sm mb-4 d-inline-block">
+                        <i class="fas fa-lightbulb fa-4x text-warning"></i>
+                    </div>
+                    <h5 class="fw-bold mb-2">Instant Token</h5>
+                    <p class="text-muted small">Your electricity token will be generated immediately and sent to your registered phone number.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.getElementById('verify_btn').onclick = function() {
+        const disco = document.getElementById('disco').value;
+        const meter = document.getElementById('meter_no').value;
+        const type = document.getElementById('meter_type').value;
+        const btn = this;
+        
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Verifying...';
+        btn.disabled = true;
+        
+        // Use the existing mobile validation API for consistency
+        fetch(`/api/v1/validate-meter/?disco=${disco}&meter_no=${meter}&meter_type=${type}`)
+            .then(res => res.json())
+            .then(data => {
+                if (data.customer_name && data.customer_name !== "INVALID_METERNO" && !data.error) {
+                    document.getElementById('customer_name').innerText = data.customer_name;
+                    document.getElementById('result_box').classList.remove('d-none');
+                    document.getElementById('pay_btn').disabled = false;
+                } else {
+                    alert("Verification Failed. Please check the meter number and Disco selection.");
+                }
+                btn.innerHTML = 'Verify';
+                btn.disabled = false;
+            })
+            .catch(err => {
+                alert("Network error. Please try again.");
+                btn.innerHTML = 'Verify';
+                btn.disabled = false;
+            });
+    };
+</script>
+{% endblock %}

@@ -611,81 +611,81 @@ def referral_redirect(request, ref_id):
 
 
 @login_required
-def buy_electricity(request):
-    """View to handle Electricity Bill Payments."""
+def electricity_view(request):
+    """View to handle Electricity Bill Payments (Realigned)."""
     if request.method == 'POST':
         disco_code = request.POST.get('disco')
         meter_no = request.POST.get('meter_no')
         meter_type = request.POST.get('meter_type')
         amount_str = request.POST.get('amount')
-        phone = request.POST.get('phone')
         input_pin = request.POST.get('pin')
 
         user_profile = request.user.profile
 
-        # 1. PIN Verification
+        # 1. PIN Verification (Required Security)
         if not user_profile.check_pin(input_pin):
             messages.error(request, "Invalid Transaction PIN!")
-            return redirect('buy_electricity')
+            return redirect('electricity_view')
 
         try:
             amount = Decimal(amount_str)
             if amount < 1000:
                 messages.error(request, "Minimum amount for electricity is ₦1,000.")
-                return redirect('buy_electricity')
+                return redirect('electricity_view')
         except (InvalidOperation, ValueError, TypeError):
             messages.error(request, "Invalid amount entered.")
-            return redirect('buy_electricity')
+            return redirect('electricity_view')
 
-        # 2. Calculation (Bill + BT Service Fee)
+        # 2. Calculation (Bill + ₦100 Convenience Fee)
         service_fee = Decimal('100.00')
         total_to_pay = amount + service_fee
 
-        # 3. ACQUISITION OF LOCK & ATOMIC DEBIT (Fintech Grade)
+        # 3. Secure Atomic Debit
         success, result = TransactionService.process_debit(
             user=request.user,
             amount=total_to_pay,
-            service_type="Electricity Bill",
+            service_type=f"Electricity ({disco_code})",
             plan_name=f"Electricity: {disco_code} ({'Prepaid' if meter_type == '01' else 'Postpaid'})",
             recipient=meter_no,
             reference=f"ELE-{int(time.time())}",
-            description=f"Bill Payment for {meter_no}. Amount: ₦{amount}, Fee: ₦{service_fee}",
-            cost_price=amount # We pay the disco the exact amount
+            description=f"Bill Payment for {meter_no}. Amnt: ₦{amount}, Fee: ₦{service_fee}",
+            cost_price=amount
         )
 
         if not success:
             messages.error(request, f"Transaction failed: {result}")
-            return redirect('buy_electricity')
+            return redirect('electricity_view')
 
-        # 4. CALL PROVIDER API
+        # 4. API Call
         try:
-            ck = ClubKonnectService()
-            response, req_id = ck.pay_electricity(disco_code, meter_no, meter_type, amount, phone)
+            from .utils import ClubKonnectService as UtilityCK
+            ck = UtilityCK()
+            response, req_id = ck.buy_electricity(disco_code, meter_no, meter_type, amount, request.user.profile.phone_number or '08069278540')
 
             if response.get('status') == 'ORDER_RECEIVED':
-                # Mark Successful
-                TxModel.objects.filter(reference=result.reference).update(status="Successful")
+                # Register Token and finalize
+                TxModel.objects.filter(reference=result.reference).update(
+                    status="Successful",
+                    bt_service_charge=service_fee
+                )
+                final_tx = TxModel.objects.get(reference=result.reference)
+                final_tx.calculate_totals()
                 
-                # Update BT Service Charge in audit
-                TxModel.objects.filter(reference=result.reference).update(bt_service_charge=service_fee)
-                
-                messages.success(request, f"Payment for Meter {meter_no} was successful! Token will be sent to {phone}.")
-                return redirect('receipt', tx_id=TxModel.objects.get(reference=result.reference).id)
+                messages.success(request, f"Payment Successful! Token: {response.get('metertoken', 'Processing...')}")
+                return redirect('receipt', tx_id=final_tx.id)
             
             else:
-                # REFUND ON API FAILURE
-                TransactionService.process_refund(request.user, total_to_pay, result.reference, "API Failure")
-                messages.error(request, f"Service provider error: {response.get('remark', 'Internal Error')}. Funds refunded.")
-                logger.warning(f"ELEC_API_FAILED: {response.get('status')} - User {request.user.id}")
+                # Refund logic
+                TransactionService.process_refund(request.user, total_to_pay, result.reference, "Provider API Error")
+                messages.error(request, f"Service provider error: {response.get('remark', 'Failed')}. Balance refunded.")
 
         except Exception as e:
-            TransactionService.process_refund(request.user, total_to_pay, result.reference, "System Crash")
-            logger.critical(f"ELEC_CRASH: {str(e)}")
-            messages.error(request, "A system error occurred. Funds have been refunded.")
+            TransactionService.process_refund(request.user, total_to_pay, result.reference, "System Error")
+            messages.error(request, "A system error occurred. Your balance has been fully refunded.")
 
         return redirect('dashboard')
 
-    return render(request, 'vtu_app/buy_electricity.html')
+    return render(request, 'dashboard/buy_electricity.html')
 
 
 def validate_meter(request):
