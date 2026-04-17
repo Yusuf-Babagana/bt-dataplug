@@ -100,8 +100,8 @@
         btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Verifying...';
         btn.disabled = true;
         
-        // Use the existing mobile validation API for consistency
-        fetch(`/api/v1/validate-meter/?disco=${disco}&meter_no=${meter}&meter_type=${type}`)
+        // Use the session-authenticated AJAX endpoint for the web UI
+        fetch(`{% url 'validate_meter' %}?disco=${disco}&meter=${meter}&type=${type}`)
             .then(res => res.json())
             .then(data => {
                 if (data.customer_name && data.customer_name !== "INVALID_METERNO" && !data.error) {
