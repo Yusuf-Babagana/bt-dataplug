@@ -71,6 +71,10 @@ def register(request):
         if password != confirm_password:
             messages.error(request, "Passwords do not match.")
             return render(request, 'registration/register.html')
+            
+        if len(password) < 8:
+            messages.error(request, "Password must be at least 8 characters (all numbers are allowed).")
+            return render(request, 'registration/register.html')
 
         if User.objects.filter(username=username).exists():
             messages.error(request, "Username already taken.")

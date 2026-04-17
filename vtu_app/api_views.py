@@ -81,6 +81,9 @@ def api_register(request):
     last_name = data.get('last_name', '')
 
     # 1. Validation (Same as website)
+    if not password or len(password) < 8:
+        return Response({"message": "Password must be at least 8 characters"}, status=status.HTTP_400_BAD_REQUEST)
+
     if User.objects.filter(username=username).exists():
         return Response({"message": "Username already exists"}, status=status.HTTP_400_BAD_REQUEST)
     
