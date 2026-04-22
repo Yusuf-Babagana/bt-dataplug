@@ -49,13 +49,15 @@ def monnify_webhook(request):
                 monnify_fee = BT_FIXED_FEE # Record the deduction as the fee
                 # -----------------------
 
-                # Get the Reference (e.g., "REF-1")
+                # Get the References
                 product_data = event_data.get('product', {})
-                raw_ref = product_data.get('reference') or event_data.get('paymentReference')
+                raw_ref = product_data.get('reference') or event_data.get('paymentReference') # accountReference
+                monnify_tx_ref = event_data.get('transactionReference') # unique for every transfer
+
                 if raw_ref:
-                    # 2. Duplicate Protection: Check if this reference was already processed
-                    if Transaction.objects.filter(reference=raw_ref, service_type="Wallet Funding").exists():
-                        logger.info(f"MONNIFY_WEBHOOK: Duplicate notification for Ref {raw_ref} ignored.")
+                    # 2. Duplicate Protection: Use UNIQUE transactionReference for the check
+                    if Transaction.objects.filter(reference=monnify_tx_ref, service_type="Wallet Funding").exists():
+                        logger.info(f"MONNIFY_WEBHOOK: Duplicate notification for Monnify Ref {monnify_tx_ref} ignored.")
                         return HttpResponse(status=200)
 
                     # Extract the ID from the REF-{user_id}-{timestamp} format
@@ -83,7 +85,7 @@ def monnify_webhook(request):
                             bt_service_charge=Decimal('0.00'),
                             recipient="Wallet",
                             status="Successful",
-                            reference=raw_ref
+                            reference=monnify_tx_ref
                         )
                         tx.calculate_totals()
                         
