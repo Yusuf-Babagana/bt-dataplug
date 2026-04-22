@@ -36,13 +36,17 @@ def monnify_webhook(request):
                 # Monnify sends amount as a float/string, we must convert carefully
                 amount_paid = Decimal(str(event_data.get('amountPaid', 0)))
                 
-                # --- DYNAMIC MONNIFY FEE LOGIC ---
-                # 1% capped at 50
-                monnify_fee = amount_paid * Decimal('0.01')
-                if monnify_fee > Decimal('50.00'):
-                    monnify_fee = Decimal('50.00')
+                # YOUR PROFIT RULE: Hard-coded 50 Naira deduction
+                BT_FIXED_FEE = Decimal('50.00')
                 
-                credit_amount = amount_paid - monnify_fee
+                # Calculate what the customer actually gets
+                if amount_paid > BT_FIXED_FEE:
+                    credit_amount = amount_paid - BT_FIXED_FEE
+                else:
+                    # If they send 50 or less, they get 0 (protects from losing money)
+                    credit_amount = Decimal('0.00')
+                
+                monnify_fee = BT_FIXED_FEE # Record the deduction as the fee
                 # -----------------------
 
                 # Get the Reference (e.g., "REF-1")
