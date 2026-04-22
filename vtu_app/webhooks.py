@@ -52,8 +52,12 @@ def monnify_webhook(request):
                 # Get the Reference (e.g., "REF-1")
                 product_data = event_data.get('product', {})
                 raw_ref = product_data.get('reference') or event_data.get('paymentReference')
-
                 if raw_ref:
+                    # 2. Duplicate Protection: Check if this reference was already processed
+                    if Transaction.objects.filter(reference=raw_ref, service_type="Wallet Funding").exists():
+                        logger.info(f"MONNIFY_WEBHOOK: Duplicate notification for Ref {raw_ref} ignored.")
+                        return HttpResponse(status=200)
+
                     # Extract the ID from the REF-{user_id}-{timestamp} format
                     parts = str(raw_ref).split('-')
                     if len(parts) >= 2 and parts[1].isdigit():
@@ -62,7 +66,7 @@ def monnify_webhook(request):
                         # Fallback for unexpected formats
                         user_id = "".join(filter(str.isdigit, str(raw_ref)))
                     
-                    # 2. Update Wallet
+                    # 3. Update Wallet
                     try:
                         profile = Profile.objects.get(user_id=user_id)
                         profile.wallet_balance += credit_amount

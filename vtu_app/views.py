@@ -151,7 +151,7 @@ def dashboard(request):
     total_spent = TxModel.objects.filter(
         user=request.user, 
         status="Successful"
-    ).aggregate(Sum('amount_customer_paid'))['amount_customer_paid__sum'] or 0
+    ).exclude(service_type="Wallet Funding").aggregate(Sum('amount_customer_paid'))['amount_customer_paid__sum'] or 0
     
     # Recent Transactions for the dashboard table
     recent_transactions = TxModel.objects.filter(user=request.user).exclude(
@@ -336,15 +336,16 @@ def buy_airtime(request):
             messages.error(request, "Minimum airtime purchase is ₦50.")
             return redirect('buy_airtime')
 
-        # ACQUISITION OF LOCK & ATOMIC DEBIT
-        # Airtime profit is typically a percentage. Hardcoded to 2% profit for now.
+        # ACQUISITION OF LOCK & ATOMIC DEBIT (1% Discount logic)
+        # User pays 99%, you pay 98%, Profit is 1%
+        selling_price = amount * Decimal('0.99')
         airtime_cost = amount * Decimal('0.98') 
 
         success, result = TransactionService.process_debit(
             user=request.user,
-            amount=amount,
+            amount=selling_price,
             service_type="Airtime Purchase",
-            plan_name=f"{network} Airtime",
+            plan_name=f"{network} Airtime (₦{amount})",
             recipient=phone,
             reference=f"AT-{int(time.time())}",
             description=f"Purchase of ₦{amount} {network} Airtime for {phone}",
@@ -502,13 +503,13 @@ def manager_dashboard(request):
     total_wallet_balances = Profile.objects.aggregate(Sum('wallet_balance'))['wallet_balance__sum'] or 0
 
     # 2. Today's Performance
-    todays_tx = TxModel.objects.filter(created_at__date=today, status="Successful")
+    todays_tx = TxModel.objects.filter(created_at__date=today, status="Successful").exclude(service_type="Wallet Funding")
     daily_revenue = todays_tx.aggregate(Sum('amount_customer_paid'))['amount_customer_paid__sum'] or 0
     daily_profit = todays_tx.aggregate(Sum('net_profit'))['net_profit__sum'] or 0
     daily_count = todays_tx.count()
 
     # 3. All-Time Stats
-    all_success = TxModel.objects.filter(status="Successful")
+    all_success = TxModel.objects.filter(status="Successful").exclude(service_type="Wallet Funding")
     total_revenue = all_success.aggregate(Sum('amount_customer_paid'))['amount_customer_paid__sum'] or 0
     total_profit = all_success.aggregate(Sum('net_profit'))['net_profit__sum'] or 0
     total_count = all_success.count()
@@ -546,8 +547,8 @@ def staff_dashboard(request):
     
     # Aggregates
     stats = {
-        'total_revenue': TxModel.objects.filter(status='Successful').aggregate(Sum('amount_customer_paid'))['amount_customer_paid__sum'] or 0,
-        'total_profit': TxModel.objects.filter(status='Successful').aggregate(Sum('net_profit'))['net_profit__sum'] or 0,
+        'total_revenue': TxModel.objects.filter(status='Successful').exclude(service_type='Wallet Funding').aggregate(Sum('amount_customer_paid'))['amount_customer_paid__sum'] or 0,
+        'total_profit': TxModel.objects.filter(status='Successful').exclude(service_type='Wallet Funding').aggregate(Sum('net_profit'))['net_profit__sum'] or 0,
         'today_sales': TxModel.objects.filter(status='Successful', created_at__date=today).count(),
         'today_profit': TxModel.objects.filter(status='Successful', created_at__date=today).aggregate(Sum('net_profit'))['net_profit__sum'] or 0,
     }

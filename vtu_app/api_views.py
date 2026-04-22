@@ -279,16 +279,16 @@ def api_buy_airtime(request):
     except ValueError:
         return Response({"message": "Invalid amount"}, status=status.HTTP_400_BAD_REQUEST)
 
-    # CTO LOGIC: 1:1 Charge (No discount)
-    selling_price = Decimal(str(amount)).quantize(Decimal('0.01'))
-    cost_price = Decimal(str(amount * 0.97)).quantize(Decimal('0.01')) # Assuming 3% is what they charge YOU
+    # CTO LOGIC: 1% Discount (User pays 99%, you pay 97%, Profit is 2%)
+    selling_price = (Decimal(str(amount)) * Decimal('0.99')).quantize(Decimal('0.01'))
+    cost_price = (Decimal(str(amount)) * Decimal('0.97')).quantize(Decimal('0.01')) 
     
     # 1. ACQUISITION OF LOCK & ATOMIC DEBIT
     success, tx = TransactionService.process_debit(
         user=user,
         amount=selling_price,
         service_type=f"Airtime Purchase (Mobile)",
-        plan_name=f"{network} {amount}",
+        plan_name=f"{network} Airtime (₦{amount})",
         recipient=phone,
         reference=f"ATM-{int(time.time())}",
         description=f"Mobile Airtime purchase of {network} {amount} for {phone}",
