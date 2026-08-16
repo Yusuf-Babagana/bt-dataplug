@@ -7,9 +7,11 @@ logger = logging.getLogger('vtu_app')
 
 class ClubKonnectService:
     def __init__(self):
-        self.user_id = os.getenv('CK_USER_ID', '').strip()
-        self.api_key = os.getenv('CK_API_KEY', '').strip()
-        self.base_url = "https://www.nellobytesystems.com/"
+        # NELLOBYTE_* is the current naming; CK_* is kept as a fallback so
+        # an environment that hasn't been updated yet still works.
+        self.user_id = os.getenv('NELLOBYTE_USER_ID', os.getenv('CK_USER_ID', '')).strip()
+        self.api_key = os.getenv('NELLOBYTE_API_KEY', os.getenv('CK_API_KEY', '')).strip()
+        self.base_url = os.getenv('NELLOBYTE_BASE_URL', 'https://www.nellobytesystems.com').strip().rstrip('/') + '/'
 
     def verify_meter(self, disco_code, meter_no, meter_type):
         """Verify meter number to get customer name."""

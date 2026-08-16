@@ -15,6 +15,7 @@ from .models import Profile, DataPlan, Transaction as TxModel, CablePlan, Wallet
 from .services import MonnifyService, ClubKonnectService
 from .services.transaction_service import TransactionService
 from .plan_data import DATA_PLANS
+from .notifications import notify
 from django.contrib.admin.views.decorators import staff_member_required
 from datetime import timedelta
 
@@ -119,7 +120,14 @@ def register(request):
             logger.critical(f"ACCOUNT_GEN_CRASH: {str(e)}")
             messages.warning(request, "Welcome! We're setting up your bank accounts shortly.")
 
-        # 3. Log the user in and redirect smartly
+        # 3. Welcome notification (shows up in the app's notification history)
+        notify(
+            user,
+            "Welcome to BT DataPlug",
+            f"Hi {first_name or username}! Your account is ready — fund your wallet to start buying data, airtime, cable and electricity."
+        )
+
+        # 4. Log the user in and redirect smartly
         login(request, user)
         if user.is_staff:
             return smart_redirect(user)
@@ -254,16 +262,19 @@ def buy_data(request):
                 )
                 tx = TxModel.objects.get(reference=result.reference)
                 tx.calculate_totals()
+                notify(request.user, "Data purchase successful", f"{plan.plan_name} for {phone} — ₦{tx.amount_customer_paid}.")
                 return redirect('receipt', tx_id=tx.id)
-            
+
             else:
                 # REFUND ON API FAILURE
                 TransactionService.process_refund(request.user, plan.price, result.reference, "API Failure")
+                notify(request.user, "Data purchase failed", f"{plan.plan_name} for {phone} could not be completed. ₦{plan.price} was refunded to your wallet.")
                 messages.error(request, "Service provider is currently busy. Your funds have been refunded.")
                 logger.warning(f"DATA_API_FAILED: {response.get('status')} - User {request.user.id}")
 
         except Exception as e:
             TransactionService.process_refund(request.user, plan.price, result.reference, "System Crash")
+            notify(request.user, "Data purchase failed", f"{plan.plan_name} for {phone} could not be completed. ₦{plan.price} was refunded to your wallet.")
             logger.critical(f"DATA_CRASH: {str(e)}")
             messages.error(request, "System error occurred. Funds refunded.")
 
@@ -363,16 +374,19 @@ def buy_airtime(request):
 
             if response.get('status') == 'ORDER_RECEIVED':
                 TxModel.objects.filter(reference=result.reference).update(status="Successful")
+                notify(request.user, "Airtime purchase successful", f"{network} Airtime for {phone} — ₦{selling_price}.")
                 return redirect('receipt', tx_id=TxModel.objects.get(reference=result.reference).id)
-            
+
             else:
                 # REFUND ON API FAILURE
                 TransactionService.process_refund(request.user, amount, result.reference, "API Failure")
+                notify(request.user, "Airtime purchase failed", f"{network} Airtime for {phone} could not be completed. ₦{amount} was refunded to your wallet.")
                 messages.error(request, "Service provider is currently busy. Your funds have been refunded.")
                 logger.warning(f"AIRTIME_API_FAILED: {response.get('status')} - User {request.user.id}")
 
         except Exception as e:
             TransactionService.process_refund(request.user, amount, result.reference, "System Crash")
+            notify(request.user, "Airtime purchase failed", f"{network} Airtime for {phone} could not be completed. ₦{amount} was refunded to your wallet.")
             logger.critical(f"AIRTIME_CRASH: {str(e)}")
             messages.error(request, "System error occurred. Funds refunded.")
 
@@ -431,17 +445,20 @@ def buy_cable(request):
             if response.get('status') == 'ORDER_RECEIVED':
                 # Mark Successful
                 TxModel.objects.filter(reference=result.reference).update(status="Successful")
+                notify(request.user, "Cable purchase successful", f"{plan.cable_type.upper()}: {plan.name} for {smart_card} — ₦{plan.price}.")
                 messages.success(request, f"Subscription for {smart_card} was successful!")
                 return redirect('receipt', tx_id=TxModel.objects.get(reference=result.reference).id)
-            
+
             else:
                 # REFUND ON API FAILURE
                 TransactionService.process_refund(request.user, plan.price, result.reference, "API Failure")
+                notify(request.user, "Cable purchase failed", f"{plan.cable_type.upper()}: {plan.name} for {smart_card} could not be completed. ₦{plan.price} was refunded to your wallet.")
                 messages.error(request, "Service provider is currently busy. Your funds have been refunded.")
                 logger.warning(f"CABLE_API_FAILED: {response.get('status')} - User {request.user.id}")
 
         except Exception as e:
             TransactionService.process_refund(request.user, plan.price, result.reference, "System Crash")
+            notify(request.user, "Cable purchase failed", f"{plan.cable_type.upper()}: {plan.name} for {smart_card} could not be completed. ₦{plan.price} was refunded to your wallet.")
             logger.critical(f"CABLE_CRASH: {str(e)}")
             messages.error(request, "System error occurred. Funds refunded.")
 
@@ -574,9 +591,11 @@ def profile_settings(request):
                 messages.error(request, "Incorrect old password.")
         return redirect('profile_settings')
     
-    # Generate the full referral link
-    # In production, use your actual domain
-    ref_link = f"https://www.btdataplug.com/register/?ref={request.user.profile.referral_code}"
+    # Generate the full referral link using whatever host/scheme served this request,
+    # so it automatically matches the live domain (custom domain or PythonAnywhere).
+    ref_link = request.build_absolute_uri(
+        f"/register/?ref={request.user.profile.referral_code}"
+    )
     
     return render(request, 'vtu_app/profile.html', {'ref_link': ref_link})
 
@@ -687,17 +706,21 @@ def buy_electricity(request):
                 )
                 final_tx = TxModel.objects.get(reference=result.reference)
                 final_tx.calculate_totals()
-                
+
+                notify(request.user, "Electricity purchase successful", f"{disco_code} bill for meter {meter_no} — ₦{final_tx.amount_customer_paid}.")
+
                 messages.success(request, f"Payment Successful! Token: {response.get('metertoken', 'Processing...')}")
                 return redirect('receipt', tx_id=final_tx.id)
-            
+
             else:
                 # Refund logic
                 TransactionService.process_refund(request.user, total_to_pay, result.reference, "Provider API Error")
+                notify(request.user, "Electricity purchase failed", f"{disco_code} bill for meter {meter_no} could not be completed. ₦{total_to_pay} was refunded to your wallet.")
                 messages.error(request, f"Service provider error: {response.get('remark', 'Failed')}. Balance refunded.")
 
         except Exception as e:
             TransactionService.process_refund(request.user, total_to_pay, result.reference, "System Error")
+            notify(request.user, "Electricity purchase failed", f"{disco_code} bill for meter {meter_no} could not be completed. ₦{total_to_pay} was refunded to your wallet.")
             messages.error(request, "A system error occurred. Your balance has been fully refunded.")
 
         return redirect('dashboard')

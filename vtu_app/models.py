@@ -172,5 +172,26 @@ class Notification(models.Model):
     is_read = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
 
+    class Meta:
+        ordering = ['-created_at']
+
     def __str__(self):
         return f"{self.title} ({self.created_at.strftime('%Y-%m-%d')})"
+
+
+class PaystackTransaction(models.Model):
+    """
+    Idempotency ledger for Paystack card-funding: one row per processed
+    Paystack `reference`. Both the /verify/ endpoint and the webhook check
+    this before crediting a wallet, so a reference can only ever be
+    credited once no matter how many times either path fires for it.
+    """
+    reference = models.CharField(max_length=100, unique=True)
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    amount = models.DecimalField(max_digits=12, decimal_places=2)
+    status = models.CharField(max_length=20, default="successful")
+    raw_response = models.JSONField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.user.username} - {self.reference} - ₦{self.amount}"

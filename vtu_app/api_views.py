@@ -1,5 +1,8 @@
+import json
+import logging
 import time
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
+from django.http import HttpResponse
 from django.views.decorators.csrf import csrf_exempt
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
@@ -7,31 +10,150 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from django.contrib.auth.models import User
-from .models import DataPlan, Transaction, Profile, CablePlan, Notification
+from django.db.models import Q
+from django.shortcuts import get_object_or_404
+from .models import DataPlan, Transaction, Profile, CablePlan, Notification, PaystackTransaction
 from .serializers import DataPlanSerializer, TransactionSerializer, CablePlanSerializer
-from .services import MonnifyService, ClubKonnectService
-from .services.transaction_service import TransactionService
+from .services import MonnifyService, ClubKonnectService, PaystackService
+from .services.transaction_service import TransactionService, resolve_paystack_user
+from .notifications import notify
+
+logger = logging.getLogger(__name__)
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def api_get_notifications(request):
-    """Serve combined global and personal notifications for the mobile app."""
-    from django.db.models import Q
+    """Serve combined global and personal notifications for the mobile app, newest first."""
     # Get global notifications OR notifications meant for this user
     notifications = Notification.objects.filter(
         Q(user=request.user) | Q(user__isnull=True)
-    ).order_by('-created_at')
-    
+    )  # default ordering (-created_at) comes from Notification.Meta
+
     data = [{
         "id": n.id,
         "title": n.title,
         "message": n.message,
-        "date": n.created_at.strftime("%d %b, %H:%M"),
-        "is_global": n.user is None,
-        "is_read": n.is_read
+        "created_at": n.created_at.isoformat(),
+        "is_read": n.is_read,
     } for n in notifications]
-    
+
     return Response(data)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def api_mark_notification_read(request, pk):
+    """Mark a single notification (owned by the requesting user) as read.
+
+    Deliberately scoped to the user's own rows rather than the global feed —
+    a global (user=None) row is shared by every user, so flipping its
+    is_read here would incorrectly mark it read for everyone.
+    """
+    notification = get_object_or_404(Notification, pk=pk, user=request.user)
+    if not notification.is_read:
+        notification.is_read = True
+        notification.save(update_fields=['is_read'])
+    return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def api_mark_all_notifications_read(request):
+    """Mark all of the requesting user's own notifications as read."""
+    Notification.objects.filter(user=request.user, is_read=False).update(is_read=True)
+    return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def api_paystack_verify(request, reference):
+    """
+    Verify a Paystack card payment and credit the wallet on success.
+
+    This is the "did it work?" call the app makes right after the Paystack
+    charge sheet closes. The webhook below is the safety net for when this
+    call never happens (app killed, network drop) — both paths share the
+    same idempotent TransactionService.process_paystack_credit().
+    """
+    service = PaystackService()
+    result = service.verify_transaction(reference)
+
+    if not result.get('status'):
+        logger.warning(f"PAYSTACK_VERIFY_FAILED: {reference} — {result.get('message')}")
+        return Response({"status": "failed"})
+
+    data = result.get('data') or {}
+    paystack_status = data.get('status')
+
+    if paystack_status != 'success':
+        # "pending" covers async methods (bank transfer/USSD); anything else
+        # (abandoned, failed, reversed) is a hard failure.
+        return Response({"status": "pending" if paystack_status == 'pending' else "failed"})
+
+    # Ownership check: if the payment carries an identifiable owner (via
+    # metadata.user_id or the paying card's email) that isn't the caller,
+    # refuse — otherwise a leaked/guessed reference could be used to credit
+    # the wrong account. If it carries no identifiable owner at all, we
+    # trust the authenticated caller (Token auth already proved who they are).
+    paying_user = resolve_paystack_user(data)
+    if paying_user is not None and paying_user.id != request.user.id:
+        return Response({"message": "This transaction does not belong to your account."}, status=status.HTTP_403_FORBIDDEN)
+
+    credited, new_balance, paystack_tx = TransactionService.process_paystack_credit(request.user, data)
+    return Response({"status": "success", "new_balance": str(new_balance)})
+
+
+@csrf_exempt
+def api_paystack_webhook(request):
+    """
+    Paystack server-to-server webhook — the real safety net for card funding.
+
+    No Token auth: Paystack calls this directly, so authenticity comes from
+    verifying the `x-paystack-signature` header (HMAC-SHA512 of the raw
+    body with PAYSTACK_SECRET_KEY) rather than a bearer token. Register this
+    URL in the Paystack dashboard under Settings -> API Keys & Webhooks.
+    """
+    if request.method != 'POST':
+        return HttpResponse(status=405)
+
+    service = PaystackService()
+    signature = request.headers.get('x-paystack-signature')
+
+    if not service.verify_webhook_signature(request.body, signature):
+        logger.warning(f"PAYSTACK_WEBHOOK: Signature mismatch. Remote IP: {request.META.get('REMOTE_ADDR')}")
+        return HttpResponse(status=401)
+
+    try:
+        event = json.loads(request.body)
+    except ValueError:
+        return HttpResponse(status=400)
+
+    if event.get('event') != 'charge.success':
+        # Acknowledge anything we don't act on so Paystack doesn't retry it.
+        return HttpResponse(status=200)
+
+    data = event.get('data') or {}
+    if data.get('status') != 'success':
+        return HttpResponse(status=200)
+
+    user = resolve_paystack_user(data)
+    if user is None:
+        logger.error(f"PAYSTACK_WEBHOOK: Could not identify a user for reference {data.get('reference')}. "
+                     f"Make sure the app sends metadata.user_id (or a matching email) when initializing the charge.")
+        # Acknowledge receipt (200) so Paystack stops retrying — there's
+        # nothing more we can do without knowing who to credit.
+        return HttpResponse(status=200)
+
+    try:
+        TransactionService.process_paystack_credit(user, data)
+    except Exception as e:
+        logger.error(f"PAYSTACK_WEBHOOK_ERROR: {str(e)}")
+        # 500 tells Paystack to retry — appropriate here since this is
+        # exactly the "make sure the wallet still gets credited" safety net.
+        return HttpResponse(status=500)
+
+    return HttpResponse(status=200)
+
 
 class MobileDashboard(APIView):
     permission_classes = [IsAuthenticated] # Must have a Token
@@ -111,11 +233,18 @@ def api_register(request):
                 profile.referred_by = referrer_profile.user
                 profile.save()
 
-        # 5. Trigger the Monnify Account Reservation (The "YUS" Branding)
+        # 5. Welcome notification (shows up in the app's notification history)
+        notify(
+            user,
+            "Welcome to BT DataPlug",
+            f"Hi {first_name or username}! Your account is ready — fund your wallet to start buying data, airtime, cable and electricity."
+        )
+
+        # 6. Trigger the Monnify Account Reservation (The "YUS" Branding)
         # This is the "Magic" that makes the mobile app match the site
         monnify = MonnifyService()
         response = monnify.reserve_account(user)
-        
+
         if response.get('requestSuccessful'):
             accounts = response.get('responseBody', {}).get('accounts', [])
             profile.bank_accounts = accounts
@@ -179,7 +308,7 @@ def api_buy_data(request):
 
     # SECURE PIN VERIFICATION
     if not user.profile.check_pin(pin):
-        return Response({"message": "Invalid Transaction PIN"}, status=status.HTTP_401_UNAUTHORIZED)
+        return Response({"message": "Invalid Transaction PIN"}, status=status.HTTP_400_BAD_REQUEST)
 
     try:
         plan = DataPlan.objects.get(id=plan_id)
@@ -209,13 +338,15 @@ def api_buy_data(request):
 
         if response.get('status') in ['ORDER_RECEIVED', 'SUCCESSFUL']:
             # 3. SUCCESS - Finalize record
-            TxModel.objects.filter(reference=result.reference).update(
+            Transaction.objects.filter(reference=result.reference).update(
                 status="Successful",
                 bt_service_charge=plan.additional_fee
             )
-            tx = TxModel.objects.get(reference=result.reference)
+            tx = Transaction.objects.get(reference=result.reference)
             tx.calculate_totals() # Recalculate with potential service charge
-            
+
+            notify(user, "Data purchase successful", f"{plan.plan_name} for {phone} — ₦{tx.amount_customer_paid}.")
+
             return Response({
                 "message": "Transaction Successful!",
                 "new_balance": str(user.profile.wallet_balance),
@@ -225,16 +356,18 @@ def api_buy_data(request):
                 "amount_paid": str(tx.amount_customer_paid),
                 "order_id": response.get('order_id', req_id)
             }, status=status.HTTP_200_OK)
-        
+
         else:
             # 4. REFUND ON API FAILURE
             TransactionService.process_refund(user, plan.price, result.reference, "API Failure (Mobile)")
+            notify(user, "Data purchase failed", f"{plan.plan_name} for {phone} could not be completed. ₦{plan.price} was refunded to your wallet.")
             return Response({
                 "message": f"Provider Error: {response.get('remarks', 'Try again later')}. Funds refunded."
             }, status=status.HTTP_400_BAD_REQUEST)
 
     except Exception as e:
         TransactionService.process_refund(user, plan.price, result.reference, "System Crash (Mobile)")
+        notify(user, "Data purchase failed", f"{plan.plan_name} for {phone} could not be completed. ₦{plan.price} was refunded to your wallet.")
         return Response({"message": f"System error occurred. Funds refunded. Detail: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 @csrf_exempt
@@ -256,7 +389,7 @@ def api_buy_airtime(request):
 
     # SECURE PIN VERIFICATION
     if not user.profile.check_pin(pin):
-        return Response({"message": "Invalid Transaction PIN"}, status=status.HTTP_401_UNAUTHORIZED)
+        return Response({"message": "Invalid Transaction PIN"}, status=status.HTTP_400_BAD_REQUEST)
 
     # 0. NETWORK MAPPING (String to ClubKonnect ID)
     network_map = {
@@ -308,7 +441,9 @@ def api_buy_airtime(request):
             Transaction.objects.filter(reference=tx.reference).update(status="Successful")
             final_tx = Transaction.objects.get(reference=tx.reference)
             final_tx.calculate_totals()
-            
+
+            notify(user, "Airtime purchase successful", f"{network} Airtime for {phone} — ₦{final_tx.amount_customer_paid}.")
+
             return Response({
                 "message": "Airtime Sent!",
                 "new_balance": str(user.profile.wallet_balance),
@@ -319,16 +454,18 @@ def api_buy_airtime(request):
                 "amount_paid": str(final_tx.amount_customer_paid),
                 "order_id": response.get('order_id', req_id)
             }, status=status.HTTP_200_OK)
-        
+
         else:
             # 4. REFUND ON API FAILURE
             TransactionService.process_refund(user, selling_price, tx.reference, "API Failure (Mobile)")
+            notify(user, "Airtime purchase failed", f"{network} Airtime for {phone} could not be completed. ₦{selling_price} was refunded to your wallet.")
             return Response({
                 "message": f"Provider Error: {response.get('remark', 'Try again later')}. Funds refunded."
             }, status=status.HTTP_400_BAD_REQUEST)
 
     except Exception as e:
         TransactionService.process_refund(user, selling_price, tx.reference, "System Crash (Mobile)")
+        notify(user, "Airtime purchase failed", f"{network} Airtime for {phone} could not be completed. ₦{selling_price} was refunded to your wallet.")
         return Response({"message": f"System error occurred. Funds refunded. Detail: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 @api_view(['POST'])
@@ -390,7 +527,7 @@ def api_buy_cable(request):
 
     # 1. PIN VERIFICATION
     if not user.profile.check_pin(pin):
-        return Response({"message": "Invalid Transaction PIN"}, status=401)
+        return Response({"message": "Invalid Transaction PIN"}, status=400)
 
     # 2. GET PLAN
     try:
@@ -423,17 +560,20 @@ def api_buy_cable(request):
             Transaction.objects.filter(reference=tx.reference).update(status="Successful")
             final_tx = Transaction.objects.get(reference=tx.reference)
             final_tx.calculate_totals()
-            
+
+            notify(user, "Cable purchase successful", f"{plan.cable_type.upper()}: {plan.name} for {smart_card} — ₦{final_tx.amount_customer_paid}.")
+
             return Response({
                 "message": "Subscription Received Successfully",
                 "new_balance": str(user.profile.wallet_balance),
                 "transaction_id": final_tx.id,
                 "order_id": response.get('orderid', req_id)
             })
-        
+
         else:
             # FAILURE - REFUND
             TransactionService.process_refund(user, plan.price, tx.reference, "API Failure (Mobile)")
+            notify(user, "Cable purchase failed", f"{plan.cable_type.upper()}: {plan.name} for {smart_card} could not be completed. ₦{plan.price} was refunded to your wallet.")
             return Response({
                 "message": f"Provider Error: {response.get('remark', 'Try again later')}",
                 "status": response.get('status')
@@ -441,6 +581,7 @@ def api_buy_cable(request):
 
     except Exception as e:
         TransactionService.process_refund(user, plan.price, tx.reference, "System Crash (Mobile)")
+        notify(user, "Cable purchase failed", f"{plan.cable_type.upper()}: {plan.name} for {smart_card} could not be completed. ₦{plan.price} was refunded to your wallet.")
         return Response({"message": f"System error: {str(e)}"}, status=500)
 
 @api_view(['GET'])
@@ -479,7 +620,7 @@ def api_pay_electricity(request):
 
     # 1. PIN VERIFICATION
     if not user.profile.check_pin(pin):
-        return Response({"message": "Invalid Transaction PIN"}, status=401)
+        return Response({"message": "Invalid Transaction PIN"}, status=400)
 
     try:
         amount = Decimal(str(amount_str))
@@ -514,13 +655,15 @@ def api_pay_electricity(request):
 
         if response.get('status') == 'ORDER_RECEIVED':
             # Mark Successful
-            TxModel.objects.filter(reference=tx.reference).update(
+            Transaction.objects.filter(reference=tx.reference).update(
                 status="Successful",
                 bt_service_charge=service_fee
             )
-            final_tx = TxModel.objects.get(reference=tx.reference)
+            final_tx = Transaction.objects.get(reference=tx.reference)
             final_tx.calculate_totals()
-            
+
+            notify(user, "Electricity purchase successful", f"{disco} bill for meter {meter_no} — ₦{final_tx.amount_customer_paid}.")
+
             return Response({
                 "message": "Payment Successful",
                 "token": response.get('metertoken', 'Processing...'),
@@ -528,10 +671,11 @@ def api_pay_electricity(request):
                 "transaction_id": final_tx.id,
                 "order_id": response.get('orderid', req_id)
             })
-        
+
         else:
             # FAILURE - REFUND
             TransactionService.process_refund(user, total_to_pay, tx.reference, "API Failure (Mobile)")
+            notify(user, "Electricity purchase failed", f"{disco} bill for meter {meter_no} could not be completed. ₦{total_to_pay} was refunded to your wallet.")
             return Response({
                 "message": f"Provider Error: {response.get('remark', 'Try again later')}",
                 "status": response.get('status')
@@ -539,4 +683,5 @@ def api_pay_electricity(request):
 
     except Exception as e:
         TransactionService.process_refund(user, total_to_pay, tx.reference, "System Crash (Mobile)")
+        notify(user, "Electricity purchase failed", f"{disco} bill for meter {meter_no} could not be completed. ₦{total_to_pay} was refunded to your wallet.")
         return Response({"message": f"System error: {str(e)}"}, status=500)

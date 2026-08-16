@@ -32,4 +32,10 @@ urlpatterns = [
     
     # Notifications
     path('notifications/', api_views.api_get_notifications, name='api_notifications'),
+    path('notifications/read-all/', api_views.api_mark_all_notifications_read, name='api_notifications_read_all'),
+    path('notifications/<int:pk>/read/', api_views.api_mark_notification_read, name='api_notification_read'),
+
+    # Paystack Card Funding
+    path('payments/paystack/verify/<str:reference>/', api_views.api_paystack_verify, name='api_paystack_verify'),
+    path('payments/paystack/webhook/', api_views.api_paystack_webhook, name='api_paystack_webhook'),
 ]
