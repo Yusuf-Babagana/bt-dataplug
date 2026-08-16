@@ -1,5 +1,5 @@
 import time
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 from django.views.decorators.csrf import csrf_exempt
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
@@ -7,31 +7,56 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from django.contrib.auth.models import User
+from django.db.models import Q
+from django.shortcuts import get_object_or_404
 from .models import DataPlan, Transaction, Profile, CablePlan, Notification
 from .serializers import DataPlanSerializer, TransactionSerializer, CablePlanSerializer
 from .services import MonnifyService, ClubKonnectService
 from .services.transaction_service import TransactionService
+from .notifications import notify
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def api_get_notifications(request):
-    """Serve combined global and personal notifications for the mobile app."""
-    from django.db.models import Q
+    """Serve combined global and personal notifications for the mobile app, newest first."""
     # Get global notifications OR notifications meant for this user
     notifications = Notification.objects.filter(
         Q(user=request.user) | Q(user__isnull=True)
-    ).order_by('-created_at')
-    
+    )  # default ordering (-created_at) comes from Notification.Meta
+
     data = [{
         "id": n.id,
         "title": n.title,
         "message": n.message,
-        "date": n.created_at.strftime("%d %b, %H:%M"),
-        "is_global": n.user is None,
-        "is_read": n.is_read
+        "created_at": n.created_at.isoformat(),
+        "is_read": n.is_read,
     } for n in notifications]
-    
+
     return Response(data)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def api_mark_notification_read(request, pk):
+    """Mark a single notification (owned by the requesting user) as read.
+
+    Deliberately scoped to the user's own rows rather than the global feed —
+    a global (user=None) row is shared by every user, so flipping its
+    is_read here would incorrectly mark it read for everyone.
+    """
+    notification = get_object_or_404(Notification, pk=pk, user=request.user)
+    if not notification.is_read:
+        notification.is_read = True
+        notification.save(update_fields=['is_read'])
+    return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def api_mark_all_notifications_read(request):
+    """Mark all of the requesting user's own notifications as read."""
+    Notification.objects.filter(user=request.user, is_read=False).update(is_read=True)
+    return Response(status=status.HTTP_204_NO_CONTENT)
 
 class MobileDashboard(APIView):
     permission_classes = [IsAuthenticated] # Must have a Token
@@ -111,11 +136,18 @@ def api_register(request):
                 profile.referred_by = referrer_profile.user
                 profile.save()
 
-        # 5. Trigger the Monnify Account Reservation (The "YUS" Branding)
+        # 5. Welcome notification (shows up in the app's notification history)
+        notify(
+            user,
+            "Welcome to BT DataPlug",
+            f"Hi {first_name or username}! Your account is ready — fund your wallet to start buying data, airtime, cable and electricity."
+        )
+
+        # 6. Trigger the Monnify Account Reservation (The "YUS" Branding)
         # This is the "Magic" that makes the mobile app match the site
         monnify = MonnifyService()
         response = monnify.reserve_account(user)
-        
+
         if response.get('requestSuccessful'):
             accounts = response.get('responseBody', {}).get('accounts', [])
             profile.bank_accounts = accounts
@@ -209,13 +241,15 @@ def api_buy_data(request):
 
         if response.get('status') in ['ORDER_RECEIVED', 'SUCCESSFUL']:
             # 3. SUCCESS - Finalize record
-            TxModel.objects.filter(reference=result.reference).update(
+            Transaction.objects.filter(reference=result.reference).update(
                 status="Successful",
                 bt_service_charge=plan.additional_fee
             )
-            tx = TxModel.objects.get(reference=result.reference)
+            tx = Transaction.objects.get(reference=result.reference)
             tx.calculate_totals() # Recalculate with potential service charge
-            
+
+            notify(user, "Data purchase successful", f"{plan.plan_name} for {phone} — ₦{tx.amount_customer_paid}.")
+
             return Response({
                 "message": "Transaction Successful!",
                 "new_balance": str(user.profile.wallet_balance),
@@ -225,16 +259,18 @@ def api_buy_data(request):
                 "amount_paid": str(tx.amount_customer_paid),
                 "order_id": response.get('order_id', req_id)
             }, status=status.HTTP_200_OK)
-        
+
         else:
             # 4. REFUND ON API FAILURE
             TransactionService.process_refund(user, plan.price, result.reference, "API Failure (Mobile)")
+            notify(user, "Data purchase failed", f"{plan.plan_name} for {phone} could not be completed. ₦{plan.price} was refunded to your wallet.")
             return Response({
                 "message": f"Provider Error: {response.get('remarks', 'Try again later')}. Funds refunded."
             }, status=status.HTTP_400_BAD_REQUEST)
 
     except Exception as e:
         TransactionService.process_refund(user, plan.price, result.reference, "System Crash (Mobile)")
+        notify(user, "Data purchase failed", f"{plan.plan_name} for {phone} could not be completed. ₦{plan.price} was refunded to your wallet.")
         return Response({"message": f"System error occurred. Funds refunded. Detail: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 @csrf_exempt
@@ -308,7 +344,9 @@ def api_buy_airtime(request):
             Transaction.objects.filter(reference=tx.reference).update(status="Successful")
             final_tx = Transaction.objects.get(reference=tx.reference)
             final_tx.calculate_totals()
-            
+
+            notify(user, "Airtime purchase successful", f"{network} Airtime for {phone} — ₦{final_tx.amount_customer_paid}.")
+
             return Response({
                 "message": "Airtime Sent!",
                 "new_balance": str(user.profile.wallet_balance),
@@ -319,16 +357,18 @@ def api_buy_airtime(request):
                 "amount_paid": str(final_tx.amount_customer_paid),
                 "order_id": response.get('order_id', req_id)
             }, status=status.HTTP_200_OK)
-        
+
         else:
             # 4. REFUND ON API FAILURE
             TransactionService.process_refund(user, selling_price, tx.reference, "API Failure (Mobile)")
+            notify(user, "Airtime purchase failed", f"{network} Airtime for {phone} could not be completed. ₦{selling_price} was refunded to your wallet.")
             return Response({
                 "message": f"Provider Error: {response.get('remark', 'Try again later')}. Funds refunded."
             }, status=status.HTTP_400_BAD_REQUEST)
 
     except Exception as e:
         TransactionService.process_refund(user, selling_price, tx.reference, "System Crash (Mobile)")
+        notify(user, "Airtime purchase failed", f"{network} Airtime for {phone} could not be completed. ₦{selling_price} was refunded to your wallet.")
         return Response({"message": f"System error occurred. Funds refunded. Detail: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 @api_view(['POST'])
@@ -423,17 +463,20 @@ def api_buy_cable(request):
             Transaction.objects.filter(reference=tx.reference).update(status="Successful")
             final_tx = Transaction.objects.get(reference=tx.reference)
             final_tx.calculate_totals()
-            
+
+            notify(user, "Cable purchase successful", f"{plan.cable_type.upper()}: {plan.name} for {smart_card} — ₦{final_tx.amount_customer_paid}.")
+
             return Response({
                 "message": "Subscription Received Successfully",
                 "new_balance": str(user.profile.wallet_balance),
                 "transaction_id": final_tx.id,
                 "order_id": response.get('orderid', req_id)
             })
-        
+
         else:
             # FAILURE - REFUND
             TransactionService.process_refund(user, plan.price, tx.reference, "API Failure (Mobile)")
+            notify(user, "Cable purchase failed", f"{plan.cable_type.upper()}: {plan.name} for {smart_card} could not be completed. ₦{plan.price} was refunded to your wallet.")
             return Response({
                 "message": f"Provider Error: {response.get('remark', 'Try again later')}",
                 "status": response.get('status')
@@ -441,6 +484,7 @@ def api_buy_cable(request):
 
     except Exception as e:
         TransactionService.process_refund(user, plan.price, tx.reference, "System Crash (Mobile)")
+        notify(user, "Cable purchase failed", f"{plan.cable_type.upper()}: {plan.name} for {smart_card} could not be completed. ₦{plan.price} was refunded to your wallet.")
         return Response({"message": f"System error: {str(e)}"}, status=500)
 
 @api_view(['GET'])
@@ -514,13 +558,15 @@ def api_pay_electricity(request):
 
         if response.get('status') == 'ORDER_RECEIVED':
             # Mark Successful
-            TxModel.objects.filter(reference=tx.reference).update(
+            Transaction.objects.filter(reference=tx.reference).update(
                 status="Successful",
                 bt_service_charge=service_fee
             )
-            final_tx = TxModel.objects.get(reference=tx.reference)
+            final_tx = Transaction.objects.get(reference=tx.reference)
             final_tx.calculate_totals()
-            
+
+            notify(user, "Electricity purchase successful", f"{disco} bill for meter {meter_no} — ₦{final_tx.amount_customer_paid}.")
+
             return Response({
                 "message": "Payment Successful",
                 "token": response.get('metertoken', 'Processing...'),
@@ -528,10 +574,11 @@ def api_pay_electricity(request):
                 "transaction_id": final_tx.id,
                 "order_id": response.get('orderid', req_id)
             })
-        
+
         else:
             # FAILURE - REFUND
             TransactionService.process_refund(user, total_to_pay, tx.reference, "API Failure (Mobile)")
+            notify(user, "Electricity purchase failed", f"{disco} bill for meter {meter_no} could not be completed. ₦{total_to_pay} was refunded to your wallet.")
             return Response({
                 "message": f"Provider Error: {response.get('remark', 'Try again later')}",
                 "status": response.get('status')
@@ -539,4 +586,5 @@ def api_pay_electricity(request):
 
     except Exception as e:
         TransactionService.process_refund(user, total_to_pay, tx.reference, "System Crash (Mobile)")
+        notify(user, "Electricity purchase failed", f"{disco} bill for meter {meter_no} could not be completed. ₦{total_to_pay} was refunded to your wallet.")
         return Response({"message": f"System error: {str(e)}"}, status=500)
