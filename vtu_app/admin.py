@@ -42,3 +42,12 @@ class NotificationAdmin(admin.ModelAdmin):
     list_filter = ('is_read', 'created_at')
     search_fields = ('title', 'message', 'user__username')
     ordering = ('-created_at',)
+
+from .models import PaystackTransaction
+
+@admin.register(PaystackTransaction)
+class PaystackTransactionAdmin(admin.ModelAdmin):
+    list_display = ('reference', 'user', 'amount', 'status', 'created_at')
+    list_filter = ('status', 'created_at')
+    search_fields = ('reference', 'user__username')
+    ordering = ('-created_at',)

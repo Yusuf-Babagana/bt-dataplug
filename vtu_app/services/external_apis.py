@@ -243,3 +243,35 @@ class MonnifyService:
 
         response = requests.post(url, json=data, headers=headers, timeout=20)
         return response.json()
+
+
+class PaystackService:
+    """Server-side verification for card payments taken via the mobile app's
+    Paystack PUBLIC key. The SECRET key used here must never reach the client."""
+
+    def __init__(self):
+        self.secret_key = os.getenv('PAYSTACK_SECRET_KEY', '').strip()
+        self.base_url = "https://api.paystack.co"
+
+    def verify_transaction(self, reference):
+        """GET /transaction/verify/<reference> — returns Paystack's raw JSON response."""
+        url = f"{self.base_url}/transaction/verify/{reference}"
+        headers = {'Authorization': f'Bearer {self.secret_key}'}
+        try:
+            response = requests.get(url, headers=headers, timeout=20)
+            return response.json()
+        except Exception as e:
+            logger.error(f"Paystack verify failed for reference {reference}: {str(e)}")
+            return {"status": False, "message": str(e)}
+
+    def verify_webhook_signature(self, raw_body, signature_header):
+        """Confirm a webhook request genuinely came from Paystack.
+
+        Paystack signs the raw request body with HMAC-SHA512 using the
+        account's secret key and sends the hex digest in the
+        `x-paystack-signature` header.
+        """
+        if not signature_header or not self.secret_key:
+            return False
+        computed_hash = hmac.new(self.secret_key.encode('utf-8'), raw_body, hashlib.sha512).hexdigest()
+        return hmac.compare_digest(computed_hash, signature_header)
