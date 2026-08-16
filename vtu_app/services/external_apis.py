@@ -13,15 +13,17 @@ logger = logging.getLogger('vtu_app')
 
 class ClubKonnectService:
     def __init__(self):
-        self.user_id = os.getenv('CK_USER_ID', '').strip()
-        self.api_key = os.getenv('CK_API_KEY', '').strip()
-        self.base_url = "https://www.nellobytesystems.com"
+        # NELLOBYTE_* is the current naming (Nellobyte Systems is the actual
+        # provider behind the old "ClubKonnect" name); CK_* is kept as a
+        # fallback so an environment that hasn't been updated yet still works.
+        self.user_id = os.getenv('NELLOBYTE_USER_ID', os.getenv('CK_USER_ID', '')).strip()
+        self.api_key = os.getenv('NELLOBYTE_API_KEY', os.getenv('CK_API_KEY', '')).strip()
+        self.base_url = os.getenv('NELLOBYTE_BASE_URL', 'https://www.nellobytesystems.com').strip().rstrip('/')
         self.balance_url = f"{self.base_url}/APIWalletBalanceV1.asp"
 
     def get_balance(self):
-        # USE THE NEW V1 URL FROM THE DOCS
-        url = f"https://www.nellobytesystems.com/APIWalletBalanceV1.asp?UserID={self.user_id}&APIKey={self.api_key}"
-        
+        url = f"{self.balance_url}?UserID={self.user_id}&APIKey={self.api_key}"
+
         try:
             response = requests.get(url, timeout=15)
             
@@ -48,7 +50,7 @@ class ClubKonnectService:
         """Send data to a customer using the APIDatabundleV1 endpoint."""
         request_id = uuid.uuid4().hex[:12]
         url = (
-            f"https://www.nellobytesystems.com/APIDatabundleV1.asp"
+            f"{self.base_url}/APIDatabundleV1.asp"
             f"?UserID={self.user_id}&APIKey={self.api_key}"
             f"&MobileNetwork={network_code}&DataPlan={plan_id}"
             f"&MobileNumber={phone}&RequestID={request_id}"
@@ -83,7 +85,7 @@ class ClubKonnectService:
         """Purchase airtime using the APIAirtimeV1 endpoint."""
         request_id = uuid.uuid4().hex[:12]
         url = (
-            f"https://www.nellobytesystems.com/APIAirtimeV1.asp"
+            f"{self.base_url}/APIAirtimeV1.asp"
             f"?UserID={self.user_id}&APIKey={self.api_key}"
             f"&MobileNetwork={network_code}&Amount={amount}"
             f"&MobileNumber={phone}&RequestID={request_id}"
@@ -110,7 +112,7 @@ class ClubKonnectService:
     def verify_cable(self, cable_tv, smartcard):
         """Verify the customer name using Smartcard/IUC."""
         url = (
-            f"https://www.nellobytesystems.com/APIVerifyCableTVV1.0.asp"
+            f"{self.base_url}/APIVerifyCableTVV1.0.asp"
             f"?UserID={self.user_id}&APIKey={self.api_key}"
             f"&CableTV={cable_tv.lower()}&SmartCardNo={smartcard}"
         )
@@ -126,7 +128,7 @@ class ClubKonnectService:
         """Purchase the cable subscription."""
         request_id = uuid.uuid4().hex[:12]
         url = (
-            f"https://www.nellobytesystems.com/APICableTVV1.asp"
+            f"{self.base_url}/APICableTVV1.asp"
             f"?UserID={self.user_id}&APIKey={self.api_key}&CableTV={cable_tv.lower()}"
             f"&Package={plan_id}&SmartCardNo={smartcard}&PhoneNo={phone}&RequestID={request_id}"
         )
@@ -144,7 +146,7 @@ class ClubKonnectService:
     def validate_meter(self, disco_code, meter_no, meter_type):
         """Verify the meter number and customer name."""
         url = (
-            f"https://www.nellobytesystems.com/APIVerifyElectricityV1.asp"
+            f"{self.base_url}/APIVerifyElectricityV1.asp"
             f"?UserID={self.user_id}&APIKey={self.api_key}"
             f"&ElectricCompany={disco_code}&MeterNo={meter_no}&MeterType={meter_type}"
         )
@@ -160,7 +162,7 @@ class ClubKonnectService:
         """Purchase the electricity token."""
         request_id = uuid.uuid4().hex[:12]
         url = (
-            f"https://www.nellobytesystems.com/APIElectricityV1.asp"
+            f"{self.base_url}/APIElectricityV1.asp"
             f"?UserID={self.user_id}&APIKey={self.api_key}"
             f"&ElectricCompany={disco_code}&MeterType={meter_type}"
             f"&MeterNo={meter_no}&Amount={amount}&PhoneNo={phone}&RequestID={request_id}"
