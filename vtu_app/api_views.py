@@ -308,7 +308,7 @@ def api_buy_data(request):
 
     # SECURE PIN VERIFICATION
     if not user.profile.check_pin(pin):
-        return Response({"message": "Invalid Transaction PIN"}, status=status.HTTP_401_UNAUTHORIZED)
+        return Response({"message": "Invalid Transaction PIN"}, status=status.HTTP_400_BAD_REQUEST)
 
     try:
         plan = DataPlan.objects.get(id=plan_id)
@@ -389,7 +389,7 @@ def api_buy_airtime(request):
 
     # SECURE PIN VERIFICATION
     if not user.profile.check_pin(pin):
-        return Response({"message": "Invalid Transaction PIN"}, status=status.HTTP_401_UNAUTHORIZED)
+        return Response({"message": "Invalid Transaction PIN"}, status=status.HTTP_400_BAD_REQUEST)
 
     # 0. NETWORK MAPPING (String to ClubKonnect ID)
     network_map = {
@@ -527,7 +527,7 @@ def api_buy_cable(request):
 
     # 1. PIN VERIFICATION
     if not user.profile.check_pin(pin):
-        return Response({"message": "Invalid Transaction PIN"}, status=401)
+        return Response({"message": "Invalid Transaction PIN"}, status=400)
 
     # 2. GET PLAN
     try:
@@ -620,7 +620,7 @@ def api_pay_electricity(request):
 
     # 1. PIN VERIFICATION
     if not user.profile.check_pin(pin):
-        return Response({"message": "Invalid Transaction PIN"}, status=401)
+        return Response({"message": "Invalid Transaction PIN"}, status=400)
 
     try:
         amount = Decimal(str(amount_str))
