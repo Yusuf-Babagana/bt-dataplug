@@ -81,7 +81,7 @@
                     <p class="fw-bold text-dark mb-3">BT SOFTWARE SERVICES LTD</p>
                     <div class="bg-light rounded-3 p-3">
                         <p class="small text-muted mb-0">Reliability at your fingertips</p>
-                        <p class="fw-bold text-primary mb-0">www.btdataplug.com</p>
+                        <p class="fw-bold text-primary mb-0">{{ request.get_host }}</p>
                     </div>
                 </div>
 
@@ -91,7 +91,7 @@
                         <button onclick="shareReceiptAsImage()" class="btn btn-primary w-100 rounded-pill py-3 fw-bold shadow-sm mb-2" id="shareImageBtn">
                             <i class="fa-solid fa-image me-2"></i> Share as Image (Picture)
                         </button>
-                        <a href="https://wa.me/?text=Successful%20Transaction%20on%20BT%20DataPlug!%0APlan:%20{{ tx.clean_plan_name }}%0ARecipient:%20{{ tx.recipient }}%0ARef:%20{{ tx.reference }}%0AVisit:%20www.btdataplug.com" 
+                        <a href="https://wa.me/?text=Successful%20Transaction%20on%20BT%20DataPlug!%0APlan:%20{{ tx.clean_plan_name }}%0ARecipient:%20{{ tx.recipient }}%0ARef:%20{{ tx.reference }}%0AVisit:%20{{ request.get_host }}"
                            class="btn btn-success w-100 rounded-pill py-3 fw-bold shadow-sm">
                             <i class="fab fa-whatsapp me-2 fa-lg"></i> Send as Text
                         </a>

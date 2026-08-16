@@ -8,6 +8,7 @@ from django.views.decorators.csrf import csrf_exempt
 from .models import Profile, Transaction
 from django.contrib.auth.models import User
 from decimal import Decimal
+from .notifications import notify
 
 logger = logging.getLogger(__name__)
 
@@ -88,7 +89,9 @@ def monnify_webhook(request):
                             reference=monnify_tx_ref
                         )
                         tx.calculate_totals()
-                        
+
+                        notify(profile.user, "Wallet funded", f"₦{credit_amount} was credited to your wallet.")
+
                         logger.info(f"PAYMENT_RECEIVED: User {profile.user.username} credited with ₦{credit_amount} (Fee: ₦{monnify_fee})")
                         return HttpResponse(status=200)
                     except Profile.DoesNotExist:

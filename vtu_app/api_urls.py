@@ -32,4 +32,6 @@ urlpatterns = [
     
     # Notifications
     path('notifications/', api_views.api_get_notifications, name='api_notifications'),
+    path('notifications/read-all/', api_views.api_mark_all_notifications_read, name='api_notifications_read_all'),
+    path('notifications/<int:pk>/read/', api_views.api_mark_notification_read, name='api_notification_read'),
 ]
