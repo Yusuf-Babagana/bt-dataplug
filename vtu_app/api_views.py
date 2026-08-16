@@ -1,5 +1,8 @@
+import json
+import logging
 import time
 from decimal import Decimal, InvalidOperation
+from django.http import HttpResponse
 from django.views.decorators.csrf import csrf_exempt
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
@@ -9,11 +12,13 @@ from rest_framework.permissions import IsAuthenticated, AllowAny
 from django.contrib.auth.models import User
 from django.db.models import Q
 from django.shortcuts import get_object_or_404
-from .models import DataPlan, Transaction, Profile, CablePlan, Notification
+from .models import DataPlan, Transaction, Profile, CablePlan, Notification, PaystackTransaction
 from .serializers import DataPlanSerializer, TransactionSerializer, CablePlanSerializer
-from .services import MonnifyService, ClubKonnectService
-from .services.transaction_service import TransactionService
+from .services import MonnifyService, ClubKonnectService, PaystackService
+from .services.transaction_service import TransactionService, resolve_paystack_user
 from .notifications import notify
+
+logger = logging.getLogger(__name__)
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
@@ -57,6 +62,98 @@ def api_mark_all_notifications_read(request):
     """Mark all of the requesting user's own notifications as read."""
     Notification.objects.filter(user=request.user, is_read=False).update(is_read=True)
     return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def api_paystack_verify(request, reference):
+    """
+    Verify a Paystack card payment and credit the wallet on success.
+
+    This is the "did it work?" call the app makes right after the Paystack
+    charge sheet closes. The webhook below is the safety net for when this
+    call never happens (app killed, network drop) — both paths share the
+    same idempotent TransactionService.process_paystack_credit().
+    """
+    service = PaystackService()
+    result = service.verify_transaction(reference)
+
+    if not result.get('status'):
+        logger.warning(f"PAYSTACK_VERIFY_FAILED: {reference} — {result.get('message')}")
+        return Response({"status": "failed"})
+
+    data = result.get('data') or {}
+    paystack_status = data.get('status')
+
+    if paystack_status != 'success':
+        # "pending" covers async methods (bank transfer/USSD); anything else
+        # (abandoned, failed, reversed) is a hard failure.
+        return Response({"status": "pending" if paystack_status == 'pending' else "failed"})
+
+    # Ownership check: if the payment carries an identifiable owner (via
+    # metadata.user_id or the paying card's email) that isn't the caller,
+    # refuse — otherwise a leaked/guessed reference could be used to credit
+    # the wrong account. If it carries no identifiable owner at all, we
+    # trust the authenticated caller (Token auth already proved who they are).
+    paying_user = resolve_paystack_user(data)
+    if paying_user is not None and paying_user.id != request.user.id:
+        return Response({"message": "This transaction does not belong to your account."}, status=status.HTTP_403_FORBIDDEN)
+
+    credited, new_balance, paystack_tx = TransactionService.process_paystack_credit(request.user, data)
+    return Response({"status": "success", "new_balance": str(new_balance)})
+
+
+@csrf_exempt
+def api_paystack_webhook(request):
+    """
+    Paystack server-to-server webhook — the real safety net for card funding.
+
+    No Token auth: Paystack calls this directly, so authenticity comes from
+    verifying the `x-paystack-signature` header (HMAC-SHA512 of the raw
+    body with PAYSTACK_SECRET_KEY) rather than a bearer token. Register this
+    URL in the Paystack dashboard under Settings -> API Keys & Webhooks.
+    """
+    if request.method != 'POST':
+        return HttpResponse(status=405)
+
+    service = PaystackService()
+    signature = request.headers.get('x-paystack-signature')
+
+    if not service.verify_webhook_signature(request.body, signature):
+        logger.warning(f"PAYSTACK_WEBHOOK: Signature mismatch. Remote IP: {request.META.get('REMOTE_ADDR')}")
+        return HttpResponse(status=401)
+
+    try:
+        event = json.loads(request.body)
+    except ValueError:
+        return HttpResponse(status=400)
+
+    if event.get('event') != 'charge.success':
+        # Acknowledge anything we don't act on so Paystack doesn't retry it.
+        return HttpResponse(status=200)
+
+    data = event.get('data') or {}
+    if data.get('status') != 'success':
+        return HttpResponse(status=200)
+
+    user = resolve_paystack_user(data)
+    if user is None:
+        logger.error(f"PAYSTACK_WEBHOOK: Could not identify a user for reference {data.get('reference')}. "
+                     f"Make sure the app sends metadata.user_id (or a matching email) when initializing the charge.")
+        # Acknowledge receipt (200) so Paystack stops retrying — there's
+        # nothing more we can do without knowing who to credit.
+        return HttpResponse(status=200)
+
+    try:
+        TransactionService.process_paystack_credit(user, data)
+    except Exception as e:
+        logger.error(f"PAYSTACK_WEBHOOK_ERROR: {str(e)}")
+        # 500 tells Paystack to retry — appropriate here since this is
+        # exactly the "make sure the wallet still gets credited" safety net.
+        return HttpResponse(status=500)
+
+    return HttpResponse(status=200)
+
 
 class MobileDashboard(APIView):
     permission_classes = [IsAuthenticated] # Must have a Token

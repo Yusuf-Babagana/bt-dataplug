@@ -223,6 +223,11 @@ MONNIFY_SECRET_KEY = os.getenv('MONNIFY_SECRET_KEY', 'test_secret_key')
 MONNIFY_BASE_URL = os.getenv('MONNIFY_BASE_URL', 'https://sandbox.monnify.com')
 MONNIFY_CONTRACT_CODE = os.getenv('MONNIFY_CONTRACT_CODE', '1234567890')
 
+# Paystack Setup (card funding) — SECRET key only, never the PUBLIC key.
+# Must belong to the same Paystack account as the PUBLIC key configured in
+# the mobile app (PAYSTACK_PUBLIC_KEY in btdataplug-mobile/src/constants/config.js).
+PAYSTACK_SECRET_KEY = os.getenv('PAYSTACK_SECRET_KEY', '')
+
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [
         'rest_framework.authentication.TokenAuthentication',
