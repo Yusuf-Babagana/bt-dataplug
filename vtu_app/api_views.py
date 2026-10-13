@@ -162,9 +162,17 @@ class MobileDashboard(APIView):
         user = request.user
         profile = user.profile
         
+        # id/email exposed for the mobile app's Paystack integration:
+        # metadata.user_id (-> id) lets the payment webhook — which has no
+        # auth context of its own — identify the account to credit, and
+        # email lets the app open Paystack checkout with the user's real
+        # address instead of a synthesized placeholder. See
+        # resolve_paystack_user() in services/transaction_service.py.
         # We ensure the bank_accounts field is sent as a list
         return Response({
+            "id": user.id,
             "username": user.username,
+            "email": user.email,
             "profile": {
                 "wallet_balance": str(profile.wallet_balance),
                 "referral_code": profile.referral_code,

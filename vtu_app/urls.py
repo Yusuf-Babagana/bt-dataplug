@@ -20,5 +20,6 @@ urlpatterns = [
     path('staff/dashboard/', views.staff_dashboard, name='staff_dashboard'),
     path('settings/profile/', views.profile_settings, name='profile_settings'),
     path('profile/change-pin/', views.change_pin_view, name='change_pin'),
+    path('delete-account/', views.delete_account_request, name='delete_account'),
     path('ref/<str:ref_id>/', views.referral_redirect, name='referral_redirect'),
 ]

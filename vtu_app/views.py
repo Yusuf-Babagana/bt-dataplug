@@ -743,3 +743,25 @@ def validate_meter(request):
     ck = ClubKonnectService()
     result = ck.validate_meter(disco, meter, mtype)
     return JsonResponse(result)
+
+def delete_account_request(request):
+    """
+    Public page (no login) linked from the Google Play listing: explains how to
+    delete an account, what is deleted/kept, and takes the request.
+    """
+    from .models import AccountDeletionRequest
+    submitted = False
+    error = None
+    if request.method == 'POST':
+        username = (request.POST.get('username') or '').strip()
+        email = (request.POST.get('email') or '').strip()
+        phone = (request.POST.get('phone_number') or '').strip()
+        reason = (request.POST.get('reason') or '').strip()[:1000]
+        if not username or not (email or phone):
+            error = "Please enter your username and either your registered email or phone number."
+        else:
+            AccountDeletionRequest.objects.create(
+                username=username, email=email, phone_number=phone, reason=reason)
+            logger.info(f"DELETION REQUEST: received for username '{username}'")
+            submitted = True
+    return render(request, 'registration/delete_account.html', {'submitted': submitted, 'error': error})
