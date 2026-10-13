@@ -195,3 +195,29 @@ class PaystackTransaction(models.Model):
 
     def __str__(self):
         return f"{self.user.username} - {self.reference} - ₦{self.amount}"
+
+
+class AccountDeletionRequest(models.Model):
+    """
+    Public "delete my account" requests (Google Play requires a web URL where
+    users can ask for this without opening the app). Staff verify the requester
+    and then run the "Delete account & personal data" admin action.
+    """
+    STATUS_CHOICES = [
+        ('pending', 'Pending'),
+        ('completed', 'Completed'),
+        ('rejected', 'Rejected'),
+    ]
+    username = models.CharField(max_length=150)
+    email = models.EmailField(blank=True)
+    phone_number = models.CharField(max_length=20, blank=True)
+    reason = models.TextField(blank=True)
+    status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='pending')
+    created_at = models.DateTimeField(auto_now_add=True)
+    processed_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"{self.username} - {self.status} ({self.created_at:%Y-%m-%d})"
