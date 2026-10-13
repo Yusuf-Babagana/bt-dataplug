@@ -765,3 +765,8 @@ def delete_account_request(request):
             logger.info(f"DELETION REQUEST: received for username '{username}'")
             submitted = True
     return render(request, 'registration/delete_account.html', {'submitted': submitted, 'error': error})
+
+
+def privacy_policy(request):
+    """Public privacy policy page (linked from the Google Play listing)."""
+    return render(request, 'registration/privacy_policy.html')
