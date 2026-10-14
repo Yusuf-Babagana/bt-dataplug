@@ -321,6 +321,7 @@
             box-shadow: 0 6px 12px -6px rgba(0, 0, 0, 0.2);
         }
     </style>
+    {% include 'includes/modernist_theme.html' %}
 </head>
 
 <body>
@@ -337,7 +338,7 @@
 
         <!-- SIDEBAR PROFILE SECTION -->
         <div class="px-3 mb-4 mt-2">
-            <div class="glass-card p-3 border-0 d-flex align-items-center shadow-sm" style="border-radius: 20px !important; background: #f8fafc;">
+            <div class="glass-card p-3 border-0 d-flex align-items-center shadow-sm" style="border-radius: 0 !important;">
                 <div class="avatar-circle me-3" style="width: 50px; height: 50px; font-size: 1.2rem; min-width: 50px;">
                     {{ user.username|first|upper }}
                 </div>
