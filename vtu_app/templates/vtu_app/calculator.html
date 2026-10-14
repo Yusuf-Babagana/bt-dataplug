@@ -1,0 +1,92 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-7 col-xl-6">
+        <p class="small fw-bold text-uppercase text-muted mb-1" style="letter-spacing:1.6px;">Tools</p>
+        <h3 class="fw-bold mb-1">Price calculator</h3>
+        <p class="text-muted mb-4">Work out what a purchase will cost before you buy.</p>
+
+        <div class="d-flex mb-3" role="tablist" style="border:2px solid var(--m-ink);">
+            <button type="button" class="btn flex-fill calc-tab active" data-tab="data" style="border:0;">Data</button>
+            <button type="button" class="btn flex-fill calc-tab" data-tab="airtime" style="border:0;border-left:2px solid var(--m-ink);">Airtime</button>
+        </div>
+
+        <div class="card p-4" id="tab-data">
+            <label class="form-label">Network</label>
+            <select class="form-select mb-3" id="calcNetwork"></select>
+            <label class="form-label">Data plan</label>
+            <select class="form-select mb-3" id="calcPlan"></select>
+            <label class="form-label">Number of purchases</label>
+            <input type="number" class="form-control mb-4" id="calcQty" value="1" min="1" max="1000">
+            <div class="d-flex justify-content-between align-items-end pt-3" style="border-top:2px solid var(--m-ink);">
+                <span class="small fw-bold text-uppercase text-muted" style="letter-spacing:1.2px;">Total</span>
+                <span class="fw-bold" style="font-size:2rem;letter-spacing:-0.5px;" id="dataTotal">₦0</span>
+            </div>
+            <a href="{% url 'buy_data' %}" class="btn btn-primary w-100 mt-4">Buy data</a>
+        </div>
+
+        <div class="card p-4 d-none" id="tab-airtime">
+            <label class="form-label">Airtime value (₦)</label>
+            <input type="number" class="form-control mb-4" id="airAmount" placeholder="e.g. 1000" min="0">
+            <div class="d-flex justify-content-between mb-2"><span class="text-muted">Face value</span><span class="fw-bold" id="airFace">₦0</span></div>
+            <div class="d-flex justify-content-between mb-3"><span class="text-muted">You save (1%)</span><span class="fw-bold" id="airSave">₦0</span></div>
+            <div class="d-flex justify-content-between align-items-end pt-3" style="border-top:2px solid var(--m-ink);">
+                <span class="small fw-bold text-uppercase text-muted" style="letter-spacing:1.2px;">You pay</span>
+                <span class="fw-bold" style="font-size:2rem;letter-spacing:-0.5px;" id="airPay">₦0</span>
+            </div>
+            <a href="{% url 'buy_airtime' %}" class="btn btn-primary w-100 mt-4">Buy airtime</a>
+        </div>
+        <p class="small text-muted mt-3">Prices come from the live price list and may change. The amount charged at purchase is final.</p>
+    </div>
+</div>
+
+{{ plans|json_script:"plans-data" }}
+<style>
+    .calc-tab { background: transparent; color: var(--m-ink); font-weight: 800; padding: 12px; }
+    .calc-tab.active { background: var(--m-ink); color: #fff; }
+</style>
+<script>
+(function () {
+    const plans = JSON.parse(document.getElementById('plans-data').textContent);
+    const naira = n => '₦' + Number(n).toLocaleString('en-NG', { maximumFractionDigits: 2 });
+    const netSel = document.getElementById('calcNetwork');
+    const planSel = document.getElementById('calcPlan');
+    const qty = document.getElementById('calcQty');
+
+    function esc(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+
+    const networks = [...new Set(plans.map(p => p.network))];
+    netSel.innerHTML = networks.length
+        ? networks.map(n => '<option>' + esc(n) + '</option>').join('')
+        : '<option value="">No data plans available yet</option>';
+
+    function fillPlans() {
+        const list = plans.filter(p => p.network === netSel.value);
+        planSel.innerHTML = list.map(p => '<option value="' + p.price + '">' + esc(p.name) + ' - ' + naira(p.price) + '</option>').join('');
+        total();
+    }
+    function total() {
+        const q = Math.max(1, parseInt(qty.value || '1', 10));
+        document.getElementById('dataTotal').textContent = naira((parseFloat(planSel.value) || 0) * q);
+    }
+    function airtime() {
+        const a = Math.max(0, parseFloat(document.getElementById('airAmount').value) || 0);
+        document.getElementById('airFace').textContent = naira(a);
+        document.getElementById('airSave').textContent = naira(a * 0.01);
+        document.getElementById('airPay').textContent = naira(a * 0.99);
+    }
+    netSel.addEventListener('change', fillPlans);
+    planSel.addEventListener('change', total);
+    qty.addEventListener('input', total);
+    document.getElementById('airAmount').addEventListener('input', airtime);
+    document.querySelectorAll('.calc-tab').forEach(function (b) {
+        b.addEventListener('click', function () {
+            document.querySelectorAll('.calc-tab').forEach(function (x) { x.classList.toggle('active', x === b); });
+            document.getElementById('tab-data').classList.toggle('d-none', b.dataset.tab !== 'data');
+            document.getElementById('tab-airtime').classList.toggle('d-none', b.dataset.tab !== 'airtime');
+        });
+    });
+    fillPlans();
+})();
+</script>
+{% endblock %}

@@ -21,6 +21,8 @@ urlpatterns = [
     path('buy-data/', api_views.api_buy_data, name='api_buy_data'),
     path('buy-airtime/', api_views.api_buy_airtime, name='api_buy_airtime'),
     path('change-pin/', api_views.api_change_pin, name='api_change_pin'),
+    path('change-password/', api_views.api_change_password, name='api_change_password'),
+    path('password-reset/', api_views.api_password_reset, name='api_password_reset'),
     
     # Cable TV
     path('validate-cable/', api_views.api_validate_cable, name='api_validate_cable'),

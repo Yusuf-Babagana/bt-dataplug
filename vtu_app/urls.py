@@ -1,5 +1,5 @@
 from django.urls import path
-from . import views
+from . import views, extra_views
 from .webhooks import monnify_webhook
 
 urlpatterns = [
@@ -20,6 +20,9 @@ urlpatterns = [
     path('staff/dashboard/', views.staff_dashboard, name='staff_dashboard'),
     path('settings/profile/', views.profile_settings, name='profile_settings'),
     path('profile/change-pin/', views.change_pin_view, name='change_pin'),
+    path('calculator/', extra_views.calculator, name='calculator'),
+    path('transfer/', extra_views.wallet_transfer, name='wallet_transfer'),
+    path('coming-soon/<slug:slug>/', extra_views.coming_soon, name='coming_soon'),
     path('privacy-policy/', views.privacy_policy, name='privacy_policy'),
     path('delete-account/', views.delete_account_request, name='delete_account'),
     path('ref/<str:ref_id>/', views.referral_redirect, name='referral_redirect'),

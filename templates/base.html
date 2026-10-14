@@ -374,7 +374,11 @@
                 <i class="fa-solid fa-wallet icon-left"></i>
                 <span>Fund Wallet</span>
             </a>
-            <a href="#" class="nav-item-custom">
+            <a href="{% url 'wallet_transfer' %}" class="nav-item-custom">
+                <i class="fa-solid fa-paper-plane icon-left"></i>
+                <span>Send Money</span>
+            </a>
+            <a href="{% url 'calculator' %}" class="nav-item-custom">
                 <i class="fa-solid fa-calculator icon-left"></i>
                 <span>Calculator</span>
             </a>
@@ -422,7 +426,7 @@
                 {{ user.username|first|upper }}
             </div>
             <ul class="dropdown-menu dropdown-menu-end shadow-lg border-0 rounded-4 mt-2 py-2">
-                <li><a class="dropdown-item py-2" href="#"><i class="fa-regular fa-user me-2"></i>My Profile</a></li>
+                <li><a class="dropdown-item py-2" href="{% url 'profile_settings' %}"><i class="fa-regular fa-user me-2"></i>My Profile</a></li>
                 <li><a class="dropdown-item py-2 text-danger" href="javascript:void(0)"
                         onclick="document.getElementById('logout-form').submit();"><i
                             class="fa-solid fa-sign-out-alt me-2"></i>Logout</a></li>
@@ -466,7 +470,10 @@
             <a href="{% url 'complete_kyc' %}" class="nav-item-custom">
                 <i class="fa-solid fa-wallet icon-left"></i> Fund Wallet
             </a>
-            <a href="#" class="nav-item-custom">
+            <a href="{% url 'wallet_transfer' %}" class="nav-item-custom">
+                <i class="fa-solid fa-paper-plane icon-left"></i> Send Money
+            </a>
+            <a href="{% url 'calculator' %}" class="nav-item-custom">
                 <i class="fa-solid fa-calculator icon-left"></i> Calculator
             </a>
             <a href="{% url 'change_pin' %}" class="nav-item-custom">
@@ -497,7 +504,7 @@
         <a href="{% url 'transaction_history' %}" class="bottom-nav-item">
             <i class="fa-solid fa-clock-rotate-left"></i><span>History</span>
         </a>
-        <a href="#" class="bottom-nav-item">
+        <a href="{% url 'profile_settings' %}" class="bottom-nav-item">
             <i class="fa-regular fa-circle-user"></i><span>Profile</span>
         </a>
     </div>

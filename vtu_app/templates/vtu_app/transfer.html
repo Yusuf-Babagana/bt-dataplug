@@ -1,0 +1,31 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-6 col-xl-5">
+        <p class="small fw-bold text-uppercase text-muted mb-1" style="letter-spacing:1.6px;">Wallet</p>
+        <h3 class="fw-bold mb-1">Send money</h3>
+        <p class="text-muted mb-4">Move money from your wallet to another BT DataPlug user, instantly and free.</p>
+
+        <div class="card p-3 mb-3 bg-primary text-white">
+            <span class="small text-white-50 fw-bold">Available balance</span>
+            <span class="fw-bold" style="font-size:1.8rem;">₦{{ user.profile.wallet_balance }}</span>
+        </div>
+
+        <form method="post" class="card p-4">
+            {% csrf_token %}
+            <label class="form-label" for="recipient">Recipient username</label>
+            <input type="text" class="form-control mb-3" id="recipient" name="recipient" autocapitalize="none" autocomplete="off" required>
+
+            <label class="form-label" for="amount">Amount (₦)</label>
+            <input type="number" class="form-control mb-1" id="amount" name="amount" min="{{ min_transfer }}" step="1" required>
+            <div class="form-text mb-3">Minimum ₦{{ min_transfer }}.</div>
+
+            <label class="form-label" for="pin">Transaction PIN</label>
+            <input type="password" class="form-control text-center mb-4" id="pin" name="pin" maxlength="4" inputmode="numeric" placeholder="••••" required style="letter-spacing:.4rem;">
+
+            <button type="submit" class="btn btn-primary w-100">Send money</button>
+        </form>
+        <p class="small text-muted mt-3">Check the username carefully. Transfers cannot be reversed.</p>
+    </div>
+</div>
+{% endblock %}
