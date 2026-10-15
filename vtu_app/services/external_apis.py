@@ -6,9 +6,17 @@ import base64
 import uuid
 import time
 import logging
+import re
 from django.conf import settings
 
 logger = logging.getLogger('vtu_app')
+
+_SECRET_PARAM = re.compile(r"(UserID|APIKey|api_key|secret|token)=[^&\s)'\"]+", re.IGNORECASE)
+
+
+def _redact(error):
+    """Exception text with credentials stripped: requests errors embed the full URL, query string included."""
+    return _SECRET_PARAM.sub(lambda m: m.group(1) + "=***", str(error))
 
 
 class ClubKonnectService:
@@ -43,7 +51,7 @@ class ClubKonnectService:
             logger.error(f"Nellobyte returned non-JSON response: {response.text}")
             return "Format Error"
         except Exception as e:
-            logger.error(f"Connection Error to Nellobyte: {e}")
+            logger.error(f"Connection Error to Nellobyte: {_redact(e)}")
             return "Conn Error"
 
     def buy_data(self, network_code, plan_id, phone):
@@ -78,7 +86,7 @@ class ClubKonnectService:
                 return {"status": response.text.strip(), "remark": response.text.strip()}, request_id
 
         except Exception as e:
-            logger.error(f"ClubKonnect Connection Failed: {str(e)}")
+            logger.error(f"ClubKonnect Connection Failed: {_redact(e)}")
             return {"status": "ERROR", "remark": "Connection Timeout"}, request_id
 
     def buy_airtime(self, network_code, amount, phone):
@@ -103,7 +111,7 @@ class ClubKonnectService:
                 return {"status": response.text.strip(), "remark": response.text.strip()}, request_id
 
         except Exception as e:
-            return {"status": "ERROR", "remark": str(e)}, request_id
+            return {"status": "ERROR", "remark": _redact(e)}, request_id
 
     def validate_decoder(self, cable_tv, smartcard):
         """Alias for verify_cable to match user naming convention."""
@@ -141,7 +149,7 @@ class ClubKonnectService:
             except ValueError:
                 return {"status": response.text.strip()}, request_id
         except Exception as e:
-            return {"status": "ERROR", "remark": str(e)}, request_id
+            return {"status": "ERROR", "remark": _redact(e)}, request_id
 
     def validate_meter(self, disco_code, meter_no, meter_type):
         """Verify the meter number and customer name."""
@@ -176,7 +184,7 @@ class ClubKonnectService:
             except ValueError:
                 return {"status": response.text.strip()}, request_id
         except Exception as e:
-            return {"status": "ERROR", "remark": str(e)}, request_id
+            return {"status": "ERROR", "remark": _redact(e)}, request_id
 
 
 class MonnifyService:
