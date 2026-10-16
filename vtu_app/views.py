@@ -147,10 +147,10 @@ def ajax_get_balance(request):
 def dashboard(request):
     # Only logged-in users should see the dashboard
     if not request.user.is_authenticated:
-        return redirect('login')
-        
+        return render(request, 'landing.html')
+
     user_profile = request.user.profile
-    
+
     # MANDATORY PIN CHECK
     if not user_profile.is_pin_set:
         return redirect('set_pin')

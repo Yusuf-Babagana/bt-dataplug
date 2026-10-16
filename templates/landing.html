@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>BT DataPlug | Cheap Data, Airtime, Cable &amp; Electricity in Nigeria</title>
+    <meta name="description" content="Buy cheap data, airtime, cable TV subscriptions and electricity tokens instantly. Fund your wallet and pay in seconds with BT DataPlug.">
+    <meta name="theme-color" content="#ec3013">
+    <meta property="og:title" content="BT DataPlug">
+    <meta property="og:description" content="Instant data, airtime, cable TV and electricity payments.">
+    <meta property="og:url" content="https://www.btdataplug.com/">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;800&display=swap" rel="stylesheet">
+    <style>
+        :root{
+            --bg:#f7f5f4;--surface:#ffffff;--ink:#201e1d;--ink-2:#2d2a29;
+            --accent:#ec3013;--accent-600:#dd2b0f;--accent-700:#ae1800;
+            --accent-100:#fff2ef;--accent-200:#ffe0d9;
+            --muted:#605d5d;--line:rgba(32,30,29,.1);
+            --r:20px;--shadow:0 24px 60px -24px rgba(32,30,29,.28);
+        }
+        *{box-sizing:border-box;margin:0;padding:0}
+        html{scroll-behavior:smooth}
+        body{font-family:'Archivo',system-ui,sans-serif;background:var(--bg);color:var(--ink);line-height:1.55;overflow-x:hidden;-webkit-font-smoothing:antialiased}
+        a{color:inherit}
+        .wrap{max-width:1160px;margin:0 auto;padding:0 24px}
+
+        /* ---------- Header ---------- */
+        header{position:fixed;top:0;left:0;right:0;z-index:50;transition:background .3s,box-shadow .3s,backdrop-filter .3s}
+        header.scrolled{background:rgba(247,245,244,.85);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);box-shadow:0 1px 0 var(--line)}
+        .nav{display:flex;align-items:center;justify-content:space-between;height:72px}
+        .brand{display:flex;align-items:center;gap:10px;font-weight:800;font-size:20px;letter-spacing:-.4px;text-decoration:none}
+        .mark{width:34px;height:34px;border-radius:10px;background:var(--accent);display:grid;place-items:center;color:#fff;font-size:16px;font-weight:800;box-shadow:0 8px 18px -6px rgba(236,48,19,.7)}
+        .brand b{color:var(--accent)}
+        .nav-links{display:flex;gap:28px;align-items:center}
+        .nav-links a{text-decoration:none;font-weight:600;font-size:15px;color:var(--ink-2);transition:color .2s}
+        .nav-links a:hover{color:var(--accent)}
+        .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:14px 26px;font-weight:700;font-size:15px;text-decoration:none;border-radius:999px;border:2px solid transparent;cursor:pointer;transition:transform .2s,box-shadow .25s,background .2s,color .2s}
+        .btn.primary{background:var(--accent);color:#fff;box-shadow:0 14px 30px -10px rgba(236,48,19,.65)}
+        .btn.primary:hover{background:var(--accent-600);transform:translateY(-2px);box-shadow:0 18px 34px -10px rgba(236,48,19,.75)}
+        .btn.ghost{background:transparent;border-color:var(--ink);color:var(--ink)}
+        .btn.ghost:hover{background:var(--ink);color:#fff;transform:translateY(-2px)}
+        .btn.sm{padding:10px 20px;font-size:14px}
+        .nav-links a.btn.primary{color:#fff}
+        .burger{display:none}
+
+        /* ---------- Hero ---------- */
+        .hero{position:relative;padding:150px 0 90px;overflow:hidden}
+        .blob{position:absolute;border-radius:50%;filter:blur(70px);opacity:.55;z-index:0;pointer-events:none;animation:drift 14s ease-in-out infinite}
+        .blob.a{width:460px;height:460px;background:#ffc4b8;top:-120px;right:-80px}
+        .blob.b{width:360px;height:360px;background:#ffe0d9;bottom:-100px;left:-100px;animation-delay:-6s}
+        @keyframes drift{0%,100%{transform:translate(0,0) scale(1)}50%{transform:translate(30px,-24px) scale(1.08)}}
+        .hero-grid{position:relative;z-index:1;display:grid;grid-template-columns:1.1fr .9fr;gap:56px;align-items:center}
+        .pill{display:inline-flex;align-items:center;gap:8px;background:var(--accent-100);color:var(--accent-700);border:1px solid var(--accent-200);padding:8px 16px;border-radius:999px;font-weight:700;font-size:13px;margin-bottom:22px}
+        .dot{width:8px;height:8px;border-radius:50%;background:var(--accent);animation:pulse 1.8s infinite}
+        @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(236,48,19,.55)}100%{box-shadow:0 0 0 12px rgba(236,48,19,0)}}
+        h1{font-size:clamp(40px,6vw,70px);line-height:1.02;font-weight:800;letter-spacing:-2px}
+        h1 .hl{color:var(--accent);position:relative;white-space:nowrap}
+        h1 .hl::after{content:"";position:absolute;left:0;right:0;bottom:-.04em;height:.14em;background:var(--accent-200);z-index:-1;transform-origin:left;animation:draw 1s .6s both cubic-bezier(.2,.8,.2,1)}
+        @keyframes draw{from{transform:scaleX(0)}to{transform:scaleX(1)}}
+        .lead{font-size:19px;color:var(--muted);margin:22px 0 32px;max-width:520px}
+        .cta{display:flex;gap:14px;flex-wrap:wrap}
+        .trust{display:flex;gap:28px;margin-top:40px;flex-wrap:wrap}
+        .trust div{font-size:14px;color:var(--muted)}
+        .trust strong{display:block;font-size:26px;color:var(--ink);letter-spacing:-.6px;font-weight:800}
+
+        /* Phone mockup */
+        .stage{position:relative;display:grid;place-items:center;min-height:540px}
+        .phone{width:290px;background:var(--ink);border-radius:42px;padding:12px;box-shadow:var(--shadow),0 0 0 2px rgba(255,255,255,.06) inset;animation:float 6s ease-in-out infinite;position:relative}
+        @keyframes float{0%,100%{transform:translateY(0) rotate(-2deg)}50%{transform:translateY(-16px) rotate(1deg)}}
+        .screen{background:var(--bg);border-radius:32px;padding:22px 18px 18px;min-height:500px}
+        .notch{width:84px;height:20px;background:var(--ink);border-radius:0 0 14px 14px;margin:-22px auto 14px}
+        .hi{font-size:12px;color:var(--muted);font-weight:600}
+        .hi b{display:block;font-size:17px;color:var(--ink);letter-spacing:-.3px}
+        .bal{margin:14px 0;background:linear-gradient(135deg,var(--accent),var(--accent-700));color:#fff;border-radius:20px;padding:18px;position:relative;overflow:hidden}
+        .bal::after{content:"";position:absolute;right:-30px;top:-30px;width:110px;height:110px;border-radius:50%;background:rgba(255,255,255,.14)}
+        .bal small{opacity:.85;font-size:11px;font-weight:600;letter-spacing:1px;text-transform:uppercase}
+        .bal .amt{font-size:28px;font-weight:800;letter-spacing:-1px;margin-top:4px}
+        .tiles{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+        .tile{background:#fff;border-radius:16px;padding:14px 12px;font-size:12px;font-weight:700;border:1px solid var(--line);opacity:0;animation:pop .6s forwards cubic-bezier(.2,.9,.3,1.3)}
+        .tile i{display:grid;place-items:center;width:32px;height:32px;border-radius:10px;background:var(--accent-100);color:var(--accent);font-style:normal;font-size:15px;margin-bottom:8px}
+        .tile:nth-child(1){animation-delay:.7s}.tile:nth-child(2){animation-delay:.85s}.tile:nth-child(3){animation-delay:1s}.tile:nth-child(4){animation-delay:1.15s}
+        @keyframes pop{from{opacity:0;transform:translateY(14px) scale(.9)}to{opacity:1;transform:none}}
+        .toast{position:absolute;left:-60px;bottom:90px;background:#fff;border-radius:16px;padding:12px 16px;display:flex;gap:10px;align-items:center;box-shadow:var(--shadow);font-size:13px;font-weight:700;animation:float2 5s ease-in-out infinite}
+        .toast span{display:grid;place-items:center;width:30px;height:30px;border-radius:50%;background:#e8f7ee;color:#1a8f4c;font-size:15px}
+        .toast small{display:block;color:var(--muted);font-weight:500;font-size:11px}
+        .toast.two{left:auto;right:-50px;top:70px;bottom:auto;animation-delay:-2.5s}
+        .toast.two span{background:var(--accent-100);color:var(--accent)}
+        @keyframes float2{0%,100%{transform:translateY(0)}50%{transform:translateY(-12px)}}
+
+        /* ---------- Marquee ---------- */
+        .marquee{background:var(--ink);color:#fff;padding:18px 0;overflow:hidden;transform:rotate(-1deg);margin:0 -20px;position:relative;z-index:2}
+        .track{display:flex;width:max-content;animation:scroll 28s linear infinite}
+        .track span{font-weight:800;font-size:20px;letter-spacing:-.3px;padding:0 28px;white-space:nowrap}
+        .track span em{font-style:normal;color:var(--accent);margin-left:56px}
+        @keyframes scroll{to{transform:translateX(-50%)}}
+
+        /* ---------- Sections ---------- */
+        section{padding:110px 0}
+        .kicker{font-size:13px;font-weight:800;letter-spacing:1.8px;text-transform:uppercase;color:var(--accent)}
+        h2{font-size:clamp(30px,4.4vw,48px);font-weight:800;letter-spacing:-1.4px;line-height:1.08;margin:12px 0 14px}
+        .sub{color:var(--muted);font-size:18px;max-width:560px}
+        .head{margin-bottom:56px}
+        .cards{display:grid;grid-template-columns:repeat(4,1fr);gap:20px}
+        .card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:30px 26px;position:relative;overflow:hidden;transition:transform .35s cubic-bezier(.2,.8,.2,1),box-shadow .35s,border-color .35s}
+        .card::before{content:"";position:absolute;inset:0;background:linear-gradient(160deg,var(--accent-100),transparent 60%);opacity:0;transition:opacity .35s}
+        .card:hover{transform:translateY(-8px);box-shadow:var(--shadow);border-color:var(--accent-200)}
+        .card:hover::before{opacity:1}
+        .card>*{position:relative}
+        .ico{width:56px;height:56px;border-radius:16px;background:var(--accent-100);display:grid;place-items:center;font-size:26px;margin-bottom:22px;transition:transform .35s,background .35s}
+        .card:hover .ico{background:var(--accent);transform:rotate(-8deg) scale(1.08)}
+        .card h3{font-size:21px;letter-spacing:-.4px;margin-bottom:8px}
+        .card p{color:var(--muted);font-size:15px}
+
+        .dark{background:var(--ink);color:#fff;border-radius:40px;margin:0 16px;position:relative;overflow:hidden}
+        .dark .sub{color:#bab6b6}
+        .dark::before{content:"";position:absolute;width:520px;height:520px;border-radius:50%;background:radial-gradient(circle,rgba(236,48,19,.35),transparent 65%);top:-200px;right:-120px}
+        .steps{display:grid;grid-template-columns:repeat(3,1fr);gap:20px;position:relative}
+        .step{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);border-radius:var(--r);padding:32px 28px;transition:background .3s,transform .3s}
+        .step:hover{background:rgba(255,255,255,.09);transform:translateY(-6px)}
+        .num{font-size:54px;font-weight:800;letter-spacing:-2px;color:var(--accent);line-height:1}
+        .step h3{font-size:22px;margin:16px 0 8px;letter-spacing:-.4px}
+        .step p{color:#bab6b6;font-size:15px}
+
+        .feat{display:grid;grid-template-columns:repeat(3,1fr);gap:20px}
+        .f{display:flex;gap:16px;padding:24px;border-radius:var(--r);transition:background .3s}
+        .f:hover{background:var(--surface)}
+        .f .tick{flex:none;width:40px;height:40px;border-radius:50%;background:var(--accent);color:#fff;display:grid;place-items:center;font-weight:800}
+        .f h3{font-size:18px;margin-bottom:4px;letter-spacing:-.3px}
+        .f p{color:var(--muted);font-size:15px}
+
+        .cta-box{background:linear-gradient(135deg,var(--accent),var(--accent-700));color:#fff;border-radius:36px;padding:72px 32px;text-align:center;position:relative;overflow:hidden;box-shadow:0 30px 70px -24px rgba(236,48,19,.7)}
+        .cta-box::before,.cta-box::after{content:"";position:absolute;border-radius:50%;background:rgba(255,255,255,.1)}
+        .cta-box::before{width:300px;height:300px;top:-120px;left:-80px;animation:drift 12s ease-in-out infinite}
+        .cta-box::after{width:220px;height:220px;bottom:-90px;right:-50px;animation:drift 10s -4s ease-in-out infinite}
+        .cta-box>*{position:relative}
+        .cta-box h2{color:#fff}
+        .cta-box p{opacity:.9;font-size:18px;margin-bottom:30px}
+        .cta-box .btn{background:#fff;color:var(--accent-700)}
+        .cta-box .btn:hover{transform:translateY(-3px) scale(1.03);box-shadow:0 16px 30px -10px rgba(0,0,0,.4)}
+
+        footer{padding:56px 0 36px}
+        .foot{display:flex;justify-content:space-between;gap:24px;flex-wrap:wrap;align-items:center;border-top:1px solid var(--line);padding-top:28px;font-size:14px;color:var(--muted)}
+        .foot a{margin-left:22px;text-decoration:none;font-weight:600;color:var(--ink);transition:color .2s}
+        .foot a:hover{color:var(--accent)}
+
+        /* ---------- Scroll reveal ---------- */
+        .rv{opacity:0;transform:translateY(34px);transition:opacity .8s cubic-bezier(.2,.8,.2,1),transform .8s cubic-bezier(.2,.8,.2,1)}
+        .rv.in{opacity:1;transform:none}
+        .d1{transition-delay:.1s}.d2{transition-delay:.2s}.d3{transition-delay:.3s}
+        .hero .rv{animation:none}
+
+        /* ---------- Responsive ---------- */
+        @media(max-width:980px){
+            .hero-grid{grid-template-columns:1fr;gap:20px}
+            .stage{min-height:auto;padding:24px 0 8px}
+            .toast{left:0}.toast.two{right:0}
+            .cards{grid-template-columns:repeat(2,1fr)}
+            .steps,.feat{grid-template-columns:1fr}
+            .hero{padding-top:120px}
+            section{padding:80px 0}
+        }
+        @media(max-width:600px){
+            .nav-links .lnk{display:none}
+            .cards{grid-template-columns:1fr}
+            .toast{display:none}
+            .dark{margin:0 8px;border-radius:28px}
+            .foot a{margin:0 18px 0 0}
+        }
+        @media(prefers-reduced-motion:reduce){
+            *,*::before,*::after{animation:none!important;transition:none!important}
+            .rv{opacity:1;transform:none}.tile{opacity:1}
+        }
+    </style>
+</head>
+<body>
+<header id="hdr">
+    <div class="wrap nav">
+        <a class="brand" href="{% url 'dashboard' %}"><span class="mark">BT</span>BT <b>DataPlug</b></a>
+        <nav class="nav-links">
+            <a class="lnk" href="#services">Services</a>
+            <a class="lnk" href="#how">How it works</a>
+            <a class="lnk" href="#why">Why us</a>
+            <a href="{% url 'login' %}">Log in</a>
+            <a class="btn primary sm" href="{% url 'register' %}">Get started</a>
+        </nav>
+    </div>
+</header>
+
+<main>
+<div class="hero">
+    <div class="blob a"></div><div class="blob b"></div>
+    <div class="wrap hero-grid">
+        <div>
+            <div class="pill"><span class="dot"></span>Instant delivery, 24/7</div>
+            <h1>Top up in seconds. <span class="hl">Pay less.</span></h1>
+            <p class="lead">Buy data, airtime, cable TV and electricity tokens from one secure wallet. Fast, affordable and always available.</p>
+            <div class="cta">
+                <a class="btn primary" href="{% url 'register' %}">Create free account &rarr;</a>
+                <a class="btn ghost" href="{% url 'login' %}">Log in</a>
+            </div>
+            <div class="trust">
+                <div><strong>4</strong>services in one app</div>
+                <div><strong>24/7</strong>always available</div>
+                <div><strong>&lt;5s</strong>typical delivery</div>
+            </div>
+        </div>
+        <div class="stage" aria-hidden="true">
+            <div class="phone">
+                <div class="screen">
+                    <div class="notch"></div>
+                    <div class="hi">Welcome back<b>Your wallet</b></div>
+                    <div class="bal"><small>Wallet balance</small><div class="amt">&#8358;25,000.00</div></div>
+                    <div class="tiles">
+                        <div class="tile"><i>&#9889;</i>Buy Data</div>
+                        <div class="tile"><i>&#9742;</i>Airtime</div>
+                        <div class="tile"><i>&#128250;</i>Cable TV</div>
+                        <div class="tile"><i>&#128161;</i>Electricity</div>
+                    </div>
+                </div>
+            </div>
+            <div class="toast"><span>&#10003;</span><div>Data delivered<small>Just now</small></div></div>
+            <div class="toast two"><span>&#8358;</span><div>Wallet funded<small>Instant credit</small></div></div>
+        </div>
+    </div>
+</div>
+
+<div class="marquee" aria-hidden="true">
+    <div class="track">
+        <span>Mobile Data <em>&#9679;</em></span><span>Airtime <em>&#9679;</em></span><span>Cable TV <em>&#9679;</em></span><span>Electricity <em>&#9679;</em></span><span>Instant Delivery <em>&#9679;</em></span><span>Secure Wallet <em>&#9679;</em></span>
+        <span>Mobile Data <em>&#9679;</em></span><span>Airtime <em>&#9679;</em></span><span>Cable TV <em>&#9679;</em></span><span>Electricity <em>&#9679;</em></span><span>Instant Delivery <em>&#9679;</em></span><span>Secure Wallet <em>&#9679;</em></span>
+    </div>
+</div>
+
+<section id="services">
+    <div class="wrap">
+        <div class="head rv">
+            <div class="kicker">Services</div>
+            <h2>Everything you pay for,<br>in one wallet.</h2>
+            <p class="sub">Simple, fast and secure bill payments built for everyday life.</p>
+        </div>
+        <div class="cards">
+            <div class="card rv"><div class="ico">&#9889;</div><h3>Buy Data</h3><p>Affordable data bundles for all major networks, delivered instantly.</p></div>
+            <div class="card rv d1"><div class="ico">&#9742;</div><h3>Buy Airtime</h3><p>Recharge any number in seconds, for yourself or someone else.</p></div>
+            <div class="card rv d2"><div class="ico">&#128250;</div><h3>Cable TV</h3><p>Renew your TV subscription without leaving home.</p></div>
+            <div class="card rv d3"><div class="ico">&#128161;</div><h3>Electricity</h3><p>Get your meter token immediately, prepaid or postpaid.</p></div>
+        </div>
+    </div>
+</section>
+
+<section id="how" class="dark">
+    <div class="wrap">
+        <div class="head rv">
+            <div class="kicker">How it works</div>
+            <h2>Get started in three steps.</h2>
+            <p class="sub">No paperwork, no queues. Be ready in under a minute.</p>
+        </div>
+        <div class="steps">
+            <div class="step rv"><div class="num">01</div><h3>Create an account</h3><p>Sign up with your details and set your secure transaction PIN.</p></div>
+            <div class="step rv d1"><div class="num">02</div><h3>Fund your wallet</h3><p>Transfer to your dedicated account number or pay by card.</p></div>
+            <div class="step rv d2"><div class="num">03</div><h3>Buy anything</h3><p>Pick a service, confirm with your PIN, and you are done.</p></div>
+        </div>
+    </div>
+</section>
+
+<section id="why">
+    <div class="wrap">
+        <div class="head rv">
+            <div class="kicker">Why BT DataPlug</div>
+            <h2>Built for speed and trust.</h2>
+        </div>
+        <div class="feat">
+            <div class="f rv"><div class="tick">&#10003;</div><div><h3>Instant delivery</h3><p>Orders are processed automatically, around the clock.</p></div></div>
+            <div class="f rv d1"><div class="tick">&#10003;</div><div><h3>PIN-protected</h3><p>Every purchase is confirmed with your private transaction PIN.</p></div></div>
+            <div class="f rv d2"><div class="tick">&#10003;</div><div><h3>Clear receipts</h3><p>Full transaction history and a receipt for every order.</p></div></div>
+            <div class="f rv"><div class="tick">&#10003;</div><div><h3>Affordable rates</h3><p>Competitive prices so every top-up saves you money.</p></div></div>
+            <div class="f rv d1"><div class="tick">&#10003;</div><div><h3>Web &amp; mobile</h3><p>Use the website or the mobile app, with one shared wallet.</p></div></div>
+            <div class="f rv d2"><div class="tick">&#10003;</div><div><h3>Real support</h3><p>Reach us anytime at support@btdataplug.com.</p></div></div>
+        </div>
+    </div>
+</section>
+
+<section style="padding-top:0">
+    <div class="wrap">
+        <div class="cta-box rv">
+            <h2>Ready to save on every top-up?</h2>
+            <p>Join BT DataPlug today. It takes less than a minute.</p>
+            <a class="btn" href="{% url 'register' %}">Get started free &rarr;</a>
+        </div>
+    </div>
+</section>
+</main>
+
+<footer>
+    <div class="wrap foot">
+        <div>&copy; {% now "Y" %} BT DataPlug. All rights reserved.</div>
+        <div>
+            <a href="{% url 'privacy_policy' %}">Privacy Policy</a><a href="{% url 'delete_account' %}">Delete Account</a><a href="mailto:support@btdataplug.com">Contact</a>
+        </div>
+    </div>
+</footer>
+
+<script>
+    (function () {
+        var h = document.getElementById('hdr');
+        function s() { h.classList.toggle('scrolled', window.scrollY > 8); }
+        s(); window.addEventListener('scroll', s, { passive: true });
+        var els = document.querySelectorAll('.rv');
+        if (!('IntersectionObserver' in window)) { els.forEach(function (e) { e.classList.add('in'); }); return; }
+        var io = new IntersectionObserver(function (en) {
+            en.forEach(function (x) { if (x.isIntersecting) { x.target.classList.add('in'); io.unobserve(x.target); } });
+        }, { threshold: 0.15 });
+        els.forEach(function (e) { io.observe(e); });
+    })();
+</script>
+</body>
+</html>
