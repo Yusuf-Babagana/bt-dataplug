@@ -1,0 +1,144 @@
+{% extends "admin/base.html" %}
+{% load static %}
+
+{% block title %}{% if subtitle %}{{ subtitle }} | {% endif %}{{ title }} | BT DataPlug Admin{% endblock %}
+
+{% block branding %}
+<h1 id="site-name"><a href="{% url 'admin:index' %}"><span class="bt-logo">BT</span>DataPlug <small>Admin</small></a></h1>
+{% endblock %}
+
+{% block extrastyle %}{{ block.super }}
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;800&display=swap" rel="stylesheet">
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+<style>
+    :root, html[data-theme="light"], html[data-theme="dark"], html[data-theme="auto"] {
+        color-scheme: light;
+        --primary: #201e1d;
+        --secondary: #ec3013;
+        --accent: #ec3013;
+        --primary-fg: #fff;
+        --body-fg: #201e1d;
+        --body-bg: #f7f5f4;
+        --body-quiet-color: #605d5d;
+        --body-medium-color: #444141;
+        --body-loud-color: #201e1d;
+        --header-color: #fff;
+        --header-branding-color: #fff;
+        --header-bg: #201e1d;
+        --header-link-color: #fff;
+        --breadcrumbs-fg: #d7d3d3;
+        --breadcrumbs-link-fg: #fff;
+        --breadcrumbs-bg: #2d2a29;
+        --link-fg: #ae1800;
+        --link-hover-color: #ec3013;
+        --link-selected-fg: #ec3013;
+        --hairline-color: rgba(32, 30, 29, 0.1);
+        --border-color: rgba(32, 30, 29, 0.14);
+        --error-fg: #ae1800;
+        --message-success-bg: #e8f7ee;
+        --message-warning-bg: #fff4e0;
+        --message-error-bg: #fff2ef;
+        --darkened-bg: #f0eeed;
+        --selected-bg: #fff2ef;
+        --selected-row: #fff2ef;
+        --button-fg: #fff;
+        --button-bg: #ec3013;
+        --button-hover-bg: #dd2b0f;
+        --default-button-bg: #201e1d;
+        --default-button-hover-bg: #3a3736;
+        --close-button-bg: #7d7979;
+        --close-button-hover-bg: #605d5d;
+        --delete-button-bg: #ae1800;
+        --delete-button-hover-bg: #8a1300;
+        --object-tools-fg: #fff;
+        --object-tools-bg: #201e1d;
+        --object-tools-hover-bg: #ec3013;
+        --font-family-primary: 'Archivo', system-ui, sans-serif;
+        --font-family-monospace: ui-monospace, Menlo, Consolas, monospace;
+    }
+    body, input, select, textarea, button { font-family: 'Archivo', system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
+    .theme-toggle { display: none !important; }
+
+    /* Header */
+    #header { padding: 14px 28px; box-shadow: 0 8px 24px -14px rgba(0, 0, 0, .5); position: relative; z-index: 5; }
+    #site-name a { display: inline-flex; align-items: center; gap: 10px; font-weight: 800; font-size: 20px; letter-spacing: -.4px; color: #fff; }
+    #site-name small { font-size: 11px; font-weight: 600; letter-spacing: 1.4px; text-transform: uppercase; color: #bab6b6; margin-left: 2px; }
+    .bt-logo { display: inline-grid; place-items: center; width: 34px; height: 34px; border-radius: 10px; background: linear-gradient(135deg, #f0401f, #b81c05); color: #fff; font-size: 14px; box-shadow: 0 8px 18px -6px rgba(236, 48, 19, .7); }
+    #user-tools { font-size: 13px; }
+    #user-tools a { border-bottom: 0; opacity: .85; transition: opacity .2s; }
+    #user-tools a:hover { opacity: 1; color: #fff; }
+    div.breadcrumbs { padding: 12px 28px; font-size: 13px; }
+
+    /* Layout */
+    #content { padding: 24px 28px; }
+    h1 { font-weight: 800; letter-spacing: -.5px; color: var(--body-loud-color); }
+    h2, h3 { letter-spacing: -.2px; }
+    .colMS, .colM { animation: bt-rise .5s cubic-bezier(.2, .8, .2, 1) both; }
+    @keyframes bt-rise { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+
+    /* Cards: module boxes, changelist, forms */
+    .module, #changelist .results, #changelist-filter, fieldset.module, .inline-group {
+        background: #fff; border: 1px solid var(--hairline-color); border-radius: 18px;
+        box-shadow: 0 10px 30px -16px rgba(32, 30, 29, .25); overflow: hidden;
+    }
+    .module { margin-bottom: 22px; }
+    .module h2, .module caption, .inline-group h2 {
+        background: #fff; color: var(--body-loud-color); font-weight: 800; font-size: 14px; letter-spacing: -.1px;
+        padding: 14px 18px; border-bottom: 1px solid var(--hairline-color); text-transform: none;
+    }
+    .module h2 a, .module caption a { color: var(--body-loud-color); }
+    #changelist .results { border-radius: 18px; }
+    table { border-collapse: separate; border-spacing: 0; }
+    thead th { background: #faf9f8; color: #7d7979; font-size: 11px; letter-spacing: 1px; text-transform: uppercase; font-weight: 700; border-bottom: 1px solid var(--hairline-color); }
+    thead th a { color: inherit; }
+    tbody tr { transition: background .18s; }
+    tbody tr:hover td, tbody tr:hover th { background: #fff7f5; }
+    td, th { border-bottom: 1px solid var(--hairline-color); }
+    tr.selected td, tr.selected th { background: var(--selected-bg); }
+    .module th a.section:hover, .module td a:hover { color: var(--secondary); }
+
+    /* Buttons & inputs */
+    .button, input[type=submit], input[type=button], .submit-row input, a.button {
+        border-radius: 12px; font-weight: 700; padding: 10px 18px; border: 0; transition: transform .2s, box-shadow .25s, background .2s;
+    }
+    input[type=submit].default, .submit-row input.default { background: #ec3013; box-shadow: 0 12px 24px -10px rgba(236, 48, 19, .65); }
+    input[type=submit].default:hover, .submit-row input.default:hover { background: #dd2b0f; transform: translateY(-2px); }
+    .button:active, input[type=submit]:active { transform: scale(.97); }
+    .object-tools a { border-radius: 999px; padding: 8px 18px; font-weight: 700; transition: background .2s, transform .2s; }
+    .object-tools a:hover { transform: translateY(-2px); }
+    input[type=text], input[type=password], input[type=email], input[type=url], input[type=number], input[type=tel], input[type=date], input[type=time], textarea, select, .vTextField {
+        border: 1.5px solid var(--border-color); border-radius: 10px; padding: 8px 12px; transition: border-color .2s, box-shadow .2s; background: #fff;
+    }
+    input:focus, textarea:focus, select:focus { border-color: #ec3013 !important; box-shadow: 0 0 0 4px rgba(236, 48, 19, .12); outline: 0; }
+    #toolbar { border-radius: 14px 14px 0 0; }
+    #changelist-search input[type=text] { min-width: 280px; }
+    #changelist-filter { padding-bottom: 8px; }
+    #changelist-filter h2 { background: #faf9f8; font-size: 11px; letter-spacing: 1px; text-transform: uppercase; color: #7d7979; }
+    #changelist-filter li.selected a { color: var(--secondary); font-weight: 700; border-left: 3px solid var(--secondary); padding-left: 6px; }
+    .actions { border-radius: 12px; }
+    .paginator a, .paginator .this-page { border-radius: 8px; }
+    .paginator .this-page { background: var(--secondary); }
+    ul.messagelist li { border-radius: 14px; margin: 12px 28px 0; box-shadow: 0 8px 20px -14px rgba(32, 30, 29, .35); border-left: 5px solid #201e1d; animation: bt-rise .45s both; }
+    ul.messagelist li.success { border-left-color: #1a7a43; }
+    ul.messagelist li.warning { border-left-color: #b45309; }
+    ul.messagelist li.error { border-left-color: #ae1800; }
+
+    /* Sidebar navigation */
+    #nav-sidebar { background: #fff; border-right: 1px solid var(--hairline-color); }
+    #nav-sidebar .module { box-shadow: none; border: 0; border-radius: 0; margin: 0; }
+    #nav-sidebar .module th a { padding: 8px 12px; border-radius: 10px; display: block; }
+    #nav-sidebar .current-app .section:link, #nav-sidebar .current-model { color: var(--secondary); font-weight: 700; }
+    #nav-filter { border-radius: 10px; margin: 10px; width: calc(100% - 20px); }
+    .toggle-nav-sidebar { background: #fff; }
+
+    /* Status badges used by list columns */
+    .bt-badge { display: inline-block; padding: 3px 10px; border-radius: 999px; font-size: 11px; font-weight: 800; letter-spacing: .3px; }
+    .bt-ok { background: #e8f7ee; color: #1a7a43; }
+    .bt-warn { background: #fff4e0; color: #b45309; }
+    .bt-bad { background: #fff2ef; color: #ae1800; border: 1px solid #ffc4b8; }
+    .bt-info { background: #eae9e9; color: #444141; }
+
+    @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
+</style>
+{% endblock %}

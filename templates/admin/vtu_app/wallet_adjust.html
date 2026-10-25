@@ -1,0 +1,35 @@
+{% extends "admin/base_site.html" %}
+{% block breadcrumbs %}
+<div class="breadcrumbs"><a href="{% url 'admin:index' %}">Home</a> &rsaquo; <a href="{% url 'admin:vtu_app_profile_changelist' %}">Profiles</a> &rsaquo; Adjust wallet</div>
+{% endblock %}
+{% block content %}
+<div class="module" style="max-width:640px">
+    <h2>Credit or debit a wallet</h2>
+    <form method="post" style="padding:18px 20px">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="adjust_wallet">
+        <input type="hidden" name="apply" value="1">
+        {% for p in profiles %}<input type="hidden" name="{{ action_checkbox_name }}" value="{{ p.pk }}">{% endfor %}
+
+        <p style="margin-top:0"><b>{{ profiles|length }}</b> customer{{ profiles|length|pluralize }} selected:</p>
+        <ul style="margin:0 0 16px;padding-left:18px">
+            {% for p in profiles %}<li>{{ p.user.username }} &middot; current balance ₦{{ p.wallet_balance }}</li>{% endfor %}
+        </ul>
+
+        <p><label for="kind"><b>Action</b></label><br>
+            <select name="kind" id="kind">
+                <option value="CREDIT">Credit (add money)</option>
+                <option value="DEBIT">Debit (remove money)</option>
+            </select></p>
+        <p><label for="amount"><b>Amount per customer (₦)</b></label><br>
+            <input type="number" name="amount" id="amount" step="0.01" min="0.01" required></p>
+        <p><label for="reason"><b>Reason</b> (saved in the audit trail and sent to the customer)</label><br>
+            <input type="text" name="reason" id="reason" maxlength="150" style="width:100%" required placeholder="e.g. Manual funding confirmed via bank transfer"></p>
+
+        <p style="margin-top:22px">
+            <input type="submit" class="default" value="Apply change">
+            <a href="{% url 'admin:vtu_app_profile_changelist' %}" style="margin-left:14px">Cancel</a>
+        </p>
+    </form>
+</div>
+{% endblock %}

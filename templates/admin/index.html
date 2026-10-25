@@ -1,0 +1,215 @@
+{% extends "admin/index.html" %}
+{% load i18n %}
+
+{% block extrastyle %}{{ block.super }}
+<style>
+    .bt-dash { margin-bottom: 8px; }
+    .bt-hello { display: flex; justify-content: space-between; align-items: flex-end; flex-wrap: wrap; gap: 12px; margin-bottom: 20px; }
+    .bt-hello h1 { margin: 0; font-size: 28px; }
+    .bt-hello p { margin: 4px 0 0; color: var(--body-quiet-color); }
+    .bt-quick { display: flex; gap: 8px; flex-wrap: wrap; }
+    .bt-quick a { display: inline-flex; align-items: center; gap: 8px; background: #fff; border: 1px solid var(--hairline-color); border-radius: 999px; padding: 9px 16px; font-weight: 700; font-size: 13px; color: var(--body-fg); box-shadow: 0 8px 20px -14px rgba(32, 30, 29, .4); transition: transform .2s, background .2s, color .2s; }
+    .bt-quick a:hover { background: #ec3013; color: #fff; transform: translateY(-2px); }
+    .bt-quick a i { color: #ec3013; transition: color .2s; }
+    .bt-quick a:hover i { color: #fff; }
+
+    .bt-grid { display: grid; gap: 16px; grid-template-columns: repeat(4, 1fr); margin-bottom: 18px; }
+    .bt-card { background: #fff; border: 1px solid var(--hairline-color); border-radius: 20px; padding: 20px; box-shadow: 0 10px 30px -16px rgba(32, 30, 29, .25); position: relative; overflow: hidden; transition: transform .35s cubic-bezier(.2, .8, .2, 1), box-shadow .35s; animation: bt-rise .6s cubic-bezier(.2, .8, .2, 1) both; }
+    .bt-card:nth-child(2) { animation-delay: .06s; } .bt-card:nth-child(3) { animation-delay: .12s; } .bt-card:nth-child(4) { animation-delay: .18s; }
+    .bt-card:hover { transform: translateY(-5px); box-shadow: 0 24px 50px -22px rgba(32, 30, 29, .35); }
+    .bt-card .lbl { font-size: 11px; font-weight: 800; letter-spacing: 1.2px; text-transform: uppercase; color: var(--body-quiet-color); display: flex; align-items: center; gap: 8px; }
+    .bt-card .lbl i { width: 28px; height: 28px; border-radius: 9px; display: grid; place-items: center; background: #fff2ef; color: #ec3013; font-size: 13px; }
+    .bt-card .val { font-size: 28px; font-weight: 800; letter-spacing: -1px; margin: 12px 0 4px; color: var(--body-loud-color); }
+    .bt-card .sub { font-size: 12.5px; color: var(--body-quiet-color); }
+    .bt-card.hero { background: linear-gradient(135deg, #f0401f 0%, #ec3013 45%, #b81c05 100%); border: 0; box-shadow: 0 18px 36px -14px rgba(236, 48, 19, .65); }
+    .bt-card.hero::after { content: ""; position: absolute; width: 180px; height: 180px; border-radius: 50%; background: rgba(255, 255, 255, .1); top: -70px; right: -50px; }
+    .bt-card.hero .lbl, .bt-card.hero .sub { color: rgba(255, 255, 255, .85); }
+    .bt-card.hero .lbl i { background: rgba(255, 255, 255, .2); color: #fff; }
+    .bt-card.hero .val { color: #fff; }
+    .bt-card.ink { background: #201e1d; border: 0; }
+    .bt-card.ink .lbl, .bt-card.ink .sub { color: #bab6b6; }
+    .bt-card.ink .lbl i { background: rgba(255, 255, 255, .1); color: #ec3013; }
+    .bt-card.ink .val { color: #fff; }
+
+    .bt-row { display: grid; gap: 16px; grid-template-columns: 1.6fr 1fr; margin-bottom: 18px; }
+    .bt-panel { background: #fff; border: 1px solid var(--hairline-color); border-radius: 20px; padding: 20px 22px; box-shadow: 0 10px 30px -16px rgba(32, 30, 29, .25); animation: bt-rise .6s .2s cubic-bezier(.2, .8, .2, 1) both; }
+    .bt-panel h3 { margin: 0 0 4px; font-size: 16px; font-weight: 800; }
+    .bt-panel .hint { color: var(--body-quiet-color); font-size: 12.5px; margin-bottom: 14px; }
+    .bt-tabs { display: flex; gap: 6px; margin-bottom: 14px; flex-wrap: wrap; }
+    .bt-tabs span { background: #f0eeed; border-radius: 999px; padding: 6px 14px; font-size: 12px; font-weight: 700; color: var(--body-quiet-color); }
+    .bt-tabs span b { color: var(--body-loud-color); }
+
+    .bt-chart { display: flex; align-items: flex-end; gap: 6px; height: 180px; padding-top: 6px; }
+    .bt-col { flex: 1; height: 100%; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; gap: 6px; position: relative; }
+    .bt-bar { width: 100%; border-radius: 8px 8px 3px 3px; background: linear-gradient(180deg, #f0401f, #ec3013); transform-origin: bottom; animation: bt-grow .9s cubic-bezier(.2, .8, .2, 1) both; min-height: 3px; position: relative; opacity: .92; transition: opacity .2s; }
+    .bt-bar i { position: absolute; left: 0; right: 0; bottom: 0; background: #201e1d; border-radius: 3px; opacity: .85; }
+    .bt-col:hover .bt-bar { opacity: 1; }
+    .bt-col span { font-size: 10px; font-weight: 700; color: var(--body-quiet-color); }
+    .bt-col em { position: absolute; bottom: calc(100% + 4px); font-style: normal; font-size: 11px; font-weight: 800; background: #201e1d; color: #fff; padding: 4px 8px; border-radius: 8px; white-space: nowrap; opacity: 0; pointer-events: none; transform: translateY(4px); transition: opacity .2s, transform .2s; z-index: 3; }
+    .bt-col:hover em { opacity: 1; transform: none; }
+    @keyframes bt-grow { from { transform: scaleY(0); } to { transform: scaleY(1); } }
+    .bt-legend { display: flex; gap: 16px; font-size: 12px; color: var(--body-quiet-color); margin-top: 10px; }
+    .bt-legend b { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 6px; vertical-align: -1px; }
+
+    .bt-svc { margin-bottom: 12px; }
+    .bt-svc .top { display: flex; justify-content: space-between; font-size: 13px; font-weight: 700; margin-bottom: 5px; }
+    .bt-svc .top span:last-child { color: var(--body-quiet-color); font-weight: 600; }
+    .bt-track { height: 8px; background: #f0eeed; border-radius: 999px; overflow: hidden; }
+    .bt-fill { height: 100%; border-radius: 999px; background: linear-gradient(90deg, #ec3013, #b81c05); transform-origin: left; animation: bt-grow-x 1s cubic-bezier(.2, .8, .2, 1) both; }
+    @keyframes bt-grow-x { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+
+    .bt-attn a { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-radius: 14px; margin-bottom: 8px; font-weight: 700; font-size: 13.5px; transition: transform .2s, background .2s; color: var(--body-fg); }
+    .bt-attn a:hover { transform: translateX(4px); }
+    .bt-attn .warn { background: #fff4e0; } .bt-attn .bad { background: #fff2ef; }
+    .bt-attn .warn i { color: #b45309; } .bt-attn .bad i { color: #ae1800; }
+    .bt-allgood { background: #e8f7ee; color: #1a7a43; border-radius: 14px; padding: 14px; font-weight: 700; }
+
+    .bt-list { width: 100%; }
+    .bt-list td { padding: 10px 6px; border: 0; border-bottom: 1px solid var(--hairline-color); font-size: 13px; }
+    .bt-list tr:last-child td { border-bottom: 0; }
+    .bt-list .r { text-align: right; font-weight: 800; }
+    .bt-pill { display: inline-flex; gap: 8px; align-items: center; margin: 0 6px 6px 0; padding: 6px 12px; border-radius: 999px; font-size: 12px; font-weight: 800; }
+    .bt-pill.on { background: #e8f7ee; color: #1a7a43; } .bt-pill.off { background: #fff2ef; color: #ae1800; }
+    .bt-pill b { width: 8px; height: 8px; border-radius: 50%; background: currentColor; }
+
+    @media (max-width: 1100px) { .bt-grid { grid-template-columns: repeat(2, 1fr); } .bt-row { grid-template-columns: 1fr; } }
+    @media (max-width: 560px) { .bt-grid { grid-template-columns: 1fr; } .bt-card .val { font-size: 24px; } }
+</style>
+{% endblock %}
+
+{% block content %}
+{% if bi_today %}
+<div class="bt-dash">
+    <div class="bt-hello">
+        <div>
+            <h1>Welcome back, {{ user.get_short_name|default:user.get_username }}</h1>
+            <p>Here is how BT DataPlug is doing &middot; {% now "l, j F Y" %}</p>
+        </div>
+        <div class="bt-quick">
+            <a href="{% url 'admin:vtu_app_profile_changelist' %}"><i class="fa-solid fa-users"></i> Users</a>
+            <a href="{% url 'admin:vtu_app_transaction_changelist' %}"><i class="fa-solid fa-receipt"></i> Orders</a>
+            <a href="{% url 'admin:vtu_app_dataplan_changelist' %}"><i class="fa-solid fa-tags"></i> Pricing</a>
+            <a href="{% url 'admin:vtu_app_serviceswitch_changelist' %}"><i class="fa-solid fa-power-off"></i> Services</a>
+            <a href="{% url 'admin:vtu_app_notification_add' %}"><i class="fa-solid fa-bullhorn"></i> Announce</a>
+        </div>
+    </div>
+
+    <div class="bt-grid">
+        <div class="bt-card hero">
+            <div class="lbl"><i class="fa-solid fa-sack-dollar"></i> Today&rsquo;s profit</div>
+            <div class="val">₦{{ bi_today.profit|floatformat:2 }}</div>
+            <div class="sub">{{ bi_today.count }} order{{ bi_today.count|pluralize }} &middot; ₦{{ bi_today.revenue|floatformat:2 }} sales</div>
+        </div>
+        <div class="bt-card">
+            <div class="lbl"><i class="fa-solid fa-chart-line"></i> Last 30 days</div>
+            <div class="val">₦{{ bi_month.profit|floatformat:2 }}</div>
+            <div class="sub">profit on ₦{{ bi_month.revenue|floatformat:2 }} sales ({{ bi_month.count }} orders)</div>
+        </div>
+        <div class="bt-card ink">
+            <div class="lbl"><i class="fa-solid fa-wallet"></i> Wallet liability</div>
+            <div class="val">₦{{ bi_liability|floatformat:2 }}</div>
+            <div class="sub">owed to customers &middot; funded today ₦{{ bi_funding_today|floatformat:2 }}</div>
+        </div>
+        <div class="bt-card">
+            <div class="lbl"><i class="fa-solid fa-tower-broadcast"></i> Supplier balance</div>
+            <div class="val">₦{{ bi_supplier }}</div>
+            <div class="sub">ClubKonnect float &middot; keep above daily sales</div>
+        </div>
+    </div>
+
+    <div class="bt-grid">
+        <div class="bt-card">
+            <div class="lbl"><i class="fa-solid fa-user-group"></i> Customers</div>
+            <div class="val">{{ bi_users }}</div>
+            <div class="sub">+{{ bi_new_today }} today &middot; +{{ bi_new_week }} this week</div>
+        </div>
+        <div class="bt-card">
+            <div class="lbl"><i class="fa-solid fa-calendar-week"></i> Last 7 days</div>
+            <div class="val">₦{{ bi_week.profit|floatformat:2 }}</div>
+            <div class="sub">profit &middot; {{ bi_week.count }} orders</div>
+        </div>
+        <div class="bt-card">
+            <div class="lbl"><i class="fa-solid fa-infinity"></i> All time</div>
+            <div class="val">₦{{ bi_all.profit|floatformat:2 }}</div>
+            <div class="sub">profit on ₦{{ bi_all.revenue|floatformat:2 }} sales</div>
+        </div>
+        <div class="bt-card">
+            <div class="lbl"><i class="fa-solid fa-id-card"></i> KYC verified</div>
+            <div class="val">{{ bi_kyc }}</div>
+            <div class="sub">customers with a verified identity</div>
+        </div>
+    </div>
+
+    <div class="bt-row">
+        <div class="bt-panel">
+            <h3>Sales, last 14 days</h3>
+            <div class="hint">Bar height is sales; the dark part is profit. Hover a day for the numbers.</div>
+            <div class="bt-chart">
+                {% for p in bi_chart %}
+                <div class="bt-col">
+                    <em>{{ p.label }} &middot; ₦{{ p.revenue|floatformat:0 }} &middot; {{ p.count }} order{{ p.count|pluralize }}</em>
+                    <div class="bt-bar" style="height:{{ p.height }}%;animation-delay:{{ forloop.counter0 }}0ms"><i style="height:{% if p.height %}{% widthratio p.profit_height p.height 100 %}{% else %}0{% endif %}%"></i></div>
+                    <span>{{ p.short }}</span>
+                </div>
+                {% endfor %}
+            </div>
+            <div class="bt-legend"><span><b style="background:#ec3013"></b>Sales</span><span><b style="background:#201e1d"></b>Profit</span></div>
+        </div>
+
+        <div class="bt-panel">
+            <h3>Needs your attention</h3>
+            <div class="hint">Click an item to jump straight to it.</div>
+            <div class="bt-attn">
+                {% for a in bi_attention %}
+                <a href="{{ a.url }}" class="{{ a.tone }}"><i class="fa-solid {{ a.icon }}"></i> {{ a.text }}</a>
+                {% empty %}
+                <div class="bt-allgood"><i class="fa-solid fa-circle-check"></i> All clear. Nothing needs attention.</div>
+                {% endfor %}
+            </div>
+            <h3 style="margin-top:18px">Service status</h3>
+            <div class="hint">Switch networks on or off under Services.</div>
+            {% for s in bi_switches %}<span class="bt-pill {% if s.is_active %}on{% else %}off{% endif %}"><b></b>{{ s.network }} {% if s.is_active %}live{% else %}off{% endif %}</span>{% endfor %}
+        </div>
+    </div>
+
+    <div class="bt-row">
+        <div class="bt-panel">
+            <h3>Best sellers, last 30 days</h3>
+            <div class="hint">Where the money comes from.</div>
+            {% for b in bi_breakdown %}
+            <div class="bt-svc">
+                <div class="top"><span>{{ b.service_type }}</span><span>₦{{ b.revenue|floatformat:0 }} &middot; profit ₦{{ b.profit|floatformat:0 }} &middot; {{ b.n }}</span></div>
+                <div class="bt-track"><div class="bt-fill" style="width:{{ b.width }}%"></div></div>
+            </div>
+            {% empty %}<p class="hint">No sales in the last 30 days.</p>{% endfor %}
+        </div>
+        <div class="bt-panel">
+            <h3>Top customers, 30 days</h3>
+            <div class="hint">Your biggest spenders.</div>
+            <table class="bt-list">
+                {% for u in bi_top_users %}
+                <tr><td><b>{{ forloop.counter }}.</b> {{ u.user__username }}</td><td class="r">₦{{ u.spent|floatformat:0 }}</td></tr>
+                {% empty %}<tr><td>No sales yet.</td></tr>{% endfor %}
+            </table>
+        </div>
+    </div>
+
+    <div class="bt-panel" style="margin-bottom:22px">
+        <h3>Latest orders</h3>
+        <div class="hint"><a href="{% url 'admin:vtu_app_transaction_changelist' %}">See all orders &rarr;</a></div>
+        <table class="bt-list">
+            {% for t in bi_recent %}
+            <tr>
+                <td>{{ t.created_at|date:"d M, H:i" }}</td>
+                <td><b>{{ t.user.username }}</b></td>
+                <td>{{ t.service_type }} &middot; {{ t.plan_name }}</td>
+                <td><span class="bt-badge {% if t.status == 'Successful' %}bt-ok{% elif t.status == 'Pending' %}bt-warn{% elif t.status == 'Refunded' %}bt-info{% else %}bt-bad{% endif %}">{{ t.status }}</span></td>
+                <td class="r">₦{{ t.amount_customer_paid|floatformat:2 }}</td>
+            </tr>
+            {% empty %}<tr><td>No orders yet.</td></tr>{% endfor %}
+        </table>
+    </div>
+</div>
+{% endif %}
+{{ block.super }}
+{% endblock %}
