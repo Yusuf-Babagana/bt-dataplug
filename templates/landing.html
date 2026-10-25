@@ -145,6 +145,23 @@
         .foot a{margin-left:22px;text-decoration:none;font-weight:600;color:var(--ink);transition:color .2s}
         .foot a:hover{color:var(--accent)}
 
+
+        /* ---------- Developers ---------- */
+        .devs{display:grid;grid-template-columns:1fr 1.05fr;gap:48px;align-items:center}
+        .chips{display:flex;flex-wrap:wrap;gap:10px;margin:22px 0 28px}
+        .chips span{background:var(--accent-100);color:var(--accent-700);border:1px solid var(--accent-200);padding:8px 14px;border-radius:999px;font-weight:700;font-size:13px}
+        .devs ul{list-style:none;margin:0 0 30px;display:grid;gap:12px}
+        .devs li{display:flex;gap:12px;align-items:flex-start;font-weight:600}
+        .devs li::before{content:"¹3";flex:none;width:24px;height:24px;border-radius:50%;background:var(--accent);color:#fff;display:grid;place-items:center;font-size:13px;font-weight:800;margin-top:1px}
+        .devbtns{display:flex;gap:12px;flex-wrap:wrap}
+        .code{background:var(--ink);color:#f3efed;border-radius:24px;padding:0;box-shadow:var(--shadow);overflow:hidden;min-width:0}
+        .code .bar2{display:flex;gap:7px;align-items:center;padding:14px 18px;border-bottom:1px solid rgba(255,255,255,.08);font-size:12px;color:#a39d9a}
+        .code .bar2 i{width:11px;height:11px;border-radius:50%;background:#4a4543;display:inline-block}
+        .code .bar2 i:first-child{background:var(--accent)}
+        .code pre{margin:0;padding:20px 22px;overflow:auto;font:13px/1.7 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+        .code .k{color:#ff7a63}.code .s{color:#9fe3b4}.code .c{color:#8a8380}
+        @media(max-width:980px){.devs{grid-template-columns:1fr;gap:32px}}
+
         /* ---------- Scroll reveal ---------- */
         .rv{opacity:0;transform:translateY(34px);transition:opacity .8s cubic-bezier(.2,.8,.2,1),transform .8s cubic-bezier(.2,.8,.2,1)}
         .rv.in{opacity:1;transform:none}
@@ -182,6 +199,7 @@
             <a class="lnk" href="#services">Services</a>
             <a class="lnk" href="#how">How it works</a>
             <a class="lnk" href="#why">Why us</a>
+            <a class="lnk" href="#developers">Developers</a>
             <a href="{% url 'login' %}">Log in</a>
             <a class="btn primary sm" href="{% url 'register' %}">Get started</a>
         </nav>
@@ -281,6 +299,41 @@
     </div>
 </section>
 
+<section id="developers">
+    <div class="wrap devs">
+        <div class="rv">
+            <div class="kicker">For developers &amp; businesses</div>
+            <h2>Put BT DataPlug inside your own app.</h2>
+            <p class="sub">Run your own VTU shop, wallet app or website. Connect to our REST API and sell airtime, data, electricity and cable TV under your brand.</p>
+            <div class="chips"><span>Airtime</span><span>Data bundles</span><span>Electricity</span><span>Cable TV</span></div>
+            <ul>
+                <li>Free sandbox to test before you spend a naira</li>
+                <li>Safe retries: a repeated request never charges twice</li>
+                <li>Signed webhooks for instant order updates</li>
+                <li>Clear docs with Python, JavaScript, PHP and cURL examples</li>
+            </ul>
+            <div class="devbtns">
+                <a class="btn primary" href="{% url 'developer_docs' %}">Read the API docs &rarr;</a>
+                <a class="btn ghost" href="{% url 'developer_console' %}">Get API keys</a>
+            </div>
+        </div>
+        <div class="code rv d1">
+            <div class="bar2"><i></i><i></i><i></i>&nbsp; POST /api/v1/dev/data/</div>
+<pre><span class="c"># Send 1GB data in one request</span>
+<span class="k">curl</span> -X POST https://www.btdataplug.com/api/v1/dev/data/   -H <span class="s">"X-API-Key: pk_live_..."</span>   -H <span class="s">"Authorization: Bearer sk_live_..."</span>   -H <span class="s">"Idempotency-Key: order-1042"</span>   -d <span class="s">'{"plan_id": 12, "phone": "08012345678"}'</span>
+
+<span class="c"># Response</span>
+{
+  <span class="s">"success"</span>: true,
+  <span class="s">"data"</span>: {
+    <span class="s">"reference"</span>: <span class="s">"BTD-3F9A1C2B4D5E"</span>,
+    <span class="s">"status"</span>: <span class="s">"successful"</span>
+  }
+}</pre>
+        </div>
+    </div>
+</section>
+
 <section style="padding-top:0">
     <div class="wrap">
         <div class="cta-box rv">
@@ -296,7 +349,7 @@
     <div class="wrap foot">
         <div>&copy; {% now "Y" %} BT DataPlug. All rights reserved.</div>
         <div>
-            <a href="{% url 'privacy_policy' %}">Privacy Policy</a><a href="{% url 'delete_account' %}">Delete Account</a><a href="mailto:support@btdataplug.com">Contact</a>
+            <a href="{% url 'developer_docs' %}">Developers</a><a href="{% url 'privacy_policy' %}">Privacy Policy</a><a href="{% url 'delete_account' %}">Delete Account</a><a href="mailto:support@btdataplug.com">Contact</a>
         </div>
     </div>
 </footer>
