@@ -178,13 +178,22 @@
             .hero{padding-top:120px}
             section{padding:80px 0}
         }
+        main{overflow-x:clip}
+        @media(max-width:700px){.code pre{white-space:pre-wrap;word-break:break-word;font-size:12px}}
         @media(max-width:600px){
+            .nav{height:64px}
+            .brand{font-size:17px;gap:8px}
+            .mark{width:30px;height:30px;font-size:14px}
+            .nav-links{gap:10px}
+            .nav-links a{font-size:14px;white-space:nowrap}
+            .btn.sm{padding:9px 16px}
             .nav-links .lnk{display:none}
             .cards{grid-template-columns:1fr}
             .toast{display:none}
             .dark{margin:0 8px;border-radius:28px}
             .foot a{margin:0 18px 0 0}
         }
+        @media(max-width:380px){.brand{font-size:15px;gap:6px}.mark{width:28px;height:28px}.nav-links{gap:6px}.nav-links a{font-size:13px}.btn.sm{padding:8px 13px}.wrap{padding-left:16px;padding-right:16px}}
         @media(prefers-reduced-motion:reduce){
             *,*::before,*::after{animation:none!important;transition:none!important}
             .rv{opacity:1;transform:none}.tile{opacity:1}

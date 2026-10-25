@@ -140,5 +140,46 @@
     .bt-info { background: #eae9e9; color: #444141; }
 
     @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
+
+    /* ---- Phones: lists become stacked cards so no column is hidden off-screen ---- */
+    @media (max-width: 760px) {
+        #changelist .results { overflow: visible; }
+        #result_list, #result_list tbody { display: block; width: 100%; }
+        #result_list thead { display: none; }
+        #result_list tr { display: block; margin: 0 0 12px; border: 1px solid var(--hairline-color, #e7e3e1); border-radius: 16px; padding: 8px 4px; background: var(--body-bg, #fff); }
+        #result_list td, #result_list th { display: flex; justify-content: space-between; gap: 14px; align-items: center; width: auto !important; border: 0; padding: 7px 12px; text-align: right; word-break: break-word; }
+        #result_list td::before, #result_list th::before { content: attr(data-label); font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: .04em; color: var(--body-quiet-color, #6b6663); text-align: left; flex: none; max-width: 42%; }
+        #result_list td > *, #result_list th > * { min-width: 0; max-width: 100%; }
+        #result_list td.action-checkbox { justify-content: flex-start; }
+        #result_list td.action-checkbox::before { content: "Select"; }
+        #result_list input[type=text], #result_list input[type=number], #result_list select { max-width: 55%; }
+        #changelist-filter { width: 100%; float: none; margin: 14px 0; }
+        #changelist .changelist-form-container { display: block; }
+        .actions { flex-wrap: wrap; }
+        .actions select { max-width: 100%; }
+        .paginator { line-height: 2.2; }
+        #content { padding: 16px 14px; }
+        .form-row { padding: 12px 0; }
+        .aligned label { float: none; display: block; width: auto; padding: 0 0 6px; }
+        .aligned .form-row > div, .aligned p.file-upload { margin-left: 0; }
+        input, select, textarea { max-width: 100%; font-size: 16px; }
+        .submit-row { display: flex; flex-wrap: wrap; gap: 10px; }
+        .submit-row input, .submit-row a.button, .submit-row a.deletelink { float: none; margin: 0; }
+    }
 </style>
+{% endblock %}
+
+{% block footer %}{{ block.super }}
+<script>
+(function () {
+    var table = document.getElementById('result_list');
+    if (!table) return;
+    var heads = Array.prototype.map.call(table.querySelectorAll('thead th'), function (th) {
+        var t = th.querySelector('.text'); return (t ? t.textContent : th.textContent).trim();
+    });
+    table.querySelectorAll('tbody tr').forEach(function (tr) {
+        Array.prototype.forEach.call(tr.children, function (cell, i) { if (heads[i]) cell.setAttribute('data-label', heads[i]); });
+    });
+})();
+</script>
 {% endblock %}

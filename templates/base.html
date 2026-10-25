@@ -321,6 +321,22 @@
             box-shadow: 0 6px 12px -6px rgba(0, 0, 0, 0.2);
         }
     </style>
+    <style>
+        .wa-fab { position: fixed; bottom: 24px; right: 20px; width: 60px; height: 60px; display: flex; align-items: center; justify-content: center; z-index: 1000; border: 2px solid #fff; padding: 0; }
+        @media (max-width: 991.98px) {
+            .wa-fab { bottom: calc(84px + env(safe-area-inset-bottom, 0px)); right: 12px; width: 46px; height: 46px; opacity: .92; }
+            .wa-fab i { font-size: 1.5rem; }
+        }
+@media (max-width: 640px) {
+    table.stack-sm, .stack-sm tbody { display: block; width: 100%; }
+    .stack-sm thead, .stack-sm tr:has(> th) { display: none; }
+    .stack-sm tr { display: block; border: 1px solid #e7e3e1; border-radius: 14px; padding: 6px 4px; margin-bottom: 10px; background: transparent; }
+    .stack-sm td { display: flex; justify-content: space-between; gap: 12px; border: 0 !important; padding: 5px 10px; text-align: right; word-break: break-word; }
+    .stack-sm td::before { content: attr(data-label); font-size: 11px; font-weight: 800; text-transform: uppercase; color: #6b6663; text-align: left; flex: none; max-width: 40%; }
+    .stack-sm td[colspan] { display: block; text-align: center; }
+    .stack-sm td[colspan]::before { content: none; }
+}
+    </style>
     {% include 'includes/modernist_theme.html' %}
 </head>
 
@@ -572,10 +588,21 @@
 
     <!-- Floating WhatsApp Support Button -->
     <a href="https://wa.me/2348069278540?text=Hello%20BT%20DataPlug%20Support,%20I%20need%20help." 
-       class="btn btn-success rounded-circle shadow-lg" 
-       style="position: fixed; bottom: 85px; right: 20px; width: 60px; height: 60px; display: flex; align-items: center; justify-content: center; z-index: 1000; border: 2px solid white;">
+       class="btn btn-success rounded-circle shadow-lg wa-fab" aria-label="Chat with support on WhatsApp">
         <i class="fab fa-whatsapp fa-2x"></i>
     </a>
+<script>
+(function () {
+    document.querySelectorAll('table.stack-sm').forEach(function (t) {
+        var heads = Array.prototype.map.call(t.querySelectorAll('th'), function (th) { return th.textContent.trim(); });
+        var rows = t.querySelectorAll('tr');
+        rows.forEach(function (tr) {
+            if (tr.querySelector('th')) return;
+            Array.prototype.forEach.call(tr.children, function (c, i) { if (heads[i]) c.setAttribute('data-label', heads[i]); });
+        });
+    });
+})();
+</script>
 </body>
 
 </html>

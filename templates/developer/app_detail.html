@@ -69,7 +69,7 @@
 
     <div class="glass-card p-4 mb-4">
         <h5 class="fw-bold mb-3">Recent orders</h5>
-        <div class="table-responsive"><table class="table table-sm align-middle">
+        <div><table class="table table-sm align-middle stack-sm">
             <thead><tr><th>Reference</th><th>Service</th><th>Recipient</th><th>Amount</th><th>Status</th><th>When</th></tr></thead>
             {% for t in transactions %}
             <tr><td><code>{{ t.reference }}</code></td><td>{{ t.service }}</td><td>{{ t.recipient }}</td><td>&#8358;{{ t.amount }}</td>
@@ -81,7 +81,7 @@
 
     <div class="glass-card p-4 mb-4">
         <h5 class="fw-bold mb-3">Webhook deliveries</h5>
-        <div class="table-responsive"><table class="table table-sm align-middle">
+        <div><table class="table table-sm align-middle stack-sm">
             <thead><tr><th>Event</th><th>Status</th><th>Attempts</th><th>Response</th><th>When</th></tr></thead>
             {% for d in deliveries %}
             <tr><td>{{ d.event_type }}<div class="small text-muted"><code>{{ d.event_id }}</code></div></td><td>{{ d.get_status_display }}</td><td>{{ d.attempts }}</td>
@@ -92,7 +92,7 @@
 
     <div class="glass-card p-4">
         <h5 class="fw-bold mb-3">Recent requests</h5>
-        <div class="table-responsive"><table class="table table-sm align-middle">
+        <div><table class="table table-sm align-middle stack-sm">
             <thead><tr><th>Method</th><th>Path</th><th>Status</th><th>Error</th><th>ms</th><th>When</th></tr></thead>
             {% for l in request_logs %}
             <tr><td>{{ l.method }}</td><td><code>{{ l.path }}</code></td><td>{{ l.status_code }}</td><td class="small">{{ l.error_code }}</td><td>{{ l.duration_ms }}</td><td class="small">{{ l.created_at|date:"j M H:i:s" }}</td></tr>
@@ -100,4 +100,5 @@
         </table></div>
     </div>
 </div>
+
 {% endblock %}
