@@ -54,9 +54,9 @@ class ClubKonnectService:
             logger.error(f"Connection Error to Nellobyte: {_redact(e)}")
             return "Conn Error"
 
-    def buy_data(self, network_code, plan_id, phone):
+    def buy_data(self, network_code, plan_id, phone, request_id=None):
         """Send data to a customer using the APIDatabundleV1 endpoint."""
-        request_id = uuid.uuid4().hex[:12]
+        request_id = request_id or uuid.uuid4().hex[:12]
         url = (
             f"{self.base_url}/APIDatabundleV1.asp"
             f"?UserID={self.user_id}&APIKey={self.api_key}"
@@ -89,9 +89,9 @@ class ClubKonnectService:
             logger.error(f"ClubKonnect Connection Failed: {_redact(e)}")
             return {"status": "ERROR", "remark": "Connection Timeout"}, request_id
 
-    def buy_airtime(self, network_code, amount, phone):
+    def buy_airtime(self, network_code, amount, phone, request_id=None):
         """Purchase airtime using the APIAirtimeV1 endpoint."""
-        request_id = uuid.uuid4().hex[:12]
+        request_id = request_id or uuid.uuid4().hex[:12]
         url = (
             f"{self.base_url}/APIAirtimeV1.asp"
             f"?UserID={self.user_id}&APIKey={self.api_key}"
@@ -113,6 +113,25 @@ class ClubKonnectService:
         except Exception as e:
             return {"status": "ERROR", "remark": _redact(e)}, request_id
 
+    def query_order(self, request_id):
+        """Look up an earlier order by our RequestID (used to reconcile orders with an unknown outcome).
+        Returns the provider's JSON, or {"status": "ERROR"} if it could not be reached/parsed."""
+        url = (
+            f"{self.base_url}/APIQueryV1.asp"
+            f"?UserID={self.user_id}&APIKey={self.api_key}&RequestID={request_id}"
+        )
+        headers = {'User-Agent': 'Mozilla/5.0 BT-DataPlug/1.0'}
+        try:
+            response = requests.get(url, headers=headers, timeout=20)
+            logger.info(f"Order query {request_id} --- Status: {response.status_code} Body: {response.text}")
+            try:
+                return response.json()
+            except ValueError:
+                return {"status": response.text.strip()}
+        except Exception as e:
+            logger.error(f"Order query failed: {_redact(e)}")
+            return {"status": "ERROR"}
+
     def validate_decoder(self, cable_tv, smartcard):
         """Alias for verify_cable to match user naming convention."""
         return self.verify_cable(cable_tv, smartcard)
@@ -132,9 +151,9 @@ class ClubKonnectService:
         except:
             return {"customer_name": "Error validating number"}
 
-    def buy_cable(self, cable_tv, plan_id, smartcard, phone):
+    def buy_cable(self, cable_tv, plan_id, smartcard, phone, request_id=None):
         """Purchase the cable subscription."""
-        request_id = uuid.uuid4().hex[:12]
+        request_id = request_id or uuid.uuid4().hex[:12]
         url = (
             f"{self.base_url}/APICableTVV1.asp"
             f"?UserID={self.user_id}&APIKey={self.api_key}&CableTV={cable_tv.lower()}"
@@ -166,9 +185,9 @@ class ClubKonnectService:
         except:
             return {"customer_name": "Error validating meter"}
 
-    def pay_electricity(self, disco_code, meter_no, meter_type, amount, phone):
+    def pay_electricity(self, disco_code, meter_no, meter_type, amount, phone, request_id=None):
         """Purchase the electricity token."""
-        request_id = uuid.uuid4().hex[:12]
+        request_id = request_id or uuid.uuid4().hex[:12]
         url = (
             f"{self.base_url}/APIElectricityV1.asp"
             f"?UserID={self.user_id}&APIKey={self.api_key}"

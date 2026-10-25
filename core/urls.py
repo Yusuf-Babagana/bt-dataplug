@@ -23,6 +23,8 @@ urlpatterns = [
     path('accounts/login/', vtu_views.user_login, name='login'),  # Override default login
     path('accounts/', include('django.contrib.auth.urls')),
     path('register/', vtu_views.register, name='register'),
+    path('api/v1/dev/', include('developer_api.api_urls')),
+    path('developers/', include('developer_api.portal_urls')),
     path('api/v1/', include('vtu_app.api_urls')),
     path('', include('vtu_app.urls')),
 ]

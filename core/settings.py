@@ -69,6 +69,7 @@ INSTALLED_APPS = [
 
     # Local App
     'vtu_app',
+    'developer_api',
     'crispy_forms',
     'crispy_bootstrap5',
 ]
@@ -252,3 +253,10 @@ else:
     EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
 DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', 'BT DataPlug <no-reply@btdataplug.com>')
 PASSWORD_RESET_TIMEOUT = 60 * 60 * 3  # reset links valid for 3 hours
+
+
+# --- Developer API ---
+# Header carrying the caller's real IP behind the host's proxy (used for API IP whitelists / abuse limits).
+API_CLIENT_IP_HEADER = os.getenv('API_CLIENT_IP_HEADER', 'HTTP_X_REAL_IP')
+# Deliver webhooks from a background thread right after a transaction settles (retries run via `manage.py deliver_webhooks`).
+DEVELOPER_API_ASYNC_WEBHOOKS = os.getenv('DEVELOPER_API_ASYNC_WEBHOOKS', 'True') == 'True'

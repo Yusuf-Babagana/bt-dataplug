@@ -1,0 +1,103 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="container-fluid py-4" style="max-width:1000px">
+    <a href="{% url 'developer_console' %}" class="small text-decoration-none">&larr; All applications</a>
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 my-3">
+        <div>
+            <h3 class="fw-bold mb-1">{{ app.name }}
+                <span class="badge fs-6 {% if app.is_live %}bg-danger{% else %}bg-secondary{% endif %}">{{ app.environment|upper }}</span>
+                <span class="badge fs-6 {% if app.status == 'active' %}bg-success{% elif app.status == 'pending' %}bg-warning text-dark{% else %}bg-dark{% endif %}">{{ app.get_status_display }}</span>
+            </h3>
+            <div class="text-muted small">Created {{ app.created_at|date:"j M Y" }}{% if app.last_used_at %} &middot; last used {{ app.last_used_at|timesince }} ago{% endif %}</div>
+        </div>
+    </div>
+
+    {% for m in messages %}<div class="alert alert-{{ m.tags|default:'info' }} rounded-4">{{ m }}</div>{% endfor %}
+    {% if app.status == 'pending' %}<div class="alert alert-warning rounded-4">This live application is awaiting approval from BT DataPlug. Use a test application meanwhile.</div>{% endif %}
+
+    {% if new_secret %}
+    <div class="alert alert-success rounded-4">
+        <div class="fw-bold mb-1">Copy your secret key now. It will never be shown again.</div>
+        <code id="secret" style="word-break:break-all">{{ new_secret }}</code>
+        <button type="button" class="btn btn-sm btn-dark ms-2" onclick="navigator.clipboard.writeText(document.getElementById('secret').innerText)">Copy</button>
+    </div>
+    {% endif %}
+
+    <div class="glass-card p-4 mb-4">
+        <h5 class="fw-bold">Credentials</h5>
+        <div class="small text-muted fw-bold mt-3">PUBLIC KEY (header X-API-Key)</div><code>{{ app.public_key }}</code>
+        <div class="small text-muted fw-bold mt-3">SECRET KEY (header Authorization: Bearer ...)</div>
+        <code>{% if app.secret_hint %}sk_{{ app.environment }}_&bull;&bull;&bull;&bull;&bull;&bull;&bull;&bull;{{ app.secret_hint }}{% else %}revoked{% endif %}</code>
+        <div class="small text-muted fw-bold mt-3">WEBHOOK SIGNING SECRET</div>
+        <code id="whsec" style="word-break:break-all">{{ app.webhook_signing_secret }}</code>
+        {% if app.status != 'revoked' %}
+        <form method="post" action="{% url 'developer_app_action' app.pk %}" class="d-flex flex-wrap gap-2 mt-4">
+            {% csrf_token %}
+            <button name="action" value="rotate_secret" class="btn btn-outline-dark btn-sm rounded-pill" onclick="return confirm('Generate a new secret? The current one stops working immediately.')">Regenerate secret</button>
+            <button name="action" value="rotate_webhook_secret" class="btn btn-outline-dark btn-sm rounded-pill" onclick="return confirm('Rotate the webhook signing secret?')">Rotate webhook secret</button>
+            <button name="action" value="revoke" class="btn btn-outline-danger btn-sm rounded-pill" onclick="return confirm('Revoke this application permanently?')">Revoke application</button>
+        </form>
+        {% endif %}
+    </div>
+
+    <div class="row g-3 mb-4">
+        <div class="col-6 col-md-3"><div class="glass-card p-3"><div class="small text-muted fw-bold">REQUESTS 24H</div><div class="fs-4 fw-bold">{{ usage.req_24h }}</div></div></div>
+        <div class="col-6 col-md-3"><div class="glass-card p-3"><div class="small text-muted fw-bold">ERRORS 24H</div><div class="fs-4 fw-bold">{{ usage.err_24h }}</div></div></div>
+        <div class="col-6 col-md-3"><div class="glass-card p-3"><div class="small text-muted fw-bold">REQUESTS 7D</div><div class="fs-4 fw-bold">{{ usage.req_7d }}</div></div></div>
+        <div class="col-6 col-md-3"><div class="glass-card p-3"><div class="small text-muted fw-bold">ORDERS OK / PENDING / FAILED</div><div class="fs-5 fw-bold">{{ usage.tx_ok }} / {{ usage.tx_pending }} / {{ usage.tx_failed }}</div></div></div>
+    </div>
+
+    {% if app.status != 'revoked' %}
+    <div class="glass-card p-4 mb-4">
+        <h5 class="fw-bold mb-3">Settings</h5>
+        <form method="post" action="{% url 'developer_app_action' app.pk %}">
+            {% csrf_token %}<input type="hidden" name="action" value="settings">
+            <div class="mb-3"><div class="small fw-bold mb-1">Services this application may use</div>
+                {% for s in all_services %}
+                <div class="form-check form-check-inline"><input class="form-check-input" type="checkbox" name="svc_{{ s }}" id="svc_{{ s }}" {% if s in app.allowed_services %}checked{% endif %}>
+                    <label class="form-check-label" for="svc_{{ s }}">{{ s|capfirst }}</label></div>
+                {% endfor %}</div>
+            <div class="mb-3"><label class="form-label small fw-bold">Webhook URL (https, public)</label>
+                <input name="webhook_url" value="{{ app.webhook_url }}" class="form-control" placeholder="https://example.com/btdataplug/webhook"></div>
+            <div class="mb-3"><label class="form-label small fw-bold">IP whitelist (optional, one IP or CIDR per line; empty allows any)</label>
+                <textarea name="ip_whitelist" rows="3" class="form-control">{{ app.ip_whitelist }}</textarea></div>
+            <div class="small text-muted mb-3">Rate limit: {{ app.rate_limit_per_minute }} requests/minute &middot; daily: {{ app.daily_request_limit|default:"unlimited" }}. Contact support to change.</div>
+            <button class="btn btn-primary rounded-pill px-4">Save settings</button>
+        </form>
+    </div>
+    {% endif %}
+
+    <div class="glass-card p-4 mb-4">
+        <h5 class="fw-bold mb-3">Recent orders</h5>
+        <div class="table-responsive"><table class="table table-sm align-middle">
+            <thead><tr><th>Reference</th><th>Service</th><th>Recipient</th><th>Amount</th><th>Status</th><th>When</th></tr></thead>
+            {% for t in transactions %}
+            <tr><td><code>{{ t.reference }}</code></td><td>{{ t.service }}</td><td>{{ t.recipient }}</td><td>&#8358;{{ t.amount }}</td>
+                <td><span class="badge {% if t.status == 'successful' %}bg-success{% elif t.status == 'failed' %}bg-danger{% else %}bg-warning text-dark{% endif %}">{{ t.status }}</span></td>
+                <td class="small">{{ t.created_at|date:"j M H:i" }}</td></tr>
+            {% empty %}<tr><td colspan="6" class="text-muted">No orders yet.</td></tr>{% endfor %}
+        </table></div>
+    </div>
+
+    <div class="glass-card p-4 mb-4">
+        <h5 class="fw-bold mb-3">Webhook deliveries</h5>
+        <div class="table-responsive"><table class="table table-sm align-middle">
+            <thead><tr><th>Event</th><th>Status</th><th>Attempts</th><th>Response</th><th>When</th></tr></thead>
+            {% for d in deliveries %}
+            <tr><td>{{ d.event_type }}<div class="small text-muted"><code>{{ d.event_id }}</code></div></td><td>{{ d.get_status_display }}</td><td>{{ d.attempts }}</td>
+                <td class="small">{{ d.last_status_code|default:"-" }} {{ d.last_error }}</td><td class="small">{{ d.created_at|date:"j M H:i" }}</td></tr>
+            {% empty %}<tr><td colspan="5" class="text-muted">No webhook events yet.</td></tr>{% endfor %}
+        </table></div>
+    </div>
+
+    <div class="glass-card p-4">
+        <h5 class="fw-bold mb-3">Recent requests</h5>
+        <div class="table-responsive"><table class="table table-sm align-middle">
+            <thead><tr><th>Method</th><th>Path</th><th>Status</th><th>Error</th><th>ms</th><th>When</th></tr></thead>
+            {% for l in request_logs %}
+            <tr><td>{{ l.method }}</td><td><code>{{ l.path }}</code></td><td>{{ l.status_code }}</td><td class="small">{{ l.error_code }}</td><td>{{ l.duration_ms }}</td><td class="small">{{ l.created_at|date:"j M H:i:s" }}</td></tr>
+            {% empty %}<tr><td colspan="6" class="text-muted">No requests yet.</td></tr>{% endfor %}
+        </table></div>
+    </div>
+</div>
+{% endblock %}

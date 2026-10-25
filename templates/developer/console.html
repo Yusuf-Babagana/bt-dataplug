@@ -1,0 +1,82 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="container-fluid py-4" style="max-width:1000px">
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-4">
+        <div>
+            <h3 class="fw-bold mb-1">Developer API</h3>
+            <p class="text-muted mb-0">Sell airtime, data, electricity and cable TV from your own app or website.</p>
+        </div>
+        <a href="{% url 'developer_docs' %}" class="btn btn-dark rounded-pill px-4"><i class="fa-solid fa-book me-2"></i>Documentation</a>
+    </div>
+
+    {% for m in messages %}<div class="alert alert-{{ m.tags|default:'info' }} rounded-4">{{ m }}</div>{% endfor %}
+
+    {% if not dev %}
+    <div class="glass-card p-4 p-md-5">
+        <h5 class="fw-bold">Enable developer access</h5>
+        <p class="text-muted">You get a free sandbox immediately. Live purchases are charged to your BT DataPlug wallet and each live application is approved by our team first.</p>
+        <form method="post" action="{% url 'developer_enable' %}" class="row g-3">
+            {% csrf_token %}
+            <div class="col-md-6"><label class="form-label small fw-bold">Business / project name</label>
+                <input name="company_name" class="form-control form-control-lg" maxlength="120" required></div>
+            <div class="col-md-6"><label class="form-label small fw-bold">Website (optional)</label>
+                <input name="website" class="form-control form-control-lg" placeholder="https://"></div>
+            <div class="col-12 form-check ms-2">
+                <input type="checkbox" name="accept_terms" id="terms" class="form-check-input" required>
+                <label for="terms" class="form-check-label small">I will keep my secret keys private, only sell to customers who paid me, and understand wallet funds are charged for every successful live order.</label>
+            </div>
+            <div class="col-12"><button class="btn btn-primary btn-lg rounded-pill px-5">Enable access</button></div>
+        </form>
+    </div>
+    {% else %}
+    {% if dev.status != 'active' %}<div class="alert alert-danger rounded-4">Your developer account is suspended. Contact support.</div>{% endif %}
+    <div class="row g-3 mb-4">
+        <div class="col-md-4"><div class="glass-card p-4"><div class="small text-muted fw-bold">LIVE WALLET</div>
+            <div class="fs-3 fw-bold">&#8358;{{ balance }}</div><a class="small" href="{% url 'dashboard' %}">Fund wallet</a></div></div>
+        <div class="col-md-4"><div class="glass-card p-4"><div class="small text-muted fw-bold">BASE URL</div>
+            <code class="d-block mt-2" style="word-break:break-all">{{ base_url }}</code></div></div>
+        <div class="col-md-4"><div class="glass-card p-4"><div class="small text-muted fw-bold">ACCOUNT</div>
+            <div class="fw-bold mt-1">{{ dev.company_name }}</div><span class="badge bg-success">{{ dev.get_status_display }}</span></div></div>
+    </div>
+
+    <h5 class="fw-bold mb-3">Applications</h5>
+    <div class="row g-3 mb-4">
+        {% for app in apps %}
+        <div class="col-md-6">
+            <a href="{% url 'developer_app' app.pk %}" class="text-decoration-none text-dark">
+                <div class="glass-card p-4 h-100">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div class="fw-bold fs-5">{{ app.name }}</div>
+                        <span class="badge {% if app.is_live %}bg-danger{% else %}bg-secondary{% endif %}">{{ app.environment|upper }}</span>
+                    </div>
+                    <div class="text-muted small mt-1"><code>{{ app.public_key }}</code></div>
+                    <div class="d-flex gap-3 mt-3 small">
+                        <span class="badge {% if app.status == 'active' %}bg-success{% elif app.status == 'pending' %}bg-warning text-dark{% else %}bg-dark{% endif %}">{{ app.get_status_display }}</span>
+                        <span>{{ app.requests_24h }} requests / 24h</span><span>{{ app.errors_24h }} errors</span>
+                    </div>
+                </div>
+            </a>
+        </div>
+        {% empty %}
+        <div class="col-12"><div class="glass-card p-4 text-muted">No applications yet. Create your first one below.</div></div>
+        {% endfor %}
+    </div>
+
+    {% if dev.status == 'active' %}
+    <div class="glass-card p-4">
+        <h5 class="fw-bold mb-3">New application</h5>
+        <form method="post" action="{% url 'developer_app_create' %}" class="row g-3 align-items-end">
+            {% csrf_token %}
+            <div class="col-md-5"><label class="form-label small fw-bold">Name</label><input name="name" class="form-control" maxlength="80" required placeholder="My shop website"></div>
+            <div class="col-md-4"><label class="form-label small fw-bold">Environment</label>
+                <select name="environment" class="form-select">
+                    <option value="test">Test (sandbox, no real money)</option>
+                    <option value="live">Live (needs approval)</option>
+                </select></div>
+            <div class="col-md-3"><button class="btn btn-primary w-100 rounded-pill">Create</button></div>
+        </form>
+    </div>
+    {% endif %}
+    {% endif %}
+</div>
+{% endblock %}

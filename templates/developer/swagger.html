@@ -1,0 +1,16 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>API Reference | BT DataPlug</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/swagger-ui/5.17.14/swagger-ui.min.css">
+<style>body{margin:0}.topbar-b{background:#201e1d;color:#fff;padding:14px 20px;font-family:system-ui,sans-serif}.topbar-b a{color:#ff7a63;text-decoration:none;margin-left:16px}</style>
+</head>
+<body>
+<div class="topbar-b"><b>BT DataPlug</b> API Reference <a href="{% url 'developer_docs' %}">Guide</a><a href="{% url 'developer_console' %}">Console</a></div>
+<div id="ui"></div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/swagger-ui/5.17.14/swagger-ui-bundle.min.js"></script>
+<script>SwaggerUIBundle({url: "{% url 'developer_openapi' %}", dom_id: '#ui', deepLinking: true});</script>
+</body>
+</html>

@@ -404,8 +404,8 @@ def api_buy_airtime(request):
     network_map = {
         'MTN': '01',
         'GLO': '02',
-        'AIRTEL': '03',
-        '9MOBILE': '04'
+        '9MOBILE': '03',
+        'AIRTEL': '04'
     }
     
     # Handle matching regardless of case
