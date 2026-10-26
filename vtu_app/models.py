@@ -125,6 +125,8 @@ class DataPlan(models.Model):
     cost_price = models.DecimalField(max_digits=10, decimal_places=2, default=0.00) # What you pay
     price = models.DecimalField(max_digits=10, decimal_places=2)  # What you charge
     additional_fee = models.DecimalField(max_digits=10, decimal_places=2, default=0.00) # Internal charge
+    # Switched off automatically when the supplier answers INVALID_DATAPLAN; re-enable in the admin.
+    is_active = models.BooleanField(default=True)
 
     def __str__(self):
         return f"{self.get_network_display()} - {self.plan_name} (₦{self.price})"

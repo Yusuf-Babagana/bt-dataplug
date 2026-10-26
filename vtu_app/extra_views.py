@@ -57,7 +57,7 @@ def calculator(request):
             'name': p.plan_name,
             'price': float(p.price),
         }
-        for p in DataPlan.objects.all().order_by('network', 'price')
+        for p in DataPlan.objects.filter(is_active=True).order_by('network', 'price')
     ]
     return render(request, 'vtu_app/calculator.html', {'plans': plans})
 

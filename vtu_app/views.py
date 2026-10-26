@@ -213,7 +213,7 @@ def buy_data(request):
     if not request.user.is_authenticated:
         return redirect('login')
 
-    plans = DataPlan.objects.all().order_by('network', 'price')
+    plans = DataPlan.objects.filter(is_active=True).order_by('network', 'price')
 
     if request.method == 'POST':
         plan_id = request.POST.get('plan')

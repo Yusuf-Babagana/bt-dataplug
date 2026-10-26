@@ -186,8 +186,7 @@ class DataPlanList(APIView):
     permission_classes = [] # Public access
     
     def get(self, request):
-        # Removed .filter(is_active=True) because the field doesn't exist yet
-        plans = DataPlan.objects.all() 
+        plans = DataPlan.objects.filter(is_active=True)
         serializer = DataPlanSerializer(plans, many=True)
         return Response(serializer.data)
 

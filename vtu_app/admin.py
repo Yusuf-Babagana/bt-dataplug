@@ -87,8 +87,8 @@ class PlanAdminBase(admin.ModelAdmin):
 
 @admin.register(DataPlan)
 class DataPlanAdmin(PlanAdminBase):
-    list_display = ('plan_name', 'network', 'dataplan_id', 'cost_price', 'price', 'additional_fee', 'margin')
-    list_filter = ('network', MarginFilter)
+    list_display = ('plan_name', 'network', 'dataplan_id', 'cost_price', 'price', 'additional_fee', 'margin', 'is_active')
+    list_filter = ('network', 'is_active', MarginFilter)
     search_fields = ('plan_name', 'dataplan_id')
     ordering = ('network', 'price')
 

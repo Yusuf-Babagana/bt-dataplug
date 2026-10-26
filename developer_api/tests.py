@@ -254,6 +254,24 @@ class PurchaseTests(ApiTestBase):
         self.assertEqual(again.json()['data']['status'], 'failed')
         self.assertEqual(self.ck.buy_data.call_count, 1)
 
+    def test_invalid_dataplan_disables_plan_and_hides_it(self):
+        self.ck.buy_data.return_value = ({'status': 'INVALID_DATAPLAN'}, 'rid')
+        self.buy_data()
+        self.plan.refresh_from_db()
+        self.assertFalse(self.plan.is_active)
+        listed = [p['plan_id'] for p in self.get('/data-plans/').json()['data']['plans']]
+        self.assertNotIn(self.plan.pk, listed)
+        r = self.buy_data(key='key-00000002')  # a disabled plan is refused before any debit or provider call
+        self.assertEqual((r.status_code, r.json()['error']['code']), (422, 'validation_error'))
+        self.assertEqual(wallet(self.dev), Decimal('5000.00'))
+        self.assertEqual(self.ck.buy_data.call_count, 1)
+
+    def test_other_provider_failures_keep_plan_active(self):
+        self.ck.buy_data.return_value = ({'status': 'INSUFFICIENT_APIBALANCE'}, 'rid')
+        self.buy_data()
+        self.plan.refresh_from_db()
+        self.assertTrue(self.plan.is_active)
+
     def test_provider_timeout_is_pending_and_not_refunded(self):
         self.ck.buy_data.return_value = ({'status': 'ERROR', 'remark': 'Connection Timeout'}, 'rid')
         r = self.buy_data()
@@ -444,6 +462,10 @@ class WebhookTests(ApiTestBase):
     def test_failed_and_pending_events(self):
         self.ck.buy_data.return_value = ({'status': 'INVALID_DATAPLAN'}, 'r')
         self.buy_data(key='wh-key-00001')
+        self.plan.refresh_from_db()
+        self.assertFalse(self.plan.is_active)  # INVALID_DATAPLAN switches the plan off
+        self.plan.is_active = True
+        self.plan.save()
         self.ck.buy_data.return_value = ({'status': 'ERROR'}, 'r')
         self.buy_data(key='wh-key-00002')
         types = sorted(WebhookDelivery.objects.values_list('event_type', flat=True))

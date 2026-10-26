@@ -141,7 +141,7 @@ class DataPlansView(BaseApiView):
     service = 'data'
 
     def get(self, request):
-        qs = DataPlan.objects.all().order_by('network', 'price')
+        qs = DataPlan.objects.filter(is_active=True).order_by('network', 'price')
         net = (request.query_params.get('network') or '').strip().upper()
         if net:
             code = services.NETWORK_ALIASES.get(net) or net

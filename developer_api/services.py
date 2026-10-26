@@ -87,6 +87,7 @@ class Order:
         self.charge, self.cost, self.call, self.extra_fee = charge, cost, call, extra_fee
         self.fingerprint = fingerprint
         self.network_name = network_name
+        self.plan = None  # the DataPlan row, for data orders
 
 
 def _text(data, name, required=True, maxlen=64):
@@ -174,9 +175,11 @@ def build_order(service, data):
         if not plan:
             raise validation_error(plan_id='Unknown plan. Fetch valid ids from GET /data-plans/.')
         _check_network_enabled(NETWORKS.get(plan.network, plan.network))
-        return Order('data', plan.plan_name, phone, plan.price, plan.cost_price,
-                     lambda rid: ck.buy_data(plan.network, plan.dataplan_id, phone, request_id=rid),
-                     _fingerprint(service, {'plan': plan.pk, 'phone': phone}), extra_fee=plan.additional_fee)
+        order = Order('data', plan.plan_name, phone, plan.price, plan.cost_price,
+                      lambda rid: ck.buy_data(plan.network, plan.dataplan_id, phone, request_id=rid),
+                      _fingerprint(service, {'plan': plan.pk, 'phone': phone}), extra_fee=plan.additional_fee)
+        order.plan = plan
+        return order
 
     if service == 'electricity':
         disco = _text(data, 'disco')
@@ -303,6 +306,9 @@ def execute_purchase(app, service, data, idempotency_key, client_reference=''):
     if existing:
         return _replay(existing, order.fingerprint)
 
+    if order.plan and not order.plan.is_active:  # after the replay check, so a retried failure still replays
+        raise validation_error(plan_id='This plan is temporarily unavailable. Choose another from GET /data-plans/.')
+
     user = app.developer.user
     try:
         tx = ApiTransaction.objects.create(
@@ -347,9 +353,12 @@ def execute_purchase(app, service, data, idempotency_key, client_reference=''):
     logger.info('API_PURCHASE ref=%s app=%s outcome=%s provider_status=%s', tx.reference, app.pk, outcome, response.get('status'))
     reason = ''
     if outcome == 'failed':
-        detail = str(response.get('status') or response.get('remark') or '').strip()[:60]
-        reason = f'The order was rejected by the network provider ({detail}).' if detail else 'The order was rejected by the network provider.'
+        reason = 'The order was rejected by the network provider.'  # supplier detail stays in the logs, not the API reply
         logger.warning('API_PURCHASE_REJECTED ref=%s response=%s', tx.reference, response)
+        if order.plan and str(response.get('status') or '').strip().upper() == 'INVALID_DATAPLAN':
+            # The supplier refuses this plan code: stop selling it until an admin re-enables it.
+            DataPlan.objects.filter(pk=order.plan.pk).update(is_active=False)
+            logger.error('DATA_PLAN_DISABLED plan=%s code=%s network=%s', order.plan.pk, order.plan.dataplan_id, order.plan.network)
     return settle(tx.pk, outcome, response, reason), False
 
 
