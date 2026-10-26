@@ -345,7 +345,11 @@ def execute_purchase(app, service, data, idempotency_key, client_reference=''):
         response = {'status': 'ERROR'}
     outcome = classify(response)
     logger.info('API_PURCHASE ref=%s app=%s outcome=%s provider_status=%s', tx.reference, app.pk, outcome, response.get('status'))
-    reason = 'The order was rejected by the network provider.' if outcome == 'failed' else ''
+    reason = ''
+    if outcome == 'failed':
+        detail = str(response.get('status') or response.get('remark') or '').strip()[:60]
+        reason = f'The order was rejected by the network provider ({detail}).' if detail else 'The order was rejected by the network provider.'
+        logger.warning('API_PURCHASE_REJECTED ref=%s response=%s', tx.reference, response)
     return settle(tx.pk, outcome, response, reason), False
 
 
