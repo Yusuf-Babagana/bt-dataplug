@@ -53,8 +53,8 @@ def classify(response):
     status = str((response or {}).get('status') or '').strip().upper()
     if status in SUCCESS_STATUSES:
         return 'successful'
-    if status.startswith(FAILURE_PREFIXES):
-        return 'failed'
+    if status.startswith(FAILURE_PREFIXES) or 'CURRENTLY UNAVAILABLE' in status:
+        return 'failed'  # e.g. "MTN SME data service is currently unavailable, pls try again later"
     return 'pending'
 
 
