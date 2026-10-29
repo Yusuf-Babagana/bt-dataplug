@@ -74,4 +74,4 @@ def suspend_minutes():
 
 
 def routing_policy_path():
-    return _env("VTU_ROUTING_POLICY", "vtu_app.gateway.router.PriorityPolicy")
+    return _env("VTU_ROUTING_POLICY", "vtu_app.gateway.router.LowestCostPolicy")

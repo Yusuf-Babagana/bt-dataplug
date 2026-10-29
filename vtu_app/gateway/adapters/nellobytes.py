@@ -12,16 +12,18 @@ logged or re-raised: only fixed messages leave this module.
 import logging
 import re
 import time
+from decimal import Decimal
 
 import requests
 
 from ..base import CustomerVerificationError, ProviderAdapter, WebhookRejected  # noqa: F401
+from .. import offers
+from ..catalog import CatalogPlan
 from ..config import ConfigSpec, ProviderConfig
 from ..types import (
     ErrorCategory, OrderStatus, Outcome, ProviderResult, PurchaseRequest, Service, StatusResult,
     WebhookEvent, redact, strip_credentials,
 )
-from vtu_app.models import CablePlan, DataPlan
 
 logger = logging.getLogger("vtu_app.gateway")
 
@@ -117,23 +119,15 @@ class NellobytesAdapter(ProviderAdapter):
     webhook_verified = False    # callbacks are unsigned - always confirmed via query_status
 
     # -- capability ---------------------------------------------------------
-    @staticmethod
-    def _plan_is_ours(r):
-        """Plan ids are provider-specific codes: only serve plans imported from / seeded for Nellobytes."""
-        if not r.plan_pk:
-            return True                         # no plan row involved (legacy callers)
-        model = DataPlan if r.service == Service.DATA else CablePlan
-        src = model.objects.filter(pk=r.plan_pk).values_list("source", flat=True).first()
-        return src in (None, "nellobytes")
-
     def supports(self, r: PurchaseRequest) -> bool:
         net = (r.network or "").upper()
+        # DATA/CABLE: only a plan Nellobytes owns, or one with a verified offer from it (see offers.py)
         if r.service == Service.DATA:
-            return net in NETWORK_CODES and self._plan_is_ours(r)
+            return net in NETWORK_CODES and offers.offer(self.name, r) is not None
         if r.service == Service.AIRTIME:
             return net in NETWORK_CODES
         if r.service == Service.CABLE:
-            return net in CABLE_CODES and self._plan_is_ours(r)
+            return net in CABLE_CODES and offers.offer(self.name, r) is not None
         if r.service == Service.ELECTRICITY:
             return net in DISCO_CODES
         return False
@@ -247,6 +241,30 @@ class NellobytesAdapter(ProviderAdapter):
         ok = body.get("balance") is not None
         return {"ok": ok, "detail": f"balance {body.get('balance')}" if ok else str(body.get("status") or "UNKNOWN_ERROR"),
                 "elapsed_ms": int((time.monotonic() - started) * 1000)}
+
+    def catalog_plans(self):
+        """Nellobytes' data plan list (public endpoint: needs only the user id). None if unreachable."""
+        try:
+            resp = requests.get(f"{self.config.get('BASE_URL', DEFAULT_BASE).rstrip('/')}/APIDatabundlePlansV2.asp",
+                                params={"UserID": self.config.get("USER_ID")}, headers=HEADERS, timeout=30)
+            data = resp.json().get("MOBILE_NETWORK", {})
+        except (requests.RequestException, ValueError, AttributeError):
+            return None
+        keys = {"MTN": "01", "Glo": "02", "m_9mobile": "03", "Airtel": "04"}
+        skip = {("01", c) for c in ("38", "39", "40", "41")}        # reported as duplicated by the supplier
+        out = []
+        for key, net in keys.items():
+            for block in data.get(key, []):
+                for p in block.get("PRODUCT", []):
+                    try:
+                        code = str(p["PRODUCT_CODE"]).strip()
+                        cost = Decimal(str(p["PRODUCT_AMOUNT"]))
+                    except (KeyError, ArithmeticError):
+                        continue
+                    if (net, code) not in skip and cost > 0:
+                        name = str(p.get("PRODUCT_NAME", "")).strip()
+                        out.append(CatalogPlan("data", net, code, cost, name, name))
+        return out or None
 
     def get_balance(self):
         """Supplier wallet balance for the admin dashboards: a string, or an error label (legacy behaviour)."""

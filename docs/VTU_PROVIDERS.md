@@ -65,6 +65,36 @@ suspended. After `VTU_FAILURE_THRESHOLD` (5) consecutive health-affecting failur
 `VTU_SUSPEND_MINUTES` (10), then tried again; one more failure re-suspends immediately, one success resets it. Other
 policies (lowest cost, best success rate): subclass `router.RoutingPolicy` and set `VTU_ROUTING_POLICY=dotted.path.Class`.
 
+## Cheapest-provider routing (automatic)
+
+The default policy (`LowestCostPolicy`) tries the **cheapest eligible provider first** and fails over to the next
+cheapest on a confirmed provider-side rejection (the failover safety rules above are unchanged). A provider that is
+down, suspended, disabled or does not sell that product is simply not a candidate. A provider whose cost is unknown
+sorts after every provider with a known cost; with no cost data at all it behaves exactly like priority routing, so
+turning it on can never route worse than before. The customer's price never changes with the provider; the provider that
+actually takes the order is the one whose cost is recorded, so profit reports stay correct.
+
+How each product learns its costs:
+
+| Product | Cost comes from | You must |
+|---|---|---|
+| **Airtime** | A percentage of face value per provider and network (*Provider rates*, key `airtime:MTN`). Gongoz publishes its rate and it is refreshed automatically. | Enter **Nellobytes'** rates by hand in admin -> *Provider rates* (e.g. `nellobytes`, `airtime:MTN`, `97`): they are not published anywhere the app can read. Until you do, Gongoz (known cost) is preferred over Nellobytes (unknown). |
+| **Data / cable** | A provider's cost for **that exact plan**. A plan is always sold by the provider that owns it (`source`); another provider can sell the *same product* only through a **verified Plan offer**. | Create offers: `python manage.py suggest_plan_offers --save`, then review them in admin -> *Plan offers* and tick **verified**. |
+| **Electricity** | No published discount, so providers tie and priority decides. | Nothing. |
+
+**Why offers need your approval.** Plan ids are provider-specific codes and the catalogues are not 1:1 (SME vs gifting vs
+coupon, validity wording...). `suggest_plan_offers` matches conservatively (same network, same size in MB, same validity
+in days, compatible family; cable by package name) and saves only *unambiguous* single matches, as **unverified**. An
+unverified offer is never used for routing - a wrong link would deliver a different bundle than the customer paid for.
+Check the *Plan offers* list (it shows both plans' costs and the saving) and tick `verified` on the good ones.
+
+**Keeping costs current.** Schedule `python manage.py refresh_provider_costs` every 10-30 minutes. It reads every enabled
+provider's own catalogue and updates **only costs**: plan `cost_price` for plans that provider owns, the cost on its offers
+(an offer the provider stops listing is switched off, and back on if it returns) and its published airtime rates. It never
+creates plans, never changes selling prices and never deletes anything; an unreachable provider is skipped untouched. It
+also warns when a plan now sells at or below its cost, so a supplier price rise is not silently a loss.
+`--dry-run` shows what would change. Rates you edit by hand are never overwritten.
+
 ## Pending orders and reconciliation
 
 A purchase leaves Pending through any of: the provider callback (`/api/v1/vtu/webhook/<provider>/`, sent as `CallBackURL`

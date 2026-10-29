@@ -68,6 +68,20 @@ class ProviderAdapter:
         """Read-only probe (auth + reachability). Must NEVER place an order."""
         raise NotImplementedError
 
+    # -- pricing (used by the lowest-cost routing policy and the cost refresher) ----------------
+    def quote(self, request: PurchaseRequest):
+        """Our estimated cost of fulfilling ``request`` through this provider; None when unknown."""
+        from . import offers
+        return offers.quote(self.name, request)
+
+    def catalog_plans(self):
+        """The provider's current data/cable plans as ``catalog.CatalogPlan`` list; None when unsupported/unreachable."""
+        return None
+
+    def fetch_airtime_rates(self):
+        """{'MTN': Decimal('97'), ...} - percent of face value the provider charges us; {} when unpublished."""
+        return {}
+
     # -- optional -----------------------------------------------------------
     def parse_webhook(self, request) -> WebhookEvent:
         raise NotImplementedError
