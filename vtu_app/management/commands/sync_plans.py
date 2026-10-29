@@ -53,7 +53,7 @@ class Command(BaseCommand):
                             continue
                         cost = Decimal(str(p['PRODUCT_AMOUNT'])).quantize(Decimal('0.01'))
                         seen.add((net, code))
-                        plan = DataPlan.objects.filter(network=net, dataplan_id=code).first()
+                        plan = DataPlan.objects.filter(network=net, dataplan_id=code, source='nellobytes').first()
                         if plan:
                             plan.plan_name = p['PRODUCT_NAME'].strip()[:100]
                             plan.cost_price = cost
@@ -74,7 +74,7 @@ class Command(BaseCommand):
                             created += 1
 
             # Anything still using an old-style plan ID (or unlisted) can no longer be bought.
-            stale = [pl for pl in DataPlan.objects.filter(is_active=True) if (pl.network, pl.dataplan_id) not in seen]
+            stale = [pl for pl in DataPlan.objects.filter(is_active=True, source='nellobytes') if (pl.network, pl.dataplan_id) not in seen]
             if not opts['dry_run']:
                 DataPlan.objects.filter(pk__in=[pl.pk for pl in stale]).update(is_active=False)
 

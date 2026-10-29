@@ -1,11 +1,14 @@
 """
 Purchase engine for the developer API.
 
-Reuses the existing wallet engine (TransactionService) and provider client (ClubKonnectService).
+Reuses the existing wallet engine (TransactionService) and the provider-agnostic VTU gateway
+(vtu_app.gateway: routing, safe failover, reconciliation).
 Money rules:
   * prices are always computed on the server from DataPlan/CablePlan rows or fixed rules, never from the request;
   * the wallet is debited atomically BEFORE the provider is called;
-  * a refund happens only when the provider has clearly rejected the order (never on a timeout or unknown answer);
+  * a refund happens only when every provider has clearly rejected the order (never on a timeout or unknown answer);
+  * a provider that merely ACCEPTED the order leaves it `pending`: it becomes `successful` only when the provider
+    confirms completion (webhook, status poll, or `reconcile_api_transactions` / `reconcile_vtu_orders`);
   * unknown/ambiguous outcomes stay `pending` and are settled later by reconciliation or by staff.
 """
 import hashlib
@@ -18,7 +21,8 @@ from decimal import Decimal, InvalidOperation
 from django.db import IntegrityError, transaction
 
 from vtu_app.models import CablePlan, DataPlan, ServiceSwitch, Transaction as CoreTx, WalletTransaction, Profile
-from vtu_app.services.external_apis import ClubKonnectService
+from vtu_app.gateway import engine, flows, ledger, registry
+from vtu_app.gateway.types import OrderStatus
 from vtu_app.services.transaction_service import TransactionService
 
 from .errors import ApiError, validation_error
@@ -41,22 +45,6 @@ PHONE_RE = re.compile(r'^0[789][01]\d{8}$')
 AIRTIME_SELL, AIRTIME_COST = Decimal('0.99'), Decimal('0.97')
 ELECTRICITY_FEE = Decimal('100.00')
 SERVICE_LABEL = {'airtime': 'Airtime Purchase', 'data': 'Data Purchase', 'electricity': 'Electricity Bill', 'cable': 'Cable TV'}
-
-SUCCESS_STATUSES = {'ORDER_RECEIVED', 'SUCCESSFUL', 'ORDER_COMPLETED'}
-# Provider answers that mean "rejected, nothing was delivered". Anything else that is not success stays pending.
-FAILURE_PREFIXES = ('INVALID_', 'MISSING_', 'INSUFFICIENT_', 'MINIMUM_', 'MAXIMUM_', 'ORDER_CANCELLED', 'ORDER_FAILED',
-                    'NOT_AVAILABLE', 'DUPLICATE_ORDER', 'AUTHENTICATION_FAILED')
-
-
-def classify(response):
-    """-> 'successful' | 'failed' | 'pending' from a provider JSON answer."""
-    status = str((response or {}).get('status') or '').strip().upper()
-    if status in SUCCESS_STATUSES:
-        return 'successful'
-    if status.startswith(FAILURE_PREFIXES) or 'CURRENTLY UNAVAILABLE' in status:
-        return 'failed'  # e.g. "MTN SME data service is currently unavailable, pls try again later"
-    return 'pending'
-
 
 # ---------------------------------------------------------------------------------------------------
 # Serialising
@@ -82,9 +70,9 @@ def serialize_transaction(tx):
 # Validation -> Order
 # ---------------------------------------------------------------------------------------------------
 class Order:
-    def __init__(self, service, description, recipient, charge, cost, call, fingerprint, extra_fee=Decimal('0.00'), network_name=None):
+    def __init__(self, service, description, recipient, charge, cost, template, fingerprint, extra_fee=Decimal('0.00'), network_name=None):
         self.service, self.description, self.recipient = service, description, recipient
-        self.charge, self.cost, self.call, self.extra_fee = charge, cost, call, extra_fee
+        self.charge, self.cost, self.template, self.extra_fee = charge, cost, template, extra_fee
         self.fingerprint = fingerprint
         self.network_name = network_name
         self.plan = None  # the DataPlan row, for data orders
@@ -153,7 +141,6 @@ def _check_network_enabled(name):
 
 
 def build_order(service, data):
-    ck = ClubKonnectService()
     if service == 'airtime':
         net = _text(data, 'network').upper()
         code = NETWORK_ALIASES.get(net) or (net if net in NETWORKS else None)
@@ -165,7 +152,7 @@ def build_order(service, data):
         charge = (amount * AIRTIME_SELL).quantize(Decimal('0.01'))
         cost = (amount * AIRTIME_COST).quantize(Decimal('0.01'))
         return Order('airtime', f'{NETWORKS[code]} airtime N{amount}', phone, charge, cost,
-                     lambda rid: ck.buy_airtime(code, amount, phone, request_id=rid),
+                     flows.airtime_request(code, amount, phone),
                      _fingerprint(service, {'network': code, 'phone': phone, 'amount': str(amount)}))
 
     if service == 'data':
@@ -176,7 +163,7 @@ def build_order(service, data):
             raise validation_error(plan_id='Unknown plan. Fetch valid ids from GET /data-plans/.')
         _check_network_enabled(NETWORKS.get(plan.network, plan.network))
         order = Order('data', plan.plan_name, phone, plan.price, plan.cost_price,
-                      lambda rid: ck.buy_data(plan.network, plan.dataplan_id, phone, request_id=rid),
+                      flows.data_request(plan, phone),
                       _fingerprint(service, {'plan': plan.pk, 'phone': phone}), extra_fee=plan.additional_fee)
         order.plan = plan
         return order
@@ -196,7 +183,7 @@ def build_order(service, data):
         phone, amount = v['phone'], v['amount']
         return Order('electricity', f'{DISCOS[disco]} {"prepaid" if meter_type == "01" else "postpaid"} N{amount}', meter_no,
                      amount + ELECTRICITY_FEE, amount,
-                     lambda rid: ck.pay_electricity(disco, meter_no, meter_type, amount, phone, request_id=rid),
+                     flows.electricity_request(disco, meter_type, meter_no, amount, phone),
                      _fingerprint(service, {'disco': disco, 'meter': meter_no, 'type': meter_type, 'phone': phone, 'amount': str(amount)}),
                      extra_fee=ELECTRICITY_FEE)
 
@@ -209,11 +196,11 @@ def build_order(service, data):
         if not card.isdigit():
             raise validation_error(smartcard='Must be numeric.')
         phone = _phone(data)
-        plan = CablePlan.objects.filter(cable_type=cable_tv, plan_id=package_id).first()
+        plan = CablePlan.objects.filter(cable_type=cable_tv, plan_id=package_id, is_active=True).first()
         if not plan:
             raise validation_error(package_id='Unknown package. Fetch valid ids from GET /cable-plans/.')
         return Order('cable', f'{cable_tv.upper()} {plan.name}', card, plan.price, plan.cost_price,
-                     lambda rid: ck.buy_cable(cable_tv, plan.plan_id, card, phone, request_id=rid),
+                     flows.cable_request(plan, card, phone),
                      _fingerprint(service, {'cable': cable_tv, 'package': plan.plan_id, 'card': card, 'phone': phone}),
                      extra_fee=plan.additional_fee)
 
@@ -309,6 +296,11 @@ def execute_purchase(app, service, data, idempotency_key, client_reference=''):
     if order.plan and not order.plan.is_active:  # after the replay check, so a retried failure still replays
         raise validation_error(plan_id='This plan is temporarily unavailable. Choose another from GET /data-plans/.')
 
+    if app.is_live:
+        blocked = engine.check_available(order.template)   # before anything is created or charged
+        if blocked:
+            raise ApiError(503, 'service_unavailable', 'This service is temporarily unavailable. Please try again shortly.')
+
     user = app.developer.user
     try:
         tx = ApiTransaction.objects.create(
@@ -336,30 +328,35 @@ def execute_purchase(app, service, data, idempotency_key, client_reference=''):
         logger.error('API_DEBIT_ERROR app=%s detail=%s', app.pk, res)
         raise ApiError(500, 'internal_error', 'Could not process the request. Nothing was charged.')
 
-    provider_rid = uuid.uuid4().hex[:12]
     tx.core_reference = res.reference
-    tx.provider_request_id = provider_rid
+    tx.provider_request_id = res.reference[:40]     # the id sent to the provider as RequestID for the first attempt
     tx.status = 'pending'
     if order.extra_fee:
         tx.result = {'_fee': str(order.extra_fee)}
     tx.save()
 
     try:
-        response, _rid = order.call(provider_rid)
+        outcome = engine.dispatch(res, order.template, auto_refund=False)
     except Exception:
         logger.exception('API_PROVIDER_EXCEPTION ref=%s', tx.reference)
-        response = {'status': 'ERROR'}
-    outcome = classify(response)
-    logger.info('API_PURCHASE ref=%s app=%s outcome=%s provider_status=%s', tx.reference, app.pk, outcome, response.get('status'))
-    reason = ''
-    if outcome == 'failed':
+        outcome = None
+    logger.info('API_PURCHASE ref=%s app=%s outcome=%s', tx.reference, app.pk, getattr(outcome, 'kind', 'error'))
+
+    if outcome is not None and outcome.kind == 'rejected':
+        # Every eligible provider confirmed it did NOT take the order: the only case that refunds here.
+        logger.warning('API_PURCHASE_REJECTED ref=%s code=%s category=%s', tx.reference, outcome.code, outcome.category)
         reason = 'The order was rejected by the network provider.'  # supplier detail stays in the logs, not the API reply
-        logger.warning('API_PURCHASE_REJECTED ref=%s response=%s', tx.reference, response)
-        if order.plan and str(response.get('status') or '').strip().upper() == 'INVALID_DATAPLAN':
-            # The supplier refuses this plan code: stop selling it until an admin re-enables it.
-            DataPlan.objects.filter(pk=order.plan.pk).update(is_active=False)
-            logger.error('DATA_PLAN_DISABLED plan=%s code=%s network=%s', order.plan.pk, order.plan.dataplan_id, order.plan.network)
-    return settle(tx.pk, outcome, response, reason), False
+        return settle(tx.pk, 'failed', {'status': outcome.code}, reason), False
+
+    if outcome is not None and outcome.kind == 'accepted':
+        token = (outcome.extra or {}).get('metertoken') or (outcome.extra or {}).get('token')
+        if token:
+            ApiTransaction.objects.filter(pk=tx.pk).update(result={**(tx.result or {}), 'token': str(token)})
+        return settle(tx.pk, 'pending', {'status': outcome.code or 'ORDER_RECEIVED'}), False
+
+    # Unclear (timeout / dropped connection / unknown reply) or an unexpected crash: the order may exist, so it
+    # stays pending - never refunded - until the provider confirms an outcome.
+    return settle(tx.pk, 'pending', {'status': 'UNCLEAR'}), False
 
 
 def _simulate(tx, order):
@@ -378,19 +375,35 @@ def _simulate(tx, order):
 # ---------------------------------------------------------------------------------------------------
 # Reconciliation
 # ---------------------------------------------------------------------------------------------------
-CANCELLED_STATUSES = {'ORDER_CANCELLED', 'ORDER_FAILED', 'ORDER_ERROR'}
-
-
 def reconcile(api_tx):
-    """Ask the provider what happened to a pending live order and settle it only on a definite answer."""
+    """
+    Ask the provider holding a pending live order what happened and settle it only on a definite answer.
+    The core transaction is resolved through the gateway; the ``on_core_settled`` listener then moves this
+    ApiTransaction (refund + webhook included), so there is a single place where money moves.
+    """
     api_tx.reconcile_attempts += 1
     api_tx.save(update_fields=['reconcile_attempts', 'updated_at'])
-    if not api_tx.provider_request_id:
+    core = CoreTx.objects.filter(reference=api_tx.core_reference).first() if api_tx.core_reference else None
+    if core is None:
         return api_tx
-    response = ClubKonnectService().query_order(api_tx.provider_request_id)
-    status = str(response.get('status') or response.get('orderstatus') or '').strip().upper()
-    if status in SUCCESS_STATUSES:
-        return settle(api_tx.pk, 'successful', response)
-    if status in CANCELLED_STATUSES:
-        return settle(api_tx.pk, 'failed', response, 'The order was cancelled by the network provider.')
-    return api_tx  # still unknown/on hold: leave for next run or for staff
+    if core.attempts.exists() or core.order_id:
+        engine.reconcile_transaction(core, 'api-reconcile')
+    elif api_tx.provider_request_id:
+        # Order placed before the gateway existed: only the supplier's RequestID is known.
+        adapter = registry.get_adapter('nellobytes')
+        res = adapter.query_status('', api_tx.provider_request_id) if adapter else None
+        if res is not None and res.status in (OrderStatus.SUCCESSFUL, OrderStatus.FAILED):
+            ledger.settle(core.pk, res.status, 'api-reconcile')
+    api_tx.refresh_from_db()
+    return api_tx
+
+
+def on_core_settled(core_tx, outcome):
+    """Gateway listener: a core transaction reached a final state, so settle the developer order that owns it."""
+    api_tx = ApiTransaction.objects.filter(core_reference=core_tx.reference).first()
+    if api_tx is None or api_tx.status not in ('processing', 'pending'):
+        return
+    if outcome == OrderStatus.SUCCESSFUL:
+        settle(api_tx.pk, 'successful', {'status': 'ORDER_COMPLETED'})
+    else:
+        settle(api_tx.pk, 'failed', {'status': 'ORDER_CANCELLED'}, 'The order was cancelled by the network provider.')

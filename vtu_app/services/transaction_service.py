@@ -1,8 +1,9 @@
 import logging
 from decimal import Decimal
-from django.db import transaction
+from django.db import IntegrityError, transaction
 from django.db.models import F
-from ..models import Profile, WalletTransaction, Transaction as TxModel, PaystackTransaction
+from django.utils import timezone
+from ..models import Profile, WalletTransaction, Transaction as TxModel, PaystackTransaction, TransactionEvent
 from ..notifications import notify
 
 logger = logging.getLogger('vtu_app')
@@ -35,66 +36,106 @@ def resolve_paystack_user(data):
 
 class TransactionService:
     @staticmethod
-    def process_debit(user, amount, service_type, plan_name, recipient, reference, description, cost_price=Decimal('0.00')):
+    def record_event(tx, from_status, to_status, source, detail="", delta=Decimal('0'), balance_after=None):
+        """Append to the transaction's audit trail. Never raises into a money flow."""
+        try:
+            TransactionEvent.objects.create(
+                transaction=tx, from_status=from_status or "", to_status=to_status, wallet_delta=delta,
+                balance_after=balance_after, source=source, detail=(detail or "")[:255])
+        except Exception:
+            logger.exception("TXN_EVENT_FAILED ref=%s", getattr(tx, 'reference', '?'))
+
+    @staticmethod
+    def process_debit(user, amount, service_type, plan_name, recipient, reference, description,
+                      cost_price=Decimal('0.00'), idempotency_key=None):
         """
         Fintech-grade balance deduction with race-condition protection.
-        Now includes cost_price and profit tracking.
+        Includes cost_price and profit tracking. Returns (True, Transaction) or (False, message).
+
+        With an ``idempotency_key`` a repeated request returns the ORIGINAL transaction (no second debit),
+        flagged with ``tx.replayed = True``.
         """
         try:
             with transaction.atomic():
                 # Lock the profile record for wait
                 profile = Profile.objects.select_for_update().get(user=user)
-                
+
+                if idempotency_key:
+                    existing = TxModel.objects.filter(user=user, idempotency_key=idempotency_key).first()
+                    if existing:
+                        existing.replayed = True
+                        return True, existing
+
                 if profile.wallet_balance < amount:
                     return False, "Insufficient balance."
 
                 old_balance = profile.wallet_balance
                 new_balance = old_balance - amount
-                
-                # 1. Update Profile Balance
-                profile.wallet_balance = new_balance
-                profile.save()
 
-                # 2. Create Audit Log (WalletTransaction)
-                WalletTransaction.objects.create(
-                    user=user,
-                    amount=amount,
-                    previous_balance=old_balance,
-                    new_balance=new_balance,
-                    transaction_type='DEBIT',
-                    reference=f"WAL-{reference}",
-                    description=description
-                )
+                try:
+                    with transaction.atomic():      # savepoint: a unique-key race must undo the debit too
+                        # 1. Update Profile Balance
+                        profile.wallet_balance = new_balance
+                        profile.save()
 
-                # 3. Create Service Log (Transaction) with Deep Audit Fields
-                tx = TxModel.objects.create(
-                    user=user,
-                    service_type=service_type,
-                    plan_name=plan_name,
-                    amount_customer_paid=amount,
-                    cost_from_klubconnect=cost_price,
-                    monnify_fee_on_this_tx=Decimal('0.00'), # Usually 0 for debits
-                    bt_service_charge=Decimal('0.00'),      # Will be set by caller if needed
-                    recipient=recipient,
-                    status="Pending",
-                    reference=reference
-                )
+                        # 2. Create Audit Log (WalletTransaction)
+                        WalletTransaction.objects.create(
+                            user=user,
+                            amount=amount,
+                            previous_balance=old_balance,
+                            new_balance=new_balance,
+                            transaction_type='DEBIT',
+                            reference=f"WAL-{reference}",
+                            description=description
+                        )
+
+                        # 3. Create Service Log (Transaction) with Deep Audit Fields
+                        tx = TxModel.objects.create(
+                            user=user,
+                            service_type=service_type,
+                            plan_name=plan_name,
+                            amount_customer_paid=amount,
+                            cost_from_klubconnect=cost_price,
+                            monnify_fee_on_this_tx=Decimal('0.00'), # Usually 0 for debits
+                            bt_service_charge=Decimal('0.00'),      # Will be set by caller if needed
+                            recipient=recipient,
+                            status="Pending",
+                            reference=reference,
+                            idempotency_key=idempotency_key or None,
+                        )
+                except IntegrityError:
+                    existing = TxModel.objects.filter(user=user, idempotency_key=idempotency_key).first() if idempotency_key else None
+                    if existing:
+                        existing.replayed = True
+                        return True, existing
+                    raise
                 tx.calculate_totals()
-                
+                TransactionService.record_event(tx, "", "Pending", "purchase", "wallet debited", -amount, new_balance)
+
                 return True, tx
         except Exception as e:
             logger.error(f"DEBIT_ERROR: {str(e)}")
             return False, str(e)
 
     @staticmethod
-    def process_refund(user, amount, reference, reason):
-        """Standardized refund logic with audit log."""
+    def process_refund(user, amount, reference, reason, source="refund"):
+        """
+        Standardized refund logic with audit log. Returns (True, new_balance) or (False, message).
+
+        Exactly once per transaction: the transaction row is locked, ``refunded_at`` is the marker, and the
+        unique ``REF-<reference>`` wallet entry is a second line of defence. A repeat call returns
+        (False, "Already refunded") and moves no money.
+        """
         try:
             with transaction.atomic():
+                tx = TxModel.objects.select_for_update().filter(reference=reference).order_by('-id').first()
+                if tx is not None and tx.refunded_at is not None:
+                    return False, "Already refunded"
+
                 profile = Profile.objects.select_for_update().get(user=user)
                 old_balance = profile.wallet_balance
                 new_balance = old_balance + amount
-                
+
                 profile.wallet_balance = new_balance
                 profile.save()
 
@@ -107,10 +148,15 @@ class TransactionService:
                     reference=f"REF-{reference}",
                     description=f"Refund: {reason}"
                 )
-                
+
                 # Update original transaction status if it exists
-                TxModel.objects.filter(reference=reference).update(status="Refunded")
-                
+                if tx is not None:
+                    previous = tx.status
+                    tx.status = "Refunded"
+                    tx.refunded_at = timezone.now()
+                    tx.save(update_fields=['status', 'refunded_at'])
+                    TransactionService.record_event(tx, previous, "Refunded", source, reason, amount, new_balance)
+
                 return True, new_balance
         except Exception as e:
             logger.error(f"REFUND_ERROR: {str(e)}")

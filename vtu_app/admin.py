@@ -6,7 +6,7 @@ from decimal import Decimal, InvalidOperation
 from django.contrib import admin, messages
 from django.contrib.auth.models import User
 from django.db import transaction as db_transaction
-from django.db.models import Sum, F
+from django.db.models import Avg, Count, Q, Sum, F
 from django.http import HttpResponse
 from django.template.response import TemplateResponse
 from django.utils import timezone
@@ -14,11 +14,12 @@ from django.utils.html import format_html
 
 from .models import (
     Profile, Transaction, DataPlan, CablePlan, WalletTransaction, Notification,
-    PaystackTransaction, ServiceSwitch,
+    PaystackTransaction, ServiceSwitch, TransactionEvent, ProviderState, PurchaseAttempt,
 )
 from .notifications import notify
 from .services.transaction_service import TransactionService
 from . import admin_dashboard
+from .gateway import engine, health, registry, router
 
 admin.site.site_header = "BT DataPlug"
 admin.site.site_title = "BT DataPlug Admin"
@@ -87,16 +88,16 @@ class PlanAdminBase(admin.ModelAdmin):
 
 @admin.register(DataPlan)
 class DataPlanAdmin(PlanAdminBase):
-    list_display = ('plan_name', 'network', 'dataplan_id', 'cost_price', 'price', 'additional_fee', 'margin', 'is_active')
-    list_filter = ('network', 'is_active', MarginFilter)
+    list_display = ('plan_name', 'network', 'dataplan_id', 'source', 'cost_price', 'price', 'additional_fee', 'margin', 'is_active')
+    list_filter = ('network', 'source', 'is_active', MarginFilter)
     search_fields = ('plan_name', 'dataplan_id')
     ordering = ('network', 'price')
 
 
 @admin.register(CablePlan)
 class CablePlanAdmin(PlanAdminBase):
-    list_display = ('name', 'cable_type', 'plan_id', 'cost_price', 'price', 'additional_fee', 'margin')
-    list_filter = ('cable_type', MarginFilter)
+    list_display = ('name', 'cable_type', 'plan_id', 'source', 'cost_price', 'price', 'additional_fee', 'margin', 'is_active')
+    list_filter = ('cable_type', 'source', 'is_active', MarginFilter)
     search_fields = ('name', 'plan_id')
     ordering = ('cable_type', 'price')
 
@@ -132,6 +133,27 @@ class HealthFilter(admin.SimpleListFilter):
         return queryset
 
 
+class TransactionEventInline(admin.TabularInline):
+    model = TransactionEvent
+    extra = 0
+    can_delete = False
+    readonly_fields = ('created_at', 'from_status', 'to_status', 'wallet_delta', 'balance_after', 'source', 'detail')
+
+    def has_add_permission(self, request, obj=None):
+        return False
+
+
+class PurchaseAttemptInline(admin.TabularInline):
+    model = PurchaseAttempt
+    extra = 0
+    can_delete = False
+    fields = ('sequence', 'provider', 'reference', 'outcome', 'error_category', 'code', 'provider_order_id', 'elapsed_ms', 'created_at')
+    readonly_fields = fields
+
+    def has_add_permission(self, request, obj=None):
+        return False
+
+
 @admin.register(Transaction)
 class TransactionAdmin(admin.ModelAdmin):
     list_display = ('created_at', 'user', 'service_type', 'plan_name', 'recipient', 'amount_customer_paid', 'cost_from_klubconnect', 'net_profit', 'state')
@@ -142,8 +164,18 @@ class TransactionAdmin(admin.ModelAdmin):
     list_per_page = 40
     list_select_related = ('user',)
     readonly_fields = ('user', 'service_type', 'plan_name', 'amount_customer_paid', 'cost_from_klubconnect',
-                       'monnify_fee_on_this_tx', 'bt_service_charge', 'net_profit', 'recipient', 'reference', 'created_at')
-    actions = ['refund_to_wallet', 'export_csv']
+                       'monnify_fee_on_this_tx', 'bt_service_charge', 'net_profit', 'recipient', 'reference', 'created_at',
+                       'provider', 'order_id', 'idempotency_key', 'refunded_at')
+    inlines = [PurchaseAttemptInline, TransactionEventInline]
+    actions = ['check_with_provider', 'refund_to_wallet', 'export_csv']
+
+    @admin.action(description="Check selected Pending orders with the provider (settles only on a confirmed answer)")
+    def check_with_provider(self, request, queryset):
+        settled = 0
+        for tx in queryset.filter(status='Pending'):
+            if engine.reconcile_transaction(tx, 'admin') != 'Pending':
+                settled += 1
+        self.message_user(request, f"{settled} order(s) settled; the rest are still unconfirmed by the provider.")
 
     @admin.display(description='Status', ordering='status')
     def state(self, obj):
@@ -395,3 +427,117 @@ class AccountDeletionRequestAdmin(admin.ModelAdmin):
     @admin.action(description="Mark selected requests as rejected")
     def reject_requests(self, request, queryset):
         queryset.filter(status='pending').update(status='rejected', processed_at=timezone.now())
+
+
+
+# ------------------------------------------------- VTU provider gateway
+@admin.register(ProviderState)
+class ProviderStateAdmin(admin.ModelAdmin):
+    """Provider health and routing. Credentials live only in .env - nothing secret is shown here."""
+    list_display = ('name', 'env_status', 'admin_enabled', 'priority', 'services', 'circuit',
+                    'attempts_24h', 'failure_rate_24h', 'avg_ms_24h', 'last_success_at', 'last_error')
+    list_editable = ('admin_enabled',)
+    fields = ('name', 'admin_enabled', 'priority_override', 'env_status', 'config_view', 'circuit',
+              'consecutive_failures', 'suspended_until', 'last_success_at', 'last_failure_at', 'last_error')
+    readonly_fields = ('name', 'env_status', 'config_view', 'circuit', 'consecutive_failures',
+                       'suspended_until', 'last_success_at', 'last_failure_at', 'last_error')
+    actions = ['test_connectivity', 'reset_circuit']
+
+    def has_add_permission(self, request):
+        return False        # rows are created automatically for every registered provider
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+    def get_queryset(self, request):
+        for name in registry.adapter_classes():
+            health.get_state(name)
+        return super().get_queryset(request)
+
+    def _adapter(self, obj):
+        return registry.get_adapter(obj.name)
+
+    @admin.display(description='Priority')
+    def priority(self, obj):
+        a = self._adapter(obj)
+        return router.effective_priority(a, obj) if a else '-'
+
+    @admin.display(description='Services')
+    def services(self, obj):
+        a = self._adapter(obj)
+        return ', '.join(a.services) if a else '(adapter missing)'
+
+    @admin.display(description='.env')
+    def env_status(self, obj):
+        a = self._adapter(obj)
+        if a is None:
+            return 'adapter missing'
+        if not a.config.enabled:
+            return 'disabled'
+        errs = a.config.errors()
+        return 'MISCONFIGURED: ' + '; '.join(errs) if errs else 'enabled'
+
+    @admin.display(description='Settings (secrets hidden)')
+    def config_view(self, obj):
+        a = self._adapter(obj)
+        return ', '.join(f'{k}={v}' for k, v in a.config.public_view().items()) if a else '-'
+
+    @admin.display(description='Circuit')
+    def circuit(self, obj):
+        if health.is_suspended(obj):
+            return f'SUSPENDED until {obj.suspended_until:%Y-%m-%d %H:%M}'
+        return f'closed ({obj.consecutive_failures} consecutive failures)'
+
+    def _stats(self, obj):
+        since = timezone.now() - timedelta(hours=24)
+        return PurchaseAttempt.objects.filter(provider=obj.name, created_at__gte=since).aggregate(
+            total=Count('id'), bad=Count('id', filter=Q(outcome__in=['REJECTED', 'AMBIGUOUS'])), ms=Avg('elapsed_ms'))
+
+    @admin.display(description='Attempts (24h)')
+    def attempts_24h(self, obj):
+        return self._stats(obj)['total']
+
+    @admin.display(description='Failure rate (24h)')
+    def failure_rate_24h(self, obj):
+        s = self._stats(obj)
+        return f"{100 * s['bad'] / s['total']:.0f}%" if s['total'] else '-'
+
+    @admin.display(description='Avg ms (24h)')
+    def avg_ms_24h(self, obj):
+        ms = self._stats(obj)['ms']
+        return int(ms) if ms else '-'
+
+    @admin.action(description='Test connectivity (read-only, places NO order)')
+    def test_connectivity(self, request, queryset):
+        for obj in queryset:
+            a = self._adapter(obj)
+            if a is None or not a.config.enabled or not a.config.is_valid:
+                self.message_user(request, f'{obj.name}: not enabled/configured in .env', messages.WARNING)
+                continue
+            r = a.check_connectivity()
+            self.message_user(request, f"{obj.name}: {'OK' if r['ok'] else 'FAILED'} - {r['detail']} ({r['elapsed_ms']}ms)",
+                              messages.SUCCESS if r['ok'] else messages.ERROR)
+
+    @admin.action(description='Clear failures / lift suspension')
+    def reset_circuit(self, request, queryset):
+        for obj in queryset:
+            health.reset(obj.name)
+        self.message_user(request, 'Circuit reset.')
+
+
+@admin.register(PurchaseAttempt)
+class PurchaseAttemptAdmin(admin.ModelAdmin):
+    """Failover log: every submission of an order to a provider."""
+    list_display = ('created_at', 'reference', 'provider', 'sequence', 'outcome', 'error_category', 'code', 'elapsed_ms')
+    list_filter = ('provider', 'outcome', 'error_category')
+    search_fields = ('reference', 'provider_order_id', 'transaction__reference')
+    date_hierarchy = 'created_at'
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False

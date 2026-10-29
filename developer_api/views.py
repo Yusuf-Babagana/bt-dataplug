@@ -11,7 +11,8 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from vtu_app.models import CablePlan, DataPlan, Profile, ServiceSwitch
-from vtu_app.services.external_apis import ClubKonnectService
+from vtu_app.gateway import flows
+from vtu_app.gateway.types import Service
 
 from . import services
 from .auth import ApiKeyAuthentication
@@ -183,7 +184,7 @@ class VerifyMeterView(BaseApiView):
             raise validation_error(**errors)
         if not self.app.is_live:
             return self.ok({'customer_name': 'TEST CUSTOMER', 'meter_no': meter_no})
-        res = ClubKonnectService().validate_meter(disco, meter_no, mtype)
+        res = flows.verify_customer(Service.ELECTRICITY, disco, meter_no, mtype)
         name = (res or {}).get('customer_name')
         if not name or 'invalid' in str(name).lower() or 'error' in str(name).lower():
             raise ApiError(422, 'verification_failed', 'We could not verify this meter number.')
@@ -205,7 +206,7 @@ class VerifyCableView(BaseApiView):
             raise validation_error(**errors)
         if not self.app.is_live:
             return self.ok({'customer_name': 'TEST CUSTOMER', 'smartcard': card})
-        res = ClubKonnectService().verify_cable(cable_tv, card)
+        res = flows.verify_customer(Service.CABLE, cable_tv.upper(), card)
         name = (res or {}).get('customer_name')
         if not name or 'invalid' in str(name).lower() or 'error' in str(name).lower():
             raise ApiError(422, 'verification_failed', 'We could not verify this smartcard number.')
