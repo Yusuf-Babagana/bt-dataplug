@@ -1,5 +1,6 @@
 import json
 import logging
+import re
 import time
 from decimal import Decimal, InvalidOperation
 from django.http import HttpResponse
@@ -15,9 +16,11 @@ from django.db.models import Q
 from django.shortcuts import get_object_or_404
 from .models import DataPlan, Transaction, Profile, CablePlan, Notification, PaystackTransaction
 from .serializers import DataPlanSerializer, TransactionSerializer, CablePlanSerializer
-from .services import MonnifyService, ClubKonnectService, PaystackService
+from .services import MonnifyService, PaystackService
 from .services.transaction_service import TransactionService, resolve_paystack_user
 from .notifications import notify
+from .gateway import engine, flows
+from .gateway.types import Service
 
 logger = logging.getLogger(__name__)
 
@@ -194,7 +197,7 @@ class CablePlanList(APIView):
     permission_classes = [] # Public access
     
     def get(self, request):
-        plans = CablePlan.objects.all().order_by('price')
+        plans = CablePlan.objects.filter(is_active=True).order_by('price')
         serializer = CablePlanSerializer(plans, many=True)
         return Response(serializer.data)
 
@@ -274,6 +277,8 @@ def api_register(request):
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def api_transaction_history(request):
+    # Orders the supplier has accepted stay Pending until confirmed; settle this user's few newest on read.
+    engine.reconcile_user_pending(request.user)
     # Fetch last 30 transactions (Excluding BTKKM/ID 25)
     transactions = Transaction.objects.filter(user=request.user).exclude(
         id=25
@@ -298,13 +303,56 @@ def api_transaction_history(request):
     
     return Response(data)
 
+def _idem_key(request):
+    """Optional client-supplied Idempotency-Key (header or body): the same key never charges twice."""
+    key = str(request.headers.get('Idempotency-Key') or request.data.get('idempotency_key') or '').strip()
+    return key if re.fullmatch(r'[A-Za-z0-9._:-]{8,100}', key) else None
+
+
+def _replay(tx):
+    """Answer for a repeated request whose Idempotency-Key already produced transaction ``tx``."""
+    tx.refresh_from_db()
+    body = {"reference": tx.reference, "transaction_id": tx.id, "order_id": tx.order_id or None, "idempotent_replay": True}
+    if tx.status == "Refunded":
+        return Response({**body, "message": "This purchase did not go through and was refunded."}, status=status.HTTP_409_CONFLICT)
+    return Response({**body, "status": "successful" if tx.status == "Successful" else "pending",
+                     "message": "Your order has been received." if tx.status == "Pending" else "Transaction Successful!"})
+
+
+def _blocked(template):
+    """Refuse BEFORE any money moves when no provider can serve the request."""
+    problem = engine.check_available(template)
+    if problem:
+        return Response({"message": problem[1]}, status=problem[0])
+    return None
+
+
+def _complete(user, tx, template, payload, service_charge=None):
+    """
+    Submit the debited order and translate the outcome to the response shapes the mobile app already
+    understands: 200 + receipt fields when the supplier accepted it (or the outcome is still unclear and
+    will be settled by reconciliation), or an error + automatic refund when every provider rejected it.
+    """
+    result = engine.dispatch(tx, template)
+    user.profile.refresh_from_db()
+    if result.kind in ('accepted', 'unclear'):
+        if service_charge is not None:
+            Transaction.objects.filter(pk=tx.pk).update(bt_service_charge=service_charge)
+        body = dict(payload(result))
+        body.update({"reference": tx.reference, "status": "pending", "new_balance": str(user.profile.wallet_balance)})
+        if result.kind == 'unclear':
+            body["message"] = "Your order is being processed. You will be notified once it completes."
+        return Response(body, status=status.HTTP_200_OK)
+    return Response({"message": f"{result.message} Your funds have been refunded."}, status=result.http_status)
+
+
 @csrf_exempt
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def api_buy_data(request):
     """
     Production-grade Mobile Data Purchase.
-    Uses TransactionService for atomic balance deductions and profit tracking.
+    Atomic debit -> provider-agnostic gateway (safe failover) -> exactly-once refund on confirmed failure.
     """
     user = request.user
     plan_id = request.data.get('plan_id')
@@ -320,63 +368,42 @@ def api_buy_data(request):
 
     try:
         plan = DataPlan.objects.get(id=plan_id)
-    except DataPlan.DoesNotExist:
+    except (DataPlan.DoesNotExist, ValueError, TypeError):
         return Response({"message": "Invalid Plan Selected"}, status=status.HTTP_404_NOT_FOUND)
+    if not plan.is_active:
+        return Response({"message": "This plan is temporarily unavailable. Please choose another."}, status=status.HTTP_400_BAD_REQUEST)
 
-    # 1. ACQUISITION OF LOCK & ATOMIC DEBIT
+    template = flows.data_request(plan, phone)
+    blocked = _blocked(template)
+    if blocked:
+        return blocked
+
+    # 1. ATOMIC DEBIT (a repeated Idempotency-Key returns the original order instead of charging again)
     success, result = TransactionService.process_debit(
         user=user,
         amount=plan.price,
         service_type="Data Purchase (Mobile)",
         plan_name=plan.plan_name,
         recipient=phone,
-        reference=f"DTM-{int(time.time())}",
+        reference=flows.new_reference("DTM"),
         description=f"Mobile purchase of {plan.plan_name} for {phone}",
-        cost_price=plan.cost_price
+        cost_price=plan.cost_price,
+        idempotency_key=_idem_key(request),
     )
-
     if not success:
         return Response({"message": f"Transaction failed: {result}"}, status=status.HTTP_400_BAD_REQUEST)
+    if getattr(result, 'replayed', False):
+        return _replay(result)
 
-    # 2. CALL PROVIDER API
-    try:
-        ck = ClubKonnectService()
-        # Corrected argument order: network, plan_id, phone
-        response, req_id = ck.buy_data(plan.network, plan.dataplan_id, phone)
-
-        if response.get('status') in ['ORDER_RECEIVED', 'SUCCESSFUL']:
-            # 3. SUCCESS - Finalize record
-            Transaction.objects.filter(reference=result.reference).update(
-                status="Successful",
-                bt_service_charge=plan.additional_fee
-            )
-            tx = Transaction.objects.get(reference=result.reference)
-            tx.calculate_totals() # Recalculate with potential service charge
-
-            notify(user, "Data purchase successful", f"{plan.plan_name} for {phone} — ₦{tx.amount_customer_paid}.")
-
-            return Response({
-                "message": "Transaction Successful!",
-                "new_balance": str(user.profile.wallet_balance),
-                "transaction_id": tx.id,
-                "plan": plan.plan_name,
-                "phone": phone,
-                "amount_paid": str(tx.amount_customer_paid),
-                "order_id": response.get('order_id', req_id)
-            }, status=status.HTTP_200_OK)
-
-        else:
-            # 4. REFUND ON API FAILURE
-            TransactionService.process_refund(user, plan.price, result.reference, "API Failure (Mobile)")
-            notify(user, "Data purchase failed", f"{plan.plan_name} for {phone} could not be completed. ₦{plan.price} was refunded to your wallet.")
-            return Response({
-                "message": f"Provider Error: {response.get('remarks', 'Try again later')}. Funds refunded."
-            }, status=status.HTTP_400_BAD_REQUEST)
-
-    except Exception as e:
-        TransactionService.process_refund(user, plan.price, result.reference, "System Crash (Mobile)")
-        notify(user, "Data purchase failed", f"{plan.plan_name} for {phone} could not be completed. ₦{plan.price} was refunded to your wallet.")
-        return Response({"message": f"System error occurred. Funds refunded. Detail: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    # 2. GATEWAY: route, submit, fail over only when provably safe, refund once if everything rejected
+    return _complete(user, result, template, lambda r: {
+        "message": "Transaction Successful!",
+        "transaction_id": result.id,
+        "plan": plan.plan_name,
+        "phone": phone,
+        "amount_paid": str(result.amount_customer_paid),
+        "order_id": r.order_id or result.reference,
+    }, service_charge=plan.additional_fee)
 
 @csrf_exempt
 @api_view(['POST'])
@@ -384,7 +411,7 @@ def api_buy_data(request):
 def api_buy_airtime(request):
     """
     Production-grade Mobile Airtime Purchase.
-    Uses TransactionService for atomic balance deductions and audit tracking.
+    Atomic debit -> provider-agnostic gateway (safe failover) -> exactly-once refund on confirmed failure.
     """
     user = request.user
     network = request.data.get('network')
@@ -399,82 +426,53 @@ def api_buy_airtime(request):
     if not user.profile.check_pin(pin):
         return Response({"message": "Invalid Transaction PIN"}, status=status.HTTP_400_BAD_REQUEST)
 
-    # 0. NETWORK MAPPING (String to ClubKonnect ID)
-    network_map = {
-        'MTN': '01',
-        'GLO': '02',
-        '9MOBILE': '03',
-        'AIRTEL': '04'
-    }
-    
-    # Handle matching regardless of case
-    network_id = network_map.get(str(network).upper())
-
-    if not network_id:
+    network_name = str(network).upper()
+    if network_name not in flows.NETWORK_CODES:
         return Response({"message": f"Invalid Network: {network}. Select MTN, GLO, AIRTEL, or 9MOBILE."}, status=status.HTTP_400_BAD_REQUEST)
 
     try:
         amount = float(amount_str)
-        if amount <= 0:
+        if amount <= 0 or amount != amount or amount in (float('inf'),):
             raise ValueError
-    except ValueError:
+    except (ValueError, TypeError):
         return Response({"message": "Invalid amount"}, status=status.HTTP_400_BAD_REQUEST)
 
     # CTO LOGIC: 1% Discount (User pays 99%, you pay 97%, Profit is 2%)
     selling_price = (Decimal(str(amount)) * Decimal('0.99')).quantize(Decimal('0.01'))
-    cost_price = (Decimal(str(amount)) * Decimal('0.97')).quantize(Decimal('0.01')) 
-    
-    # 1. ACQUISITION OF LOCK & ATOMIC DEBIT
+    cost_price = (Decimal(str(amount)) * Decimal('0.97')).quantize(Decimal('0.01'))
+
+    template = flows.airtime_request(network_name, amount, phone)
+    blocked = _blocked(template)
+    if blocked:
+        return blocked
+
+    # 1. ATOMIC DEBIT
     success, tx = TransactionService.process_debit(
         user=user,
         amount=selling_price,
-        service_type=f"Airtime Purchase (Mobile)",
+        service_type="Airtime Purchase (Mobile)",
         plan_name=f"{network} Airtime (₦{amount})",
         recipient=phone,
-        reference=f"ATM-{int(time.time())}",
+        reference=flows.new_reference("ATM"),
         description=f"Mobile Airtime purchase of {network} {amount} for {phone}",
-        cost_price=cost_price
+        cost_price=cost_price,
+        idempotency_key=_idem_key(request),
     )
-
     if not success:
         return Response({"message": f"Transaction failed: {tx}"}, status=status.HTTP_400_BAD_REQUEST)
+    if getattr(tx, 'replayed', False):
+        return _replay(tx)
 
-    # 2. CALL PROVIDER API
-    try:
-        ck = ClubKonnectService()
-        response, req_id = ck.buy_airtime(network_id, amount, phone)
-
-        if response.get('status') in ['ORDER_RECEIVED', 'SUCCESSFUL']:
-            # 3. SUCCESS - Finalize record
-            Transaction.objects.filter(reference=tx.reference).update(status="Successful")
-            final_tx = Transaction.objects.get(reference=tx.reference)
-            final_tx.calculate_totals()
-
-            notify(user, "Airtime purchase successful", f"{network} Airtime for {phone} — ₦{final_tx.amount_customer_paid}.")
-
-            return Response({
-                "message": "Airtime Sent!",
-                "new_balance": str(user.profile.wallet_balance),
-                "transaction_id": final_tx.id,
-                "network": network,
-                "amount": str(amount),
-                "phone": phone,
-                "amount_paid": str(final_tx.amount_customer_paid),
-                "order_id": response.get('order_id', req_id)
-            }, status=status.HTTP_200_OK)
-
-        else:
-            # 4. REFUND ON API FAILURE
-            TransactionService.process_refund(user, selling_price, tx.reference, "API Failure (Mobile)")
-            notify(user, "Airtime purchase failed", f"{network} Airtime for {phone} could not be completed. ₦{selling_price} was refunded to your wallet.")
-            return Response({
-                "message": f"Provider Error: {response.get('remark', 'Try again later')}. Funds refunded."
-            }, status=status.HTTP_400_BAD_REQUEST)
-
-    except Exception as e:
-        TransactionService.process_refund(user, selling_price, tx.reference, "System Crash (Mobile)")
-        notify(user, "Airtime purchase failed", f"{network} Airtime for {phone} could not be completed. ₦{selling_price} was refunded to your wallet.")
-        return Response({"message": f"System error occurred. Funds refunded. Detail: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    # 2. GATEWAY
+    return _complete(user, tx, template, lambda r: {
+        "message": "Airtime Sent!",
+        "transaction_id": tx.id,
+        "network": network,
+        "amount": str(amount),
+        "phone": phone,
+        "amount_paid": str(tx.amount_customer_paid),
+        "order_id": r.order_id or tx.reference,
+    })
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
@@ -552,25 +550,20 @@ def api_password_reset(request):
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def api_validate_cable(request):
-    """Mobile API for real-time decoder verification."""
+    """Mobile API for real-time decoder verification (providers asked in priority order)."""
     cable_tv = request.GET.get('cable_tv') # gotv, dstv, etc
     smart_card = request.GET.get('smart_card')
-    
+
     if not cable_tv or not smart_card:
         return Response({"error": "Missing cable_tv or smart_card"}, status=400)
-    
-    service = ClubKonnectService()
-    result = service.validate_decoder(cable_tv, smart_card)
-    return Response(result)
+
+    return Response(flows.verify_customer(Service.CABLE, str(cable_tv).upper(), smart_card))
 
 @csrf_exempt
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def api_buy_cable(request):
-    """
-    Secure Mobile Cable TV purchase.
-    Uses TransactionService for atomic deductions and PIN verification.
-    """
+    """Secure Mobile Cable TV purchase: PIN, atomic debit, gateway, exactly-once refund."""
     user = request.user
     cable_tv = request.data.get('cable_tv')
     package_id = request.data.get('package_id') # This is the plan_id
@@ -585,11 +578,15 @@ def api_buy_cable(request):
     if not user.profile.check_pin(pin):
         return Response({"message": "Invalid Transaction PIN"}, status=400)
 
-    # 2. GET PLAN
-    try:
-        plan = CablePlan.objects.get(plan_id=package_id)
-    except CablePlan.DoesNotExist:
+    # 2. GET PLAN (scoped to the decoder brand: provider plan ids are not unique across brands)
+    plan = CablePlan.objects.filter(plan_id=package_id, cable_type=str(cable_tv).lower(), is_active=True).first()
+    if plan is None:
         return Response({"message": "Invalid Package ID"}, status=400)
+
+    template = flows.cable_request(plan, smart_card, phone)
+    blocked = _blocked(template)
+    if blocked:
+        return blocked
 
     # 3. ATOMIC DEBIT
     success, tx = TransactionService.process_debit(
@@ -598,71 +595,41 @@ def api_buy_cable(request):
         service_type=f"Cable: {plan.name} (Mobile)",
         plan_name=f"{plan.cable_type.upper()}: {plan.name}",
         recipient=smart_card,
-        reference=f"CB-{int(time.time())}",
+        reference=flows.new_reference("CB"),
         description=f"Mobile Subscription for {plan.name} on {smart_card}",
-        cost_price=plan.cost_price
+        cost_price=plan.cost_price,
+        idempotency_key=_idem_key(request),
     )
-
     if not success:
         return Response({"message": f"Transaction failed: {tx}"}, status=400)
+    if getattr(tx, 'replayed', False):
+        return _replay(tx)
 
-    # 4. CALL PROVIDER API
-    try:
-        ck = ClubKonnectService()
-        response, req_id = ck.buy_cable(cable_tv, package_id, smart_card, phone)
-
-        if response.get('status') == 'ORDER_RECEIVED':
-            # SUCCESS
-            Transaction.objects.filter(reference=tx.reference).update(status="Successful")
-            final_tx = Transaction.objects.get(reference=tx.reference)
-            final_tx.calculate_totals()
-
-            notify(user, "Cable purchase successful", f"{plan.cable_type.upper()}: {plan.name} for {smart_card} — ₦{final_tx.amount_customer_paid}.")
-
-            return Response({
-                "message": "Subscription Received Successfully",
-                "new_balance": str(user.profile.wallet_balance),
-                "transaction_id": final_tx.id,
-                "order_id": response.get('orderid', req_id)
-            })
-
-        else:
-            # FAILURE - REFUND
-            TransactionService.process_refund(user, plan.price, tx.reference, "API Failure (Mobile)")
-            notify(user, "Cable purchase failed", f"{plan.cable_type.upper()}: {plan.name} for {smart_card} could not be completed. ₦{plan.price} was refunded to your wallet.")
-            return Response({
-                "message": f"Provider Error: {response.get('remark', 'Try again later')}",
-                "status": response.get('status')
-            }, status=400)
-
-    except Exception as e:
-        TransactionService.process_refund(user, plan.price, tx.reference, "System Crash (Mobile)")
-        notify(user, "Cable purchase failed", f"{plan.cable_type.upper()}: {plan.name} for {smart_card} could not be completed. ₦{plan.price} was refunded to your wallet.")
-        return Response({"message": f"System error: {str(e)}"}, status=500)
+    # 4. GATEWAY
+    return _complete(user, tx, template, lambda r: {
+        "message": "Subscription Received Successfully",
+        "transaction_id": tx.id,
+        "order_id": r.order_id or tx.reference,
+    })
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def api_validate_meter(request):
-    """Mobile API for real-time meter verification."""
+    """Mobile API for real-time meter verification (providers asked in priority order)."""
     disco = request.GET.get('disco')
     meter_no = request.GET.get('meter_no')
     meter_type = request.GET.get('meter_type')
-    
+
     if not disco or not meter_no or not meter_type:
         return Response({"error": "Missing disco, meter_no, or meter_type"}, status=400)
-    
-    service = ClubKonnectService()
-    result = service.validate_meter(disco, meter_no, meter_type)
-    return Response(result)
+
+    return Response(flows.verify_customer(Service.ELECTRICITY, disco, meter_no, meter_type))
 
 @csrf_exempt
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def api_pay_electricity(request):
-    """
-    Secure Mobile Electricity bill payment.
-    Uses TransactionService for atomic deductions and PIN verification.
-    """
+    """Secure Mobile Electricity bill payment: PIN, atomic debit, gateway, exactly-once refund."""
     user = request.user
     disco = request.data.get('disco')
     meter_no = request.data.get('meter_no')
@@ -680,6 +647,8 @@ def api_pay_electricity(request):
 
     try:
         amount = Decimal(str(amount_str))
+        if not amount.is_finite():
+            raise InvalidOperation
         if amount < 1000:
             return Response({"message": "Minimum amount for electricity is ₦1,000"}, status=400)
     except (InvalidOperation, ValueError, TypeError):
@@ -689,6 +658,11 @@ def api_pay_electricity(request):
     service_fee = Decimal('100.00')
     total_to_pay = amount + service_fee
 
+    template = flows.electricity_request(disco, meter_type, meter_no, amount, phone)
+    blocked = _blocked(template)
+    if blocked:
+        return blocked
+
     # 3. ATOMIC DEBIT (Fintech Grade)
     success, tx = TransactionService.process_debit(
         user=user,
@@ -696,48 +670,21 @@ def api_pay_electricity(request):
         service_type=f"Electricity: {disco} (Mobile)",
         plan_name=f"Electricity: {disco} ({'Prepaid' if meter_type == '01' else 'Postpaid'})",
         recipient=meter_no,
-        reference=f"ELE-{int(time.time())}",
+        reference=flows.new_reference("ELE"),
         description=f"Mobile Bill Payment for {meter_no}. Amount: ₦{amount}, Fee: ₦{service_fee}",
-        cost_price=amount
+        cost_price=amount,
+        idempotency_key=_idem_key(request),
     )
-
     if not success:
         return Response({"message": f"Transaction failed: {tx}"}, status=400)
+    if getattr(tx, 'replayed', False):
+        return _replay(tx)
 
-    # 4. CALL PROVIDER API
-    try:
-        ck = ClubKonnectService()
-        response, req_id = ck.pay_electricity(disco, meter_no, meter_type, amount, phone)
-
-        if response.get('status') == 'ORDER_RECEIVED':
-            # Mark Successful
-            Transaction.objects.filter(reference=tx.reference).update(
-                status="Successful",
-                bt_service_charge=service_fee
-            )
-            final_tx = Transaction.objects.get(reference=tx.reference)
-            final_tx.calculate_totals()
-
-            notify(user, "Electricity purchase successful", f"{disco} bill for meter {meter_no} — ₦{final_tx.amount_customer_paid}.")
-
-            return Response({
-                "message": "Payment Successful",
-                "token": response.get('metertoken', 'Processing...'),
-                "new_balance": str(user.profile.wallet_balance),
-                "transaction_id": final_tx.id,
-                "order_id": response.get('orderid', req_id)
-            })
-
-        else:
-            # FAILURE - REFUND
-            TransactionService.process_refund(user, total_to_pay, tx.reference, "API Failure (Mobile)")
-            notify(user, "Electricity purchase failed", f"{disco} bill for meter {meter_no} could not be completed. ₦{total_to_pay} was refunded to your wallet.")
-            return Response({
-                "message": f"Provider Error: {response.get('remark', 'Try again later')}",
-                "status": response.get('status')
-            }, status=400)
-
-    except Exception as e:
-        TransactionService.process_refund(user, total_to_pay, tx.reference, "System Crash (Mobile)")
-        notify(user, "Electricity purchase failed", f"{disco} bill for meter {meter_no} could not be completed. ₦{total_to_pay} was refunded to your wallet.")
-        return Response({"message": f"System error: {str(e)}"}, status=500)
+    # 4. GATEWAY (the token is returned only if the supplier already included it; otherwise it arrives by SMS)
+    def payload(r):
+        body = {"message": "Payment Successful", "transaction_id": tx.id, "order_id": r.order_id or tx.reference}
+        token = (r.extra or {}).get('metertoken')
+        if token:
+            body["token"] = token
+        return body
+    return _complete(user, tx, template, payload, service_charge=service_fee)

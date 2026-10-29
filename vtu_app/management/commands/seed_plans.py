@@ -7,7 +7,7 @@ class Command(BaseCommand):
 
     def handle(self, *args, **kwargs):
         # Clear all existing plans to avoid duplicates with wrong IDs
-        deleted, _ = DataPlan.objects.all().delete()
+        deleted, _ = DataPlan.objects.filter(source='nellobytes').delete()  # never touches imported Gongoz plans
         self.stdout.write(self.style.WARNING(f'Cleared {deleted} old plan(s).'))
 
         plans = [

@@ -1,6 +1,7 @@
 from django.urls import path
 from rest_framework.authtoken.views import obtain_auth_token
 from . import api_views
+from .gateway.views import ProviderCallbackView
 
 urlpatterns = [
     # Mobile Login: Returns a Token
@@ -36,6 +37,9 @@ urlpatterns = [
     path('notifications/', api_views.api_get_notifications, name='api_notifications'),
     path('notifications/read-all/', api_views.api_mark_all_notifications_read, name='api_notifications_read_all'),
     path('notifications/<int:pk>/read/', api_views.api_mark_notification_read, name='api_notification_read'),
+
+    # VTU provider callbacks (supplier -> us)
+    path('vtu/webhook/<slug:provider>/', ProviderCallbackView.as_view(), name='vtu_provider_webhook'),
 
     # Paystack Card Funding
     path('payments/paystack/verify/<str:reference>/', api_views.api_paystack_verify, name='api_paystack_verify'),

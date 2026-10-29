@@ -30,6 +30,11 @@ class ClubKonnectService:
         self.balance_url = f"{self.base_url}/APIWalletBalanceV1.asp"
 
     def get_balance(self):
+        # Read through the gateway adapter so both the VTU_NELLOBYTES_* and the older NELLOBYTE_* settings work.
+        from vtu_app.gateway import registry
+        adapter = registry.get_adapter('nellobytes')
+        if adapter is not None and adapter.config.is_valid:
+            return adapter.get_balance()
         url = f"{self.balance_url}?UserID={self.user_id}&APIKey={self.api_key}"
 
         try:

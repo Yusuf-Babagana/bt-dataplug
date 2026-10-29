@@ -11,6 +11,7 @@ from django.utils import timezone
 from rest_framework.test import APIClient
 
 from vtu_app.models import CablePlan, DataPlan, Profile, ServiceSwitch, Transaction as CoreTx, WalletTransaction
+from vtu_app.testing import GatewayTestCase, SupplierStub
 
 from . import services, webhooks
 from .models import ApiApplication, ApiRequestLog, ApiTransaction, DeveloperAccount, WebhookDelivery
@@ -48,15 +49,21 @@ def wallet(dev):
 
 
 @override_settings(ALLOWED_HOSTS=['testserver'], DEVELOPER_API_ASYNC_WEBHOOKS=False, PASSWORD_HASHERS=FAST_HASH)
-class ApiTestBase(TestCase):
+class ApiTestBase(GatewayTestCase):
+    nello = True
+    fakes = False
+
     def setUp(self):
+        super().setUp()
         self.client = APIClient()
         self.dev = make_developer()
         self.app, self.secret = make_app(self.dev)
         self.plan = DataPlan.objects.create(network='01', plan_name='MTN 1GB SME - 7 days', dataplan_id='1000', cost_price=Decimal('450'), price=Decimal('400'))
         self.cable = CablePlan.objects.create(cable_type='gotv', name='Jolli', plan_id='gotv-jolli', cost_price=Decimal('2400'), price=Decimal('2500'))
-        ck_patch = mock.patch('developer_api.services.ClubKonnectService')
-        self.ck = ck_patch.start().return_value
+        # The real Nellobytes adapter runs; only the HTTP boundary is stubbed (see vtu_app.testing.SupplierStub).
+        self.ck = SupplierStub()
+        ck_patch = mock.patch('vtu_app.gateway.adapters.nellobytes.requests.get', side_effect=self.ck)
+        ck_patch.start()
         self.addCleanup(ck_patch.stop)
         self.ck.buy_data.return_value = OK_RESPONSE
         self.ck.buy_airtime.return_value = OK_RESPONSE
@@ -73,6 +80,11 @@ class ApiTestBase(TestCase):
 
     def buy_data(self, key='key-00000001', phone='08012345678', **kw):
         return self.post('/data/', {'plan_id': self.plan.pk, 'phone': phone}, key=key, **kw)
+
+    def supplier_confirms(self, reference, status='ORDER_COMPLETED'):
+        """The supplier reports a final status for an order it accepted; reconciliation settles it."""
+        self.ck.query_order.return_value = {'status': status}
+        return services.reconcile(ApiTransaction.objects.get(reference=reference))
 
 
 class AuthenticationTests(ApiTestBase):
@@ -182,9 +194,14 @@ class PurchaseTests(ApiTestBase):
         r = self.buy_data()
         self.assertEqual(r.status_code, 201, r.content)
         data = r.json()['data']
-        self.assertEqual((data['status'], data['amount']), ('successful', '400.00'))
+        # The supplier only RECEIVED the order: it stays pending until the supplier confirms completion.
+        self.assertEqual((data['status'], data['amount']), ('pending', '400.00'))
         self.assertEqual(wallet(self.dev), Decimal('4600.00'))
         core = CoreTx.objects.get(reference=data['reference'])
+        self.assertEqual((core.status, core.provider), ('Pending', 'nellobytes'))
+        self.supplier_confirms(data['reference'])
+        self.assertEqual(ApiTransaction.objects.get(reference=data['reference']).status, 'successful')
+        core.refresh_from_db()
         self.assertEqual((core.status, core.amount_customer_paid, core.cost_from_klubconnect), ('Successful', Decimal('400.00'), Decimal('450.00')))
         self.assertEqual(core.net_profit, Decimal('-50.00'))  # selling below cost is allowed
         self.ck.buy_data.assert_called_once()
@@ -415,9 +432,10 @@ class WebhookTests(ApiTestBase):
         self.app.save()
 
     def test_event_queued_with_valid_signature(self):
-        self.buy_data()
-        d = WebhookDelivery.objects.get()
-        self.assertEqual(d.event_type, 'transaction.successful')
+        ref = self.buy_data().json()['data']['reference']
+        self.assertEqual(WebhookDelivery.objects.get().event_type, 'transaction.pending')   # supplier only received it
+        self.supplier_confirms(ref)
+        d = WebhookDelivery.objects.get(event_type='transaction.successful')
         self.assertTrue(d.event_id.startswith('evt_'))
         with mock.patch('developer_api.webhooks.requests.post') as post, mock.patch('developer_api.webhooks.validate_webhook_url'):
             post.return_value.status_code = 200
