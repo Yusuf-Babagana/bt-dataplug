@@ -34,6 +34,26 @@ class PriorityPolicy(RoutingPolicy):
         return [a for a, s in sorted(candidates, key=lambda c: (effective_priority(*c), c[0].name))]
 
 
+class LowestCostPolicy(RoutingPolicy):
+    """
+    Cheapest first. Each provider's estimated cost for THIS request comes from ``adapter.quote`` (verified plan offers
+    for data/cable, the published airtime rate for airtime). A provider whose cost is unknown sorts after every provider
+    with a known cost, and ties - or no cost data at all - fall back to priority order, so enabling this policy can never
+    make routing worse than priority routing.
+    """
+
+    def order(self, candidates, request):
+        def key(c):
+            adapter, state = c
+            try:
+                cost = adapter.quote(request)
+            except Exception:
+                cost = None
+            return (cost is None, cost if cost is not None else 0, effective_priority(adapter, state), adapter.name)
+
+        return [a for a, s in sorted(candidates, key=key)]
+
+
 @dataclass
 class Selection:
     adapters: list = field(default_factory=list)    # eligible, in attempt order

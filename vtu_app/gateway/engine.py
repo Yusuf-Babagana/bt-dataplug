@@ -20,7 +20,7 @@ from django.utils import timezone
 from vtu_app.models import CablePlan, DataPlan, PurchaseAttempt, Transaction
 from vtu_app.services.transaction_service import TransactionService
 
-from . import health, ledger, registry, router
+from . import health, ledger, offers, registry, router
 from .types import ErrorCategory, OrderStatus, Outcome, ProviderResult, PurchaseRequest, Service
 
 logger = logging.getLogger("vtu_app.gateway")
@@ -68,14 +68,14 @@ def dispatch(tx: Transaction, template: PurchaseRequest, auto_refund=True) -> Di
 
         if result.outcome == Outcome.ACCEPTED:
             health.record_success(adapter.name)
-            _attach(tx, adapter.name, result.provider_order_id)
+            _attach(tx, adapter.name, result.provider_order_id, _cost(adapter, template))
             TransactionService.record_event(tx, "Pending", "Pending", "purchase", f"accepted by {adapter.name}")
             return Dispatch("accepted", order_id=result.provider_order_id, extra=result.extra, code=result.code)
 
         if result.outcome == Outcome.AMBIGUOUS:
             # May already be processed - never fail over, never refund. Reconciliation decides.
             health.record_failure(adapter.name, result.category, result.message)
-            _attach(tx, adapter.name, result.provider_order_id)
+            _attach(tx, adapter.name, result.provider_order_id, _cost(adapter, template))
             TransactionService.record_event(tx, "Pending", "Pending", "purchase",
                                             f"{adapter.name} outcome unclear ({result.category}); awaiting reconciliation")
             logger.warning("vtu ambiguous: ref=%s provider=%s category=%s", base_ref, adapter.name, result.category)
@@ -118,20 +118,35 @@ def _customer_message(last: ProviderResult):
     return BUSY_MESSAGE, 502
 
 
-def _attach(tx, provider, order_id=""):
+def _cost(adapter, template):
+    """What the provider that took the order charges us for it (None = unknown)."""
+    try:
+        return adapter.quote(template)
+    except Exception:
+        return None
+
+
+def _attach(tx, provider, order_id="", cost=None):
     fields = {"provider": provider}
     if order_id:
         fields["order_id"] = order_id
+    if cost is not None:
+        fields["cost_from_klubconnect"] = cost      # so profit reports use the provider that actually fulfilled it
     Transaction.objects.filter(pk=tx.pk).update(**fields)
     tx.provider = provider
     if order_id:
         tx.order_id = order_id
+    if cost is not None:
+        tx.cost_from_klubconnect = cost
 
 
 def _attempt(tx, adapter, template, base_ref, seq) -> ProviderResult:
     reference = base_ref if seq == 1 else f"{base_ref}-{seq}"
     request = PurchaseRequest(**{**template.__dict__, "reference": reference})
     request.callback_url = _callback_url(adapter)
+    chosen = offers.offer(adapter.name, template)       # each provider sells the plan under ITS OWN code
+    if chosen is not None:
+        request.plan_id = chosen.code
 
     # Recorded BEFORE the network call: a crash mid-call still leaves a SUBMITTING row, which
     # reconciliation treats as a possibly-live order.

@@ -14,7 +14,7 @@ from django.utils.html import format_html
 
 from .models import (
     Profile, Transaction, DataPlan, CablePlan, WalletTransaction, Notification,
-    PaystackTransaction, ServiceSwitch, TransactionEvent, ProviderState, PurchaseAttempt,
+    PaystackTransaction, ServiceSwitch, TransactionEvent, ProviderState, PurchaseAttempt, PlanOffer, ProviderRate,
 )
 from .notifications import notify
 from .services.transaction_service import TransactionService
@@ -86,8 +86,24 @@ class PlanAdminBase(admin.ModelAdmin):
         return _is_owner(request)
 
 
+class _OfferInline(admin.TabularInline):
+    """Other providers that sell the SAME product (used to pick the cheapest). Tick 'verified' only after checking."""
+    model = PlanOffer
+    extra = 0
+    fields = ('provider', 'provider_code', 'cost_price', 'verified', 'is_active', 'note')
+
+
+class DataPlanOfferInline(_OfferInline):
+    fk_name = 'data_plan'
+
+
+class CablePlanOfferInline(_OfferInline):
+    fk_name = 'cable_plan'
+
+
 @admin.register(DataPlan)
 class DataPlanAdmin(PlanAdminBase):
+    inlines = [DataPlanOfferInline]
     list_display = ('plan_name', 'network', 'dataplan_id', 'source', 'cost_price', 'price', 'additional_fee', 'margin', 'is_active')
     list_filter = ('network', 'source', 'is_active', MarginFilter)
     search_fields = ('plan_name', 'dataplan_id')
@@ -96,6 +112,7 @@ class DataPlanAdmin(PlanAdminBase):
 
 @admin.register(CablePlan)
 class CablePlanAdmin(PlanAdminBase):
+    inlines = [CablePlanOfferInline]
     list_display = ('name', 'cable_type', 'plan_id', 'source', 'cost_price', 'price', 'additional_fee', 'margin', 'is_active')
     list_filter = ('cable_type', 'source', 'is_active', MarginFilter)
     search_fields = ('name', 'plan_id')
@@ -541,3 +558,51 @@ class PurchaseAttemptAdmin(admin.ModelAdmin):
 
     def has_delete_permission(self, request, obj=None):
         return False
+
+
+@admin.register(PlanOffer)
+class PlanOfferAdmin(admin.ModelAdmin):
+    """Alternative providers for a plan. Only VERIFIED, active offers are ever used for routing."""
+    list_display = ('plan_label', 'provider', 'provider_code', 'cost_price', 'own_cost', 'saving', 'verified', 'is_active', 'note')
+    list_filter = ('verified', 'is_active', 'provider')
+    search_fields = ('provider_code', 'note', 'data_plan__plan_name', 'cable_plan__name')
+    list_editable = ('verified',)
+    list_select_related = ('data_plan', 'cable_plan')
+    actions = ['mark_verified', 'mark_unverified']
+
+    @admin.display(description='Plan')
+    def plan_label(self, obj):
+        plan = obj.data_plan or obj.cable_plan
+        return f"{plan}"
+
+    @admin.display(description='Plan cost now')
+    def own_cost(self, obj):
+        return (obj.data_plan or obj.cable_plan).cost_price
+
+    @admin.display(description='Saving vs plan owner')
+    def saving(self, obj):
+        diff = (obj.data_plan or obj.cable_plan).cost_price - obj.cost_price
+        return _badge(f'₦{diff:,.2f}', 'ok' if diff > 0 else 'bad')
+
+    @admin.action(description='Mark selected offers VERIFIED (same product - use for routing)')
+    def mark_verified(self, request, queryset):
+        self.message_user(request, f"{queryset.update(verified=True)} offer(s) verified.")
+
+    @admin.action(description='Mark selected offers UNVERIFIED (stop using them)')
+    def mark_unverified(self, request, queryset):
+        self.message_user(request, f"{queryset.update(verified=False)} offer(s) unverified.")
+
+
+@admin.register(ProviderRate)
+class ProviderRateAdmin(admin.ModelAdmin):
+    """
+    What each provider charges us, as a percent of face value (airtime:MTN = 97 means 3% discount). Gongoz's rates are
+    refreshed automatically; add Nellobytes' here by hand (copy them from its dashboard). Used only to pick the cheaper.
+    """
+    list_display = ('provider', 'key', 'value', 'source', 'updated_at')
+    list_filter = ('provider', 'source')
+    list_editable = ('value',)
+
+    def save_model(self, request, obj, form, change):
+        obj.source = ProviderRate.MANUAL        # a hand-edited rate is never overwritten by the refresher
+        super().save_model(request, obj, form, change)

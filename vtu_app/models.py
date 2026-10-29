@@ -310,3 +310,59 @@ class PurchaseAttempt(models.Model):
 
     def __str__(self):
         return f"{self.provider}#{self.sequence} {self.outcome} ({self.reference})"
+
+
+class PlanOffer(models.Model):
+    """
+    "This provider sells the same product as one of OUR customer-facing plans, under its own code, at its own cost."
+    Lets the router pick the cheapest provider for a plan whose own ``source`` is a different provider. Offers are
+    created UNVERIFIED by ``suggest_plan_offers`` (matching size + validity) and are only used for routing once a human
+    ticks ``verified`` - a wrong link would sell a customer a different bundle than the one they paid for.
+    """
+    data_plan = models.ForeignKey(DataPlan, null=True, blank=True, on_delete=models.CASCADE, related_name="offers")
+    cable_plan = models.ForeignKey(CablePlan, null=True, blank=True, on_delete=models.CASCADE, related_name="offers")
+    provider = models.CharField(max_length=30)
+    provider_code = models.CharField(max_length=50, help_text="The provider's own plan id/code")
+    cost_price = models.DecimalField(max_digits=10, decimal_places=2, help_text="What this provider charges us (refreshed automatically)")
+    verified = models.BooleanField(default=False, help_text="Tick only after checking it is the SAME product (size, validity, type)")
+    is_active = models.BooleanField(default=True, help_text="Cleared automatically when the provider stops listing this plan")
+    note = models.CharField(max_length=200, blank=True, default="", help_text="What it matched against (for review)")
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["provider", "data_plan_id", "cable_plan_id"]
+        constraints = [
+            models.CheckConstraint(
+                condition=(models.Q(data_plan__isnull=False, cable_plan__isnull=True)
+                           | models.Q(data_plan__isnull=True, cable_plan__isnull=False)),
+                name="vtu_planoffer_exactly_one_plan"),
+            models.UniqueConstraint(fields=["data_plan", "provider"], condition=models.Q(data_plan__isnull=False),
+                                    name="vtu_planoffer_data_provider_uniq"),
+            models.UniqueConstraint(fields=["cable_plan", "provider"], condition=models.Q(cable_plan__isnull=False),
+                                    name="vtu_planoffer_cable_provider_uniq"),
+        ]
+
+    def __str__(self):
+        plan = self.data_plan or self.cable_plan
+        return f"{self.provider}: {plan} -> {self.provider_code} (₦{self.cost_price})"
+
+
+class ProviderRate(models.Model):
+    """
+    Non-secret pricing facts per provider, e.g. ``airtime:MTN`` = 97 means the provider charges us 97% of the face
+    value. Refreshed automatically where the provider publishes them (rows marked ``auto``); a row you set by hand
+    (``manual``) is never overwritten. Used only to compare providers when choosing the cheapest.
+    """
+    AUTO, MANUAL = "auto", "manual"
+    provider = models.CharField(max_length=30)
+    key = models.CharField(max_length=40, help_text="e.g. airtime:MTN")
+    value = models.DecimalField(max_digits=8, decimal_places=3, help_text="Percent of face value the provider charges us (97 = 3% discount)")
+    source = models.CharField(max_length=10, default="manual", choices=[("auto", "auto"), ("manual", "manual")])
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["provider", "key"]
+        constraints = [models.UniqueConstraint(fields=["provider", "key"], name="vtu_providerrate_uniq")]
+
+    def __str__(self):
+        return f"{self.provider} {self.key} = {self.value}%"

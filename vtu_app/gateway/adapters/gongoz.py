@@ -17,11 +17,13 @@ Consequences, all deliberate:
 """
 import logging
 import time
+from decimal import Decimal
 
 import requests
 
-from vtu_app.models import CablePlan, DataPlan
 
+from .. import offers
+from ..catalog import CatalogPlan
 from ..base import CustomerVerificationError, ProviderAdapter, WebhookRejected
 from ..config import ConfigSpec
 from ..types import (
@@ -98,23 +100,17 @@ class GongozAdapter(ProviderAdapter):
     GENERIC = "Service temporarily unavailable. Please try again."
 
     # -- capability ---------------------------------------------------------
-    def _code(self, r: PurchaseRequest):
-        """Gongoz's own plan id, only for plans imported from Gongoz (source='gongoz'); else None."""
-        if not r.plan_pk:
-            return None
-        model, field = (DataPlan, "dataplan_id") if r.service == Service.DATA else (CablePlan, "plan_id")
-        return model.objects.filter(pk=r.plan_pk, source=self.name).values_list(field, flat=True).first()
-
     def supports(self, r: PurchaseRequest) -> bool:
         net = (r.network or "").upper()
         if r.service == Service.AIRTIME:
             return net in AIRTIME_NETWORKS
         if r.service == Service.ELECTRICITY:
             return net in DISCO_IDS
+        # DATA/CABLE: only a plan Gongoz owns, or one with a verified offer from it (see offers.py)
         if r.service == Service.DATA:
-            return net in NETWORK_IDS and self._code(r) is not None
+            return net in NETWORK_IDS and offers.offer(self.name, r) is not None
         if r.service == Service.CABLE:
-            return net in CABLE_IDS and self._code(r) is not None
+            return net in CABLE_IDS and offers.offer(self.name, r) is not None
         return False
 
     # -- http ---------------------------------------------------------------
@@ -126,6 +122,46 @@ class GongozAdapter(ProviderAdapter):
         except requests.RequestException:
             return None
         return body if resp.status_code == 200 and isinstance(body, dict) else None
+
+    def catalog_plans(self):
+        cat = self.fetch_catalog()
+        if not cat:
+            return None
+        out = []
+        nets = {"MTN_PLAN": "01", "GLO_PLAN": "02", "9MOBILE_PLAN": "03", "AIRTEL_PLAN": "04"}
+        for key, code in nets.items():
+            for p in (cat.get("Dataplans") or {}).get(key, {}).get("ALL", []):
+                try:
+                    cost = Decimal(str(p["plan_amount"]))
+                    pid = str(p["dataplan_id"])
+                except (KeyError, ArithmeticError):
+                    continue
+                text = f"{p.get('plan', '')} {p.get('month_validate', '')} {p.get('plan_type', '')}"
+                if cost > 0:
+                    out.append(CatalogPlan("data", code, pid, cost, str(p.get("plan", "")), text))
+        brand = {"DSTV": "dstv", "GOTV": "gotv", "STARTIME": "startimes", "STARTIMES": "startimes"}
+        for plans in (cat.get("Cableplan") or {}).values():
+            for p in plans if isinstance(plans, list) else []:
+                kind = brand.get(str(p.get("cable", "")).upper())
+                try:
+                    cost = Decimal(str(p["plan_amount"]))
+                except (KeyError, ArithmeticError):
+                    continue
+                if kind and "cableplan_id" in p and cost > 0:
+                    name = str(p.get("package", "")).strip().strip('"').strip()
+                    out.append(CatalogPlan("cable", kind, str(p["cableplan_id"]), cost, name, name))
+        return out or None
+
+    def fetch_airtime_rates(self):
+        """Percent of face value Gongoz charges this account for VTU airtime, from its own account response."""
+        cat = self.fetch_catalog() or {}
+        rates = {}
+        for net, modes in (cat.get("topuppercentage") or {}).items():
+            try:
+                rates[str(net).upper()] = Decimal(str(modes["VTU"]))
+            except (KeyError, TypeError, ArithmeticError):
+                continue
+        return rates
 
     def _headers(self):
         return {"Authorization": f"Token {self.config.get('API_KEY')}", "Content-Type": "application/json"}
@@ -161,14 +197,14 @@ class GongozAdapter(ProviderAdapter):
         ported = self.config.get("PORTED_NUMBER", "true").lower() in ("1", "true", "yes", "on")
         net = (r.network or "").upper()
         if r.service == Service.DATA:
-            return {"network": NETWORK_IDS[net], "mobile_number": r.target, "plan": int(self._code(r)), "Ported_number": ported}
+            return {"network": NETWORK_IDS[net], "mobile_number": r.target, "plan": int(r.plan_id), "Ported_number": ported}
         if r.service == Service.AIRTIME:
             return {"network": NETWORK_IDS[net], "amount": self._whole(r.amount), "mobile_number": r.target,
                     "Ported_number": ported, "airtime_type": "VTU"}
         if r.service == Service.ELECTRICITY:
             return {"disco_name": DISCO_IDS[net], "amount": self._whole(r.amount), "meter_number": r.target,
                     "MeterType": METER_TYPE_IDS.get((r.meter_type or "PREPAID").upper(), 1)}
-        return {"cablename": CABLE_IDS[net], "cableplan": int(self._code(r)), "smart_card_number": r.target}
+        return {"cablename": CABLE_IDS[net], "cableplan": int(r.plan_id), "smart_card_number": r.target}
 
     def purchase(self, r: PurchaseRequest) -> ProviderResult:
         started = time.monotonic()
