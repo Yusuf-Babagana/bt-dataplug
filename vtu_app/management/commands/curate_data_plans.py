@@ -1,6 +1,6 @@
 from decimal import ROUND_HALF_UP, Decimal
 
-from django.core.management.base import BaseCommand
+from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
 
 from vtu_app.models import DataPlan
@@ -48,11 +48,20 @@ class Command(BaseCommand):
         parser.add_argument("--apply", action="store_true", help="Write changes (default: preview only)")
         parser.add_argument("--margin", type=float, default=None,
                             help="Reset curated plans' selling price to cost + this percent (default: keep current price)")
+        parser.add_argument("--show-all", default="",
+                            help="Networks to show in FULL, not just curated (comma-separated: MTN,GLO,9MOBILE,AIRTEL). "
+                                 "All their Gongoz plans are activated (and repriced if --margin is given).")
 
     def handle(self, *args, **opts):
         apply, margin = opts["apply"], opts["margin"]
         factor = Decimal(str(1 + margin / 100)) if margin is not None else None
         keep, missing, cost_changed = set(), [], []
+        names = {"MTN": "01", "GLO": "02", "9MOBILE": "03", "AIRTEL": "04"}
+        full = set()
+        for n in (x.strip().upper() for x in opts["show_all"].split(",") if x.strip()):
+            if n not in names:
+                raise CommandError(f"Unknown network {n!r}; use one of {', '.join(names)}")
+            full.add(names[n])
 
         with transaction.atomic():
             for net, pid, label, expected in CURATED:
@@ -72,6 +81,16 @@ class Command(BaseCommand):
                         fields.append("price")
                     plan.save(update_fields=fields)
 
+            for plan in DataPlan.objects.filter(source="gongoz", network__in=full):
+                keep.add(plan.pk)
+                if apply:
+                    plan.is_active = True
+                    fields = ["is_active"]
+                    if factor is not None:
+                        plan.price = (plan.cost_price * factor).quantize(CENT, rounding=ROUND_HALF_UP)
+                        fields.append("price")
+                    plan.save(update_fields=fields)
+
             hide = DataPlan.objects.filter(source="gongoz", is_active=True).exclude(pk__in=keep)
             hidden = hide.count()
             if apply:
@@ -82,7 +101,7 @@ class Command(BaseCommand):
         for tag in missing:
             self.stdout.write(self.style.ERROR("NOT IMPORTED  " + tag))
         verb = "APPLIED" if apply else "PREVIEW (nothing written; add --apply)"
-        self.stdout.write(f"{verb}: curated active={len(keep)}/{len(CURATED)}, other Gongoz plans hidden={hidden}, "
+        self.stdout.write(f"{verb}: active={len(keep)} (curated {len(CURATED)}, full networks {len(full)}), other Gongoz plans hidden={hidden}, "
                           f"missing={len(missing)}, cost differs={len(cost_changed)}")
         if missing:
             self.stdout.write("Run `python manage.py gongoz_import_plans --apply` first, then re-run this command.")
